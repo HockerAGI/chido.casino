@@ -1,4 +1,4 @@
-# ChidoCasino Core (MVP)
+# chido.casino Core (MVP)
 
 Stack:
 - Next.js (App Router)
