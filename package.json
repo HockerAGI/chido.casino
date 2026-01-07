@@ -9,25 +9,25 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.4",
-    "clsx": "^2.1.1",
-    "framer-motion": "^11.0.0",
-    "lucide-react": "^0.330.0",
     "next": "14.1.0",
     "react": "^18",
     "react-dom": "^18",
+    "@supabase/supabase-js": "^2.39.0",
     "stripe": "^14.16.0",
-    "tailwind-merge": "^2.2.1"
+    "lucide-react": "^0.330.0",
+    "clsx": "^2.1.0",
+    "tailwind-merge": "^2.2.0",
+    "framer-motion": "^11.0.0"
   },
   "devDependencies": {
+    "typescript": "^5",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
-    "autoprefixer": "^10.4.20",
     "eslint": "^8",
     "eslint-config-next": "14.1.0",
-    "postcss": "^8.4.41",
-    "tailwindcss": "^3.4.10",
-    "typescript": "^5"
+    "tailwindcss": "^3.3.0",
+    "postcss": "^8",
+    "autoprefixer": "^10.0.1"
   }
 }
