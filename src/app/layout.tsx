@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <div className="relative min-h-[100dvh] overflow-hidden bg-[#06070b] text-white">
-      {/* Ambient animated glow */}
+      {/* Ambient FX */}
       <div className="pointer-events-none absolute inset-0">
         <div className="ambient-glow" />
         <div className="ambient-glow ambient-glow--two" />
