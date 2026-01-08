@@ -1,34 +1,75 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
+import { useRouter } from "next/navigation";
 
 export default function WalletPage() {
-  const [cargando, setCargando] = useState(true);
-  const [estadoDeposito, setEstadoDeposito] = useState<"idle" | "ok">("idle");
+  const router = useRouter();
+  const [balance, setBalance] = useState<number | null>(null);
 
   useEffect(() => {
-    setTimeout(() => setCargando(false), 1000);
-  }, []);
+    let channel: any;
 
-  if (cargando) {
-    return <div className="text-white/70">Cargando billetera...</div>;
-  }
+    async function init() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.push("/login");
+        return;
+      }
+
+      // Cargar balance inicial
+      const { data } = await supabase
+        .from("balances")
+        .select("balance")
+        .eq("user_id", user.id)
+        .single();
+
+      setBalance(data?.balance ?? 0);
+
+      // Realtime
+      channel = supabase
+        .channel("wallet-balance")
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "balances",
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            setBalance(payload.new.balance);
+          }
+        )
+        .subscribe();
+    }
+
+    init();
+
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [router]);
 
   return (
-    <div className="space-y-6">
-      {estadoDeposito === "ok" && (
-        <div className="rounded-xl border border-green-500/30 bg-green-900/20 p-4 text-green-400">
-          Depósito iniciado.  
-          Si fue OXXO, se acredita cuando Stripe confirma el pago.
-        </div>
-      )}
+    <div className="min-h-screen bg-[#06070b] p-6 text-white">
+      <div className="mx-auto max-w-md rounded-3xl bg-white/[0.04] p-6 backdrop-blur-xl">
+        <h1 className="text-xl font-black">Wallet</h1>
 
-      <button
-        onClick={() => setEstadoDeposito("ok")}
-        className="bg-green-500 text-black px-4 py-2 rounded-xl"
-      >
-        Simular depósito
-      </button>
+        <div className="mt-6 rounded-2xl bg-black/30 p-5 text-center">
+          <div className="text-sm text-white/50">Balance</div>
+          <div className="mt-2 text-4xl font-black">
+            ${balance?.toFixed(2)}
+          </div>
+          <div className="mt-2 text-xs text-white/40">
+            Actualización en tiempo real
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
