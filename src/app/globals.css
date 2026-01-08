@@ -1,344 +1,176 @@
 /* =========================================================
-   CHIDO CASINO — GLOBAL STYLES (FULL)
-   Dark · Premium · Minimal · Performance-safe
+   CHIDO CASINO — GLOBAL STYLES (FINAL)
+   Dark · Premium · Casino Top · Performance Safe
    ========================================================= */
 
-/* Tailwind layers */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ---------------------------------------------------------
-   Root variables (Brand System)
-   --------------------------------------------------------- */
+   Root variables — Brand System
+--------------------------------------------------------- */
 :root {
-  /* Brand RGB (para efectos y gradientes) */
   --fx-cyan: 0, 240, 255;
   --fx-green: 0, 255, 140;
   --fx-red: 255, 60, 0;
 
-  /* Base UI */
   --bg-main: #06070b;
   --bg-card: rgba(255, 255, 255, 0.04);
-  --border-soft: rgba(255, 255, 255, 0.10);
+  --border-soft: rgba(255, 255, 255, 0.1);
 
   --text-main: #ffffff;
   --text-muted: rgba(255, 255, 255, 0.65);
   --text-soft: rgba(255, 255, 255, 0.45);
-
-  /* Accents */
-  --cyan: rgb(var(--fx-cyan));
-  --green: rgb(var(--fx-green));
-  --red: rgb(var(--fx-red));
 }
 
 /* ---------------------------------------------------------
-   Base reset / smoothing
-   --------------------------------------------------------- */
-*,
-*::before,
-*::after {
+   Base / Reset
+--------------------------------------------------------- */
+* {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html {
-  background-color: var(--bg-main);
+  background: var(--bg-main);
   color-scheme: dark;
-  -webkit-text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
   min-height: 100dvh;
-  background-color: var(--bg-main);
+  background: var(--bg-main);
   color: var(--text-main);
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     Roboto, Inter, Helvetica, Arial, sans-serif;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* Remove tap highlight (mobile) */
-* {
-  -webkit-tap-highlight-color: transparent;
 }
 
 /* ---------------------------------------------------------
-   Scrollbar (subtle, premium)
-   --------------------------------------------------------- */
+   Scrollbar (Premium)
+--------------------------------------------------------- */
 ::-webkit-scrollbar {
   width: 10px;
-  height: 10px;
 }
-
 ::-webkit-scrollbar-track {
   background: #0a0c12;
 }
-
 ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.18);
   border-radius: 999px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.28);
 }
 
 /* ---------------------------------------------------------
-   Focus & accessibility
-   --------------------------------------------------------- */
-:focus-visible {
-  outline: 2px solid rgba(var(--fx-cyan), 0.55);
-  outline-offset: 2px;
-}
-
-button,
-input,
-textarea {
-  font-family: inherit;
-}
-
-/* ---------------------------------------------------------
-   Brand utility helpers (safe to use in JSX)
-   --------------------------------------------------------- */
+   Brand helpers
+--------------------------------------------------------- */
 .bg-chido-card {
-  background-color: var(--bg-card);
+  background: var(--bg-card);
 }
-
 .text-chido-cyan {
   color: rgb(var(--fx-cyan));
 }
-
 .text-chido-green {
   color: rgb(var(--fx-green));
 }
-
 .text-chido-red {
   color: rgb(var(--fx-red));
 }
 
-.border-chido {
-  border-color: var(--border-soft);
-}
-
 /* =========================================================
-   CHIDO AUTH — PREMIUM FX PACK
-   ========================================================= */
+   AUTH / LOGIN — CASINO TOP FX
+========================================================= */
 
-/* ---------------------------------------------------------
-   Ambient animated glow (slow, non-carnival)
-   --------------------------------------------------------- */
+/* Ambient Glow */
 .ambient-glow {
   position: absolute;
-  inset: -20%;
+  inset: -25%;
   background:
-    radial-gradient(
-      600px 420px at 22% 20%,
-      rgba(var(--fx-cyan), 0.12),
-      transparent 55%
-    ),
-    radial-gradient(
-      700px 520px at 78% 55%,
-      rgba(var(--fx-green), 0.10),
-      transparent 58%
-    ),
-    radial-gradient(
-      520px 520px at 55% 90%,
-      rgba(var(--fx-red), 0.08),
-      transparent 60%
-    );
-  filter: blur(30px);
-  animation: ambientMove 10s ease-in-out infinite;
-  opacity: 0.95;
+    radial-gradient(600px 420px at 25% 20%, rgba(var(--fx-cyan), 0.14), transparent 55%),
+    radial-gradient(700px 520px at 75% 55%, rgba(var(--fx-green), 0.12), transparent 58%),
+    radial-gradient(520px 520px at 50% 90%, rgba(var(--fx-red), 0.10), transparent 60%);
+  filter: blur(34px);
+  animation: ambientMove 14s ease-in-out infinite;
   pointer-events: none;
 }
 
 .ambient-glow--two {
-  inset: -30%;
   opacity: 0.55;
-  animation-duration: 14s;
-  animation-direction: reverse;
+  animation-duration: 20s;
 }
-
 .ambient-glow--three {
-  inset: -35%;
   opacity: 0.35;
-  animation-duration: 18s;
+  animation-duration: 26s;
 }
 
-/* ---------------------------------------------------------
-   Vignette (depth, focus)
-   --------------------------------------------------------- */
+/* Vignette */
 .vignette {
   position: absolute;
   inset: 0;
   background: radial-gradient(
     circle at 50% 30%,
     transparent 0%,
-    rgba(0, 0, 0, 0.35) 58%,
-    rgba(0, 0, 0, 0.65) 100%
+    rgba(0,0,0,0.5) 60%,
+    rgba(0,0,0,0.75) 100%
   );
-  pointer-events: none;
 }
 
-/* ---------------------------------------------------------
-   Grain overlay (SVG noise, premium)
-   --------------------------------------------------------- */
+/* Grain */
 .grain-overlay {
   position: absolute;
   inset: 0;
-  opacity: 0.08;
+  opacity: 0.07;
   mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
   animation: grainMove 8s steps(8) infinite;
   pointer-events: none;
 }
 
-/* ---------------------------------------------------------
-   Card entrance animation
-   --------------------------------------------------------- */
+/* Card entrance */
 .card-fade {
   animation: fadeUp 420ms ease-out both;
 }
 
-/* ---------------------------------------------------------
-   Shimmer (wallet preview / progress)
-   --------------------------------------------------------- */
-@keyframes shimmer {
-  0% {
-    transform: translateX(-40%);
-    opacity: 0.65;
-  }
-  50% {
-    opacity: 0.95;
-  }
-  100% {
-    transform: translateX(140%);
-    opacity: 0.65;
-  }
-}
-
-.animate-shimmer {
-  animation: shimmer 2.8s ease-in-out infinite;
-}
-
-/* ---------------------------------------------------------
-   Ambient movement
-   --------------------------------------------------------- */
-@keyframes ambientMove {
-  0% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  50% {
-    transform: translate3d(1.5%, -1.5%, 0) scale(1.02);
-  }
-  100% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-}
-
-@keyframes grainMove {
-  0% {
-    transform: translate(0, 0);
-  }
-  10% {
-    transform: translate(-2%, 1%);
-  }
-  20% {
-    transform: translate(-4%, -1%);
-  }
-  30% {
-    transform: translate(2%, 2%);
-  }
-  40% {
-    transform: translate(4%, -2%);
-  }
-  50% {
-    transform: translate(-3%, 3%);
-  }
-  60% {
-    transform: translate(-1%, -3%);
-  }
-  70% {
-    transform: translate(3%, 1%);
-  }
-  80% {
-    transform: translate(1%, -2%);
-  }
-  90% {
-    transform: translate(-2%, 2%);
-  }
-  100% {
-    transform: translate(0, 0);
-  }
-}
-
-/* ---------------------------------------------------------
-   Fade up
-   --------------------------------------------------------- */
-@keyframes fadeUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* ---------------------------------------------------------
-   Micro feedback shake (validation)
-   --------------------------------------------------------- */
-@keyframes shake {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  20% {
-    transform: translateX(-6px);
-  }
-  40% {
-    transform: translateX(6px);
-  }
-  60% {
-    transform: translateX(-4px);
-  }
-  80% {
-    transform: translateX(4px);
-  }
-}
-
+/* Shake (validation) */
 .shake {
   animation: shake 320ms ease-in-out;
 }
 
-/* ---------------------------------------------------------
-   Low-distraction / Focus mode
-   --------------------------------------------------------- */
-:root[data-low="true"] .ambient-glow {
-  opacity: 0.35;
-  filter: blur(34px);
+/* Animations */
+@keyframes ambientMove {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.04) translate(1%, -1%); }
+  100% { transform: scale(1); }
 }
 
-:root[data-low="true"] .grain-overlay {
-  opacity: 0.05;
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-:root[data-low="true"] .animate-shimmer {
-  animation-duration: 4.6s;
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
 }
 
-/* ---------------------------------------------------------
-   Reduced motion (WCAG)
-   --------------------------------------------------------- */
+@keyframes grainMove {
+  0% { transform: translate(0,0); }
+  50% { transform: translate(-2%,2%); }
+  100% { transform: translate(0,0); }
+}
+
+/* Focus / Low distraction */
+:root[data-low="true"] .ambient-glow { opacity: 0.35; }
+:root[data-low="true"] .grain-overlay { opacity: 0.04; }
+
+/* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  .ambient-glow,
-  .grain-overlay,
-  .card-fade,
-  .animate-shimmer,
-  .shake {
+  * {
     animation: none !important;
   }
 }
