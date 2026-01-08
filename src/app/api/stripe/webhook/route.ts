@@ -14,11 +14,7 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: Request) {
   const body = await req.text();
-  const signature = headers().get("stripe-signature");
-
-  if (!signature) {
-    return new NextResponse("Missing Stripe signature", { status: 400 });
-  }
+  const signature = headers().get("stripe-signature")!;
 
   let event: Stripe.Event;
 
@@ -29,7 +25,7 @@ export async function POST(req: Request) {
       process.env.STRIPE_WEBHOOK_SECRET!
     );
   } catch (err: any) {
-    return new NextResponse(`Webhook Error: ${err.message}`, { status: 400 });
+    return new NextResponse(`Webhook error: ${err.message}`, { status: 400 });
   }
 
   if (event.type === "checkout.session.completed") {
@@ -38,17 +34,8 @@ export async function POST(req: Request) {
     if (session.payment_status === "paid") {
       const userId = session.metadata?.userId;
       const amount = (session.amount_total ?? 0) / 100;
-      const providerRef = session.payment_intent as string;
 
       if (userId && amount > 0) {
-        await supabaseAdmin.from("transactions").insert({
-          user_id: userId,
-          amount,
-          type: "DEPOSIT",
-          status: "COMPLETED",
-          provider_ref: providerRef,
-        });
-
         await supabaseAdmin.rpc("increment_balance", {
           p_user_uuid: userId,
           p_amount: amount,
