@@ -14,7 +14,11 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: Request) {
   const body = await req.text();
-  const signature = headers().get("stripe-signature")!;
+  const signature = headers().get("stripe-signature");
+
+  if (!signature) {
+    return new NextResponse("Missing Stripe signature", { status: 400 });
+  }
 
   let event: Stripe.Event;
 
@@ -25,7 +29,7 @@ export async function POST(req: Request) {
       process.env.STRIPE_WEBHOOK_SECRET!
     );
   } catch (err: any) {
-    return new NextResponse(`Webhook error: ${err.message}`, { status: 400 });
+    return new NextResponse(`Webhook Error: ${err.message}`, { status: 400 });
   }
 
   if (event.type === "checkout.session.completed") {
