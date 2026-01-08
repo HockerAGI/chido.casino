@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
@@ -27,20 +27,18 @@ export default function LoginPage() {
 
     if (!email || !password) {
       cardRef.current?.classList.add("shake");
+      setTimeout(() => cardRef.current?.classList.remove("shake"), 350);
       return;
     }
 
     setLoading(true);
-
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setLoading(false);
 
     if (error) {
       setError("Credenciales incorrectas");
       cardRef.current?.classList.add("shake");
-      setLoading(false);
+      setTimeout(() => cardRef.current?.classList.remove("shake"), 350);
       return;
     }
 
@@ -60,10 +58,7 @@ export default function LoginPage() {
             alt="Chido Casino"
             className="h-16 w-16 drop-shadow-[0_0_18px_rgba(0,240,255,0.3)]"
           />
-          <h1 className="mt-4 text-2xl font-black">
-            <span className="text-chido-cyan">CHIDO</span>{" "}
-            <span className="text-chido-red">CASINO</span>
-          </h1>
+          <h1 className="mt-4 text-2xl font-black">Iniciar sesión</h1>
           <p className="mt-1 text-sm text-white/60">
             Acceso seguro a tu wallet
           </p>
