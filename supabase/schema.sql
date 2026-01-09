@@ -1,5 +1,5 @@
 -- =========================================================
--- CHIDO CASINO — SUPABASE SCHEMA (PROD READY)
+-- CHIDO CASINO — SUPABASE SCHEMA (SECURE & PROD READY)
 -- =========================================================
 
 create extension if not exists pgcrypto;
@@ -22,9 +22,15 @@ create table if not exists public.transactions (
   completed_at timestamptz
 );
 
--- 2. TRIGGERS
+-- 2. TRIGGERS Y FUNCIONES DE UTILIDAD
+
+-- Helper para actualizar timestamps
 create or replace function public.set_updated_at()
-returns trigger language plpgsql as $$
+returns trigger 
+language plpgsql
+-- FIJADO DE SEARCH_PATH PARA SEGURIDAD
+set search_path = public
+as $$
 begin
   new.updated_at = now();
   return new;
@@ -37,7 +43,12 @@ for each row execute function public.set_updated_at();
 
 -- Auto-crear balance al registrar usuario
 create or replace function public.handle_new_user_balance()
-returns trigger language plpgsql security definer as $$
+returns trigger 
+language plpgsql 
+security definer
+-- FIJADO DE SEARCH_PATH PARA SEGURIDAD
+set search_path = public
+as $$
 begin
   insert into public.balances (user_id, balance)
   values (new.id, 0)
@@ -55,6 +66,8 @@ create or replace function public.confirm_deposit(p_session_id text, p_payment_i
 returns void
 language plpgsql
 security definer
+-- FIJADO DE SEARCH_PATH PARA SEGURIDAD
+set search_path = public
 as $$
 declare
   tx record;
@@ -98,6 +111,8 @@ create policy "balances_select_own" on public.balances for select using (auth.ui
 drop policy if exists "transactions_select_own" on public.transactions;
 create policy "transactions_select_own" on public.transactions for select using (auth.uid() = user_id);
 
--- 5. REALTIME (IMPORTANTE)
--- Habilitar replicación para que el cliente escuche cambios
+-- 5. REALTIME
 alter publication supabase_realtime add table public.balances;
+
+-- 6. LIMPIEZA (Opcional: Elimina la función vieja que causa advertencia si existe)
+drop function if exists public.handle_new_user() cascade;
