@@ -1,48 +1,73 @@
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { createClient } from "@supabase/supabase-js";
+
+export const runtime = "nodejs";
+
+function jsonError(message: string, status = 400) {
+  return NextResponse.json({ error: message }, { status });
+}
 
 export async function POST(req: Request) {
   try {
-    const { amountMXN, userId, email } = await req.json();
+    const { amount } = await req.json();
+    const mxn = Number(amount);
 
-    const amount = Number(amountMXN);
-    if (!userId || !email || !amount || amount < 10) {
-      return NextResponse.json({ error: "Datos inválidos (monto mínimo 10)" }, { status: 400 });
+    if (!Number.isFinite(mxn) || mxn < 50 || mxn > 50000) {
+      return jsonError("Monto inválido (min 50, max 50000).");
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader?.startsWith("Bearer ")) return jsonError("No token provided", 401);
+
+    const token = authHeader.replace("Bearer ", "");
+
+    // Validar token (anon key) para sacar user
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !userData?.user) return jsonError("Invalid token", 401);
+
+    const userId = userData.user.id;
+
+    const url = new URL(req.url);
+    const origin = `${url.protocol}//${url.host}`;
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      locale: "es",
       payment_method_types: ["card", "oxxo"],
-      customer_email: email,
       line_items: [
         {
-          quantity: 1,
           price_data: {
             currency: "mxn",
-            unit_amount: Math.round(amount * 100),
-            product_data: { name: "Créditos digitales" }
-          }
+            product_data: { name: "Chido Casino Deposit" },
+            unit_amount: Math.round(mxn * 100)
+          },
+          quantity: 1
         }
       ],
       metadata: { userId },
-      success_url: `${baseUrl}/wallet?deposit=ok`,
-      cancel_url: `${baseUrl}/wallet?deposit=cancel`
+      success_url: `${origin}/wallet?deposit=ok`,
+      cancel_url: `${origin}/wallet?deposit=cancel`
     });
 
-    // Creamos transacción PENDIENTE (idempotente por provider_ref)
-    await supabaseAdmin.rpc("create_pending_deposit", {
-      p_user_id: userId,
-      p_amount: amount,
-      p_provider_ref: session.id,
-      p_metadata: { stripe: { sessionId: session.id }, email }
-    });
+    // Registrar transacción pending (source of truth para webhook)
+    const { error: txError } = await supabaseAdmin.from("transactions").insert([
+      {
+        user_id: userId,
+        amount: mxn,
+        status: "pending",
+        stripe_checkout_session_id: session.id
+      }
+    ]);
+
+    if (txError) return jsonError("Transaction insert failed", 500);
 
     return NextResponse.json({ url: session.url });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? "Error creando depósito" }, { status: 500 });
+  } catch (error) {
+    return jsonError("Deposit create error", 500);
   }
 }
