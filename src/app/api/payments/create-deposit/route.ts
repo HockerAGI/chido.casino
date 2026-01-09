@@ -11,7 +11,11 @@ function jsonError(message: string, status = 400) {
 
 export async function POST(req: Request) {
   try {
-    const { amount } = await req.json();
+    // Validación robusta del body
+    const body = await req.json().catch(() => null);
+    if (!body) return jsonError("Payload inválido");
+
+    const { amount } = body;
     const mxn = Number(amount);
 
     if (!Number.isFinite(mxn) || mxn < 50 || mxn > 50000) {
@@ -23,18 +27,22 @@ export async function POST(req: Request) {
 
     const token = authHeader.replace("Bearer ", "");
 
-    // Validar token (anon key) para sacar user
+    // Validar usuario
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
     const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    
     if (userError || !userData?.user) return jsonError("Invalid token", 401);
 
     const userId = userData.user.id;
 
-    const url = new URL(req.url);
-    const origin = `${url.protocol}//${url.host}`;
+    // Obtener origen seguro para redirección
+    const reqUrl = new URL(req.url);
+    const host = req.headers.get("x-forwarded-host") || reqUrl.host;
+    const protocol = req.headers.get("x-forwarded-proto") || reqUrl.protocol.replace(":", "");
+    const origin = `${protocol}://${host}`;
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -54,7 +62,6 @@ export async function POST(req: Request) {
       cancel_url: `${origin}/wallet?deposit=cancel`
     });
 
-    // Registrar transacción pending (source of truth para webhook)
     const { error: txError } = await supabaseAdmin.from("transactions").insert([
       {
         user_id: userId,
@@ -64,10 +71,14 @@ export async function POST(req: Request) {
       }
     ]);
 
-    if (txError) return jsonError("Transaction insert failed", 500);
+    if (txError) {
+      console.error("Tx Insert Error:", txError);
+      return jsonError("Transaction insert failed", 500);
+    }
 
     return NextResponse.json({ url: session.url });
-  } catch (error) {
-    return jsonError("Deposit create error", 500);
+  } catch (error: any) {
+    console.error("Deposit Error:", error);
+    return jsonError(`Deposit create error: ${error.message}`, 500);
   }
 }
