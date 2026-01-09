@@ -68,11 +68,14 @@ export default function SignupPage() {
         password
       });
 
+      // --- CAMBIO AQUÍ PARA VER EL ERROR REAL ---
       if (error) {
-        setMsg("No se pudo crear la cuenta. Intenta con otro correo.");
+        console.error("ERROR REAL DE SUPABASE:", error.message);
+        setMsg(`Error: ${error.message}`); // Ahora verás el mensaje exacto en la tarjeta
         shake();
         return;
       }
+      // ------------------------------------------
 
       setMsg("Cuenta creada. Ya puedes iniciar sesión.");
       router.push("/login");
