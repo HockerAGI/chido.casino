@@ -1,18 +1,16 @@
 -- =========================================================
--- CHIDO CASINO — SUPABASE SCHEMA (MVP PRO)
--- balances (realtime) + transactions (ledger) + atomic confirm_deposit
+-- CHIDO CASINO — SUPABASE SCHEMA (PROD READY)
 -- =========================================================
 
 create extension if not exists pgcrypto;
 
--- BALANCES (wallet real)
+-- 1. TABLAS
 create table if not exists public.balances (
   user_id uuid primary key references auth.users(id) on delete cascade,
   balance numeric not null default 0,
   updated_at timestamptz not null default now()
 );
 
--- TRANSACTIONS (ledger)
 create table if not exists public.transactions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -24,7 +22,7 @@ create table if not exists public.transactions (
   completed_at timestamptz
 );
 
--- updated_at helper
+-- 2. TRIGGERS
 create or replace function public.set_updated_at()
 returns trigger language plpgsql as $$
 begin
@@ -37,7 +35,7 @@ create trigger trg_balances_updated_at
 before update on public.balances
 for each row execute function public.set_updated_at();
 
--- Auto-create balance on user creation
+-- Auto-crear balance al registrar usuario
 create or replace function public.handle_new_user_balance()
 returns trigger language plpgsql security definer as $$
 begin
@@ -52,10 +50,7 @@ create trigger on_auth_user_created_balance
 after insert on auth.users
 for each row execute function public.handle_new_user_balance();
 
--- Atomic confirm deposit by session id:
--- 1) lock transaction
--- 2) if pending -> mark completed
--- 3) upsert balance += tx.amount
+-- 3. RPC ATÓMICO PARA DEPÓSITOS
 create or replace function public.confirm_deposit(p_session_id text, p_payment_intent_id text default null)
 returns void
 language plpgsql
@@ -68,52 +63,41 @@ begin
     return;
   end if;
 
-  select *
-  into tx
-  from public.transactions
+  -- Bloquear fila para evitar race conditions
+  select * into tx from public.transactions
   where stripe_checkout_session_id = p_session_id
   for update;
 
-  if not found then
+  if not found or tx.status = 'completed' then
     return;
   end if;
 
-  if tx.status = 'completed' then
-    return;
-  end if;
-
-  -- mark completed
+  -- Marcar completada
   update public.transactions
   set status = 'completed',
       stripe_payment_intent_id = coalesce(p_payment_intent_id, stripe_payment_intent_id),
       completed_at = now()
   where id = tx.id;
 
-  -- increment balance
+  -- Incrementar balance
   insert into public.balances (user_id, balance)
   values (tx.user_id, tx.amount)
   on conflict (user_id)
   do update set balance = public.balances.balance + excluded.balance;
-
 end;
 $$;
 
--- RLS
+-- 4. SEGURIDAD (RLS)
 alter table public.balances enable row level security;
 alter table public.transactions enable row level security;
 
--- balances: user can read own
+-- Políticas de lectura (Solo el dueño ve sus datos)
 drop policy if exists "balances_select_own" on public.balances;
-create policy "balances_select_own"
-on public.balances
-for select
-using (auth.uid() = user_id);
+create policy "balances_select_own" on public.balances for select using (auth.uid() = user_id);
 
--- balances: no update policy (balance only via RPC/service role)
-
--- transactions: user can read own
 drop policy if exists "transactions_select_own" on public.transactions;
-create policy "transactions_select_own"
-on public.transactions
-for select
-using (auth.uid() = user_id);
+create policy "transactions_select_own" on public.transactions for select using (auth.uid() = user_id);
+
+-- 5. REALTIME (IMPORTANTE)
+-- Habilitar replicación para que el cliente escuche cambios
+alter publication supabase_realtime add table public.balances;
