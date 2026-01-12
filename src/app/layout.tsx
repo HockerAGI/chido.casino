@@ -4,7 +4,7 @@ import PWARegister from "@/app/_components/PWARegister";
 
 export const metadata: Metadata = {
   title: { default: "Chido Casino", template: "%s · Chido Casino" },
-  description: "Chido Casino — Auth + Wallet realtime (balances) + Depósitos Stripe + Webhook + Risk server-side",
+  description: "El primer casino operado por Hocker AGI. Crash, Slots y apuestas en tiempo real.",
   applicationName: "Chido Casino",
   manifest: "/manifest.json",
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Chido" },
@@ -22,13 +22,13 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   viewportFit: "cover",
-  themeColor: "#00F0FF"
+  themeColor: "#09090b" // Zinc 950 para fundirse con el notch del móvil
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es">
-      <body>
+    <html lang="es" className="dark">
+      <body className="antialiased bg-[#09090b] text-white">
         <PWARegister />
         {children}
       </body>
