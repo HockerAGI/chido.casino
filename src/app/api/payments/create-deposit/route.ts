@@ -64,24 +64,22 @@ export async function POST(req: Request) {
       cancel_url: `${origin}/wallet?deposit=cancel`
     });
 
-    // 5. Insertar transacción en BD (Aquí suele fallar si las claves están mal)
-    // Usamos supabaseAdmin (Service Role) para poder escribir aunque no haya políticas públicas
+    // 5. Insertar transacción en BD
+    // CORRECCIÓN: Añadimos 'type: "deposit"' para satisfacer a la base de datos
     const { error: txError } = await supabaseAdmin.from("transactions").insert([
       {
         user_id: userId,
         amount: mxn,
         status: "pending",
+        type: "deposit", // <--- ESTA ES LA LÍNEA QUE FALTABA
         stripe_checkout_session_id: session.id
       }
     ]);
 
-    // --- CAMBIO CLAVE AQUÍ ---
     if (txError) {
       console.error("Tx Insert Error DETALLADO:", txError);
-      // Esto enviará el error "crudo" a tu pantalla de la Wallet
       return jsonError(`DB ERROR: ${txError.message} (Code: ${txError.code})`, 500);
     }
-    // -------------------------
 
     return NextResponse.json({ url: session.url });
   } catch (error: any) {
