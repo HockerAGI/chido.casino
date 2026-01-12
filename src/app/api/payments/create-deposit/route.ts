@@ -11,7 +11,7 @@ function jsonError(message: string, status = 400) {
 
 export async function POST(req: Request) {
   try {
-    // Validación robusta del body
+    // 1. Validación robusta del body
     const body = await req.json().catch(() => null);
     if (!body) return jsonError("Payload inválido");
 
@@ -22,12 +22,13 @@ export async function POST(req: Request) {
       return jsonError("Monto inválido (min 50, max 50000).");
     }
 
+    // 2. Validar autenticación
     const authHeader = req.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) return jsonError("No token provided", 401);
 
     const token = authHeader.replace("Bearer ", "");
 
-    // Validar usuario
+    // Usamos cliente anónimo para validar que el token del usuario es real
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -38,12 +39,13 @@ export async function POST(req: Request) {
 
     const userId = userData.user.id;
 
-    // Obtener origen seguro para redirección
+    // 3. Obtener origen seguro para redirección
     const reqUrl = new URL(req.url);
     const host = req.headers.get("x-forwarded-host") || reqUrl.host;
     const protocol = req.headers.get("x-forwarded-proto") || reqUrl.protocol.replace(":", "");
     const origin = `${protocol}://${host}`;
 
+    // 4. Crear sesión de Checkout en Stripe
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card", "oxxo"],
@@ -62,6 +64,8 @@ export async function POST(req: Request) {
       cancel_url: `${origin}/wallet?deposit=cancel`
     });
 
+    // 5. Insertar transacción en BD (Aquí suele fallar si las claves están mal)
+    // Usamos supabaseAdmin (Service Role) para poder escribir aunque no haya políticas públicas
     const { error: txError } = await supabaseAdmin.from("transactions").insert([
       {
         user_id: userId,
@@ -71,10 +75,13 @@ export async function POST(req: Request) {
       }
     ]);
 
+    // --- CAMBIO CLAVE AQUÍ ---
     if (txError) {
-      console.error("Tx Insert Error:", txError);
-      return jsonError("Transaction insert failed", 500);
+      console.error("Tx Insert Error DETALLADO:", txError);
+      // Esto enviará el error "crudo" a tu pantalla de la Wallet
+      return jsonError(`DB ERROR: ${txError.message} (Code: ${txError.code})`, 500);
     }
+    // -------------------------
 
     return NextResponse.json({ url: session.url });
   } catch (error: any) {
