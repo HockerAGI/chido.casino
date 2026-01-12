@@ -11,7 +11,6 @@ function jsonError(message: string, status = 400) {
 
 export async function POST(req: Request) {
   try {
-    // 1. Validación robusta del body
     const body = await req.json().catch(() => null);
     if (!body) return jsonError("Payload inválido");
 
@@ -22,13 +21,12 @@ export async function POST(req: Request) {
       return jsonError("Monto inválido (min 50, max 50000).");
     }
 
-    // 2. Validar autenticación
     const authHeader = req.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) return jsonError("No token provided", 401);
 
     const token = authHeader.replace("Bearer ", "");
 
-    // Usamos cliente anónimo para validar que el token del usuario es real
+    // Validar usuario
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -39,13 +37,13 @@ export async function POST(req: Request) {
 
     const userId = userData.user.id;
 
-    // 3. Obtener origen seguro para redirección
+    // Obtener origen
     const reqUrl = new URL(req.url);
     const host = req.headers.get("x-forwarded-host") || reqUrl.host;
     const protocol = req.headers.get("x-forwarded-proto") || reqUrl.protocol.replace(":", "");
     const origin = `${protocol}://${host}`;
 
-    // 4. Crear sesión de Checkout en Stripe
+    // Crear sesión Stripe
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card", "oxxo"],
@@ -64,20 +62,20 @@ export async function POST(req: Request) {
       cancel_url: `${origin}/wallet?deposit=cancel`
     });
 
-    // 5. Insertar transacción en BD
-    // CORRECCIÓN: Añadimos 'type: "deposit"' para satisfacer a la base de datos
+    // Insertar transacción
     const { error: txError } = await supabaseAdmin.from("transactions").insert([
       {
         user_id: userId,
         amount: mxn,
         status: "pending",
-        type: "deposit", // <--- ESTA ES LA LÍNEA QUE FALTABA
+        type: "deposit", // <--- ESTO ES VITAL
         stripe_checkout_session_id: session.id
       }
     ]);
 
     if (txError) {
-      console.error("Tx Insert Error DETALLADO:", txError);
+      console.error("Tx Insert Error:", txError);
+      // Muestra el error real en pantalla
       return jsonError(`DB ERROR: ${txError.message} (Code: ${txError.code})`, 500);
     }
 
