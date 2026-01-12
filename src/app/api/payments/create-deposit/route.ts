@@ -37,13 +37,11 @@ export async function POST(req: Request) {
 
     const userId = userData.user.id;
 
-    // Obtener origen
     const reqUrl = new URL(req.url);
     const host = req.headers.get("x-forwarded-host") || reqUrl.host;
     const protocol = req.headers.get("x-forwarded-proto") || reqUrl.protocol.replace(":", "");
     const origin = `${protocol}://${host}`;
 
-    // Crear sesión Stripe
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card", "oxxo"],
@@ -62,20 +60,19 @@ export async function POST(req: Request) {
       cancel_url: `${origin}/wallet?deposit=cancel`
     });
 
-    // Insertar transacción
+    // AQUÍ ESTÁ LA CLAVE: Enviamos 'deposit' explícitamente
     const { error: txError } = await supabaseAdmin.from("transactions").insert([
       {
         user_id: userId,
         amount: mxn,
         status: "pending",
-        type: "deposit", // <--- ESTO ES VITAL
+        type: "deposit",
         stripe_checkout_session_id: session.id
       }
     ]);
 
     if (txError) {
       console.error("Tx Insert Error:", txError);
-      // Muestra el error real en pantalla
       return jsonError(`DB ERROR: ${txError.message} (Code: ${txError.code})`, 500);
     }
 
