@@ -1,5 +1,5 @@
 /* CHIDO CASINO — Minimal Service Worker (safe + simple) */
-const CACHE = "chido-cache-v2";
+const CACHE = "chido-cache-v10";
 const OFFLINE_URL = "/offline.html";
 
 self.addEventListener("install", (event) => {
