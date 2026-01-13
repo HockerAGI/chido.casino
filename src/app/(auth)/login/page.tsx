@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { Logo } from "@/components/ui/logo";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ShieldCheck } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,7 +21,7 @@ export default function LoginPage() {
     
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-       setError("Credenciales incorrectas. Intenta de nuevo.");
+       setError("No pudimos encontrar tu cuenta. Verifica tus datos.");
        setLoading(false);
     } else {
        router.push("/lobby");
@@ -31,70 +31,75 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-chido-bg relative overflow-hidden">
       
-      {/* Fondo Animado Alebrije (Puro CSS/Tailwind) */}
-      <div className="absolute inset-0">
-         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-chido-pink/20 blur-[150px] rounded-full animate-pulse-slow" />
-         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-chido-cyan/20 blur-[150px] rounded-full" />
-         <div className="absolute inset-0 bg-mexican-pattern opacity-10" />
-      </div>
+      {/* Fondo Animado Sutil */}
+      <div className="absolute inset-0 bg-mexican-pattern opacity-5" />
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-chido-pink via-chido-cyan to-chido-green" />
 
-      <div className="relative z-10 w-full max-w-md">
+      <div className="relative z-10 w-full max-w-md flex flex-col items-center">
         
-        {/* LOGO GIGANTE PROTAGONISTA */}
-        <div className="flex justify-center mb-10 animate-float">
+        {/* LOGO GIGANTE (PROTAGONISTA ABSOLUTO) */}
+        <div className="mb-12 animate-float transform hover:scale-105 transition-transform duration-500">
            <Logo variant="giant" showText={true} />
         </div>
 
-        <div className="bg-zinc-900/60 backdrop-blur-xl border border-white/10 p-8 rounded-3xl shadow-2xl">
-          <h2 className="text-2xl font-black text-white text-center mb-2">Bienvenido de Vuelta</h2>
-          <p className="text-zinc-400 text-center text-sm mb-8">Ingresa a tu cuenta oficial Chido Casino</p>
+        <div className="w-full bg-zinc-900/80 backdrop-blur-xl border border-white/10 p-8 rounded-3xl shadow-2xl relative overflow-hidden">
+          {/* Brillo superior */}
+          <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+          
+          <h2 className="text-2xl font-black text-white text-center mb-1">¡Qué onda de nuevo!</h2>
+          <p className="text-zinc-400 text-center text-sm mb-8">Ingresa para seguir ganando.</p>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="text-xs font-bold text-zinc-500 uppercase ml-1">Correo</label>
+              <label className="text-xs font-bold text-zinc-500 uppercase ml-1">Correo Electrónico</label>
               <input 
                 type="email" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-chido-cyan outline-none transition-colors"
-                placeholder="tu@correo.com"
+                className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-chido-cyan outline-none transition-colors"
+                placeholder="ejemplo@chidocasino.com"
               />
             </div>
             <div>
-               <label className="text-xs font-bold text-zinc-500 uppercase ml-1">Contraseña</label>
+               <div className="flex justify-between ml-1 mb-1">
+                 <label className="text-xs font-bold text-zinc-500 uppercase">Contraseña</label>
+                 <Link href="/recover" className="text-xs text-chido-cyan hover:underline">¿Olvidaste tu clave?</Link>
+               </div>
                <input 
                 type="password" 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-chido-cyan outline-none transition-colors"
+                className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-chido-cyan outline-none transition-colors"
                 placeholder="••••••••"
               />
             </div>
 
             {error && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-200 text-sm text-center">
-                {error}
+              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-200 text-sm text-center flex items-center justify-center gap-2">
+                ⚠️ {error}
               </div>
             )}
 
             <button 
               disabled={loading}
-              className="w-full bg-gradient-to-r from-chido-cyan to-blue-500 text-black font-black py-4 rounded-xl text-lg hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(0,240,255,0.3)] flex items-center justify-center gap-2"
+              className="w-full bg-gradient-to-r from-chido-cyan to-blue-600 text-white font-black py-4 rounded-xl text-lg hover:brightness-110 active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(0,240,255,0.25)] flex items-center justify-center gap-2 mt-2"
             >
-              {loading ? "Entrando..." : "INICIAR SESIÓN"} <ArrowRight size={20} />
+              {loading ? "Entrando..." : "ENTRAR AHORA"} <ArrowRight size={20} />
             </button>
           </form>
           
-          <div className="mt-6 text-center text-sm text-zinc-500">
-             ¿No tienes cuenta? <Link href="/signup" className="text-white font-bold hover:text-chido-pink transition-colors">Regístrate y gana</Link>
+          <div className="mt-8 text-center pt-6 border-t border-white/5">
+             <p className="text-sm text-zinc-500 mb-2">¿Aún no tienes cuenta?</p>
+             <Link href="/signup" className="text-chido-pink font-black hover:text-white transition-colors uppercase tracking-wide text-sm">
+               ¡Regístrate y recibe $5,000!
+             </Link>
           </div>
         </div>
         
-        <div className="mt-8 flex justify-center gap-6 opacity-50">
-           {/* Trust Badges Minimalistas */}
-           <div className="w-8 h-8 rounded-full bg-white/10" />
-           <div className="w-8 h-8 rounded-full bg-white/10" />
-           <div className="w-8 h-8 rounded-full bg-white/10" />
+        {/* SELLO DE AGIs (Discreto) */}
+        <div className="mt-8 flex items-center gap-2 opacity-40 hover:opacity-100 transition-opacity cursor-help" title="Sistema de Seguridad Hocker AGI Activo">
+           <ShieldCheck size={14} className="text-chido-green" />
+           <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Protección Vertx Activa</span>
         </div>
 
       </div>
