@@ -33,6 +33,7 @@ export default function LoginPage() {
       <div className="relative z-10 w-full max-w-md flex flex-col items-center">
         
         <div className="mb-12 animate-float">
+           {/* Logo gigante, con texto permitido aquí por ser Auth */}
            <Logo variant="giant" showText={true} />
         </div>
 
