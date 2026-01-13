@@ -7,7 +7,7 @@ import { Logo } from "@/components/ui/logo";
 import { useWalletBalance } from "@/lib/useWalletBalance";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { 
-  Home, Wallet, Menu, X, LogOut, Bell, Search, 
+  Home, Wallet, Menu, X, LogOut, Search, 
   Zap, Gift, Trophy, User, ShieldCheck, ChevronRight, MessageCircleHeart, Users
 } from "lucide-react";
 
@@ -32,7 +32,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#050510] bg-mexican-pattern bg-fixed text-white font-sans flex flex-col lg:flex-row overflow-x-hidden selection:bg-chido-pink/30">
+    <div className="min-h-screen bg-mexican-pattern bg-fixed text-white font-sans flex flex-col lg:flex-row overflow-x-hidden selection:bg-chido-pink/30">
       
       {/* HEADER MÓVIL */}
       <header className="lg:hidden fixed top-0 w-full z-50 bg-[#050510]/95 backdrop-blur-xl border-b border-white/5 px-4 h-16 flex items-center justify-between shadow-2xl transition-all">
@@ -60,11 +60,9 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       `}>
         <div className="h-full flex flex-col">
           <div className="h-24 hidden lg:flex items-center justify-center border-b border-white/5 bg-black/20">
-             {/* En Desktop Sidebar sí mostramos texto para llenar espacio, o lo quitamos si prefieres minimalismo */}
-             <Logo size={45} showText={true} /> 
+             <Logo size={50} showText={false} /> 
           </div>
 
-          {/* PERFIL RESUMEN */}
           <div className="p-6 mt-16 lg:mt-0 bg-gradient-to-br from-zinc-900 via-black to-black border-b border-white/5 relative overflow-hidden group cursor-pointer" onClick={() => router.push('/profile')}>
             <div className="absolute top-0 right-0 w-20 h-20 bg-chido-pink/10 blur-2xl rounded-full group-hover:bg-chido-pink/20 transition-colors" />
             <div className="relative z-10 flex items-center gap-4 mb-4">
@@ -72,7 +70,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                  <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${formatted}`} className="w-full h-full rounded-full bg-zinc-800" alt="Avatar"/>
                </div>
                <div>
-                 <div className="text-xs font-bold text-zinc-400 uppercase">Nivel Actual</div>
+                 <div className="text-xs font-bold text-zinc-400 uppercase">Nivel</div>
                  <div className="text-base font-black text-white flex items-center gap-1">
                    Salsa Verde <ShieldCheck size={14} className="text-chido-green"/>
                  </div>
@@ -82,13 +80,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             <div className="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
                <div className="h-full w-[35%] bg-gradient-to-r from-chido-cyan to-chido-pink rounded-full animate-pulse-slow" />
             </div>
-            <div className="flex justify-between text-[10px] font-bold text-zinc-500 mt-1 uppercase">
-               <span>0 XP</span>
-               <span>500 XP (Serrano)</span>
-            </div>
           </div>
 
-          {/* NAV LINKS */}
           <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto scrollbar-hide">
             {routes.map((route) => {
               const Icon = route.icon;
@@ -111,8 +104,6 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             
             <div className="my-6 border-t border-white/5 mx-4" />
             
-            {/* NOVA Assist */}
-            <div className="px-4 text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-2">Ayuda Hocker AGI</div>
             <button className="w-full flex items-center gap-4 px-4 py-3 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-all group">
                <div className="relative">
                  <MessageCircleHeart size={20} className="group-hover:text-chido-cyan transition-colors" />
@@ -135,16 +126,13 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
       {/* CONTENIDO PRINCIPAL */}
       <main className="flex-1 overflow-y-auto relative scrollbar-hide pt-16 lg:pt-0">
-        
-        {/* TOP BAR DESKTOP */}
         <div className="hidden lg:flex items-center justify-between px-8 py-5 sticky top-0 z-30 bg-[#050510]/80 backdrop-blur-xl border-b border-white/5">
            <div className="flex items-center gap-6">
-             {/* Buscador */}
              <div className="relative group w-80">
                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-chido-cyan transition-colors" size={18} />
                <input 
                  type="text" 
-                 placeholder="Busca juegos, proveedores..." 
+                 placeholder="Busca juegos..." 
                  className="w-full bg-zinc-900/50 border border-white/5 rounded-full pl-12 pr-4 py-2.5 text-sm text-white focus:border-chido-cyan/50 focus:bg-zinc-900 transition-all outline-none"
                />
              </div>
@@ -188,7 +176,6 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           <Link href="/wallet?deposit=1" className="-mt-10 group">
              <div className="relative w-16 h-16 transition-transform group-active:scale-95">
                <div className="absolute inset-0 bg-chido-cyan/20 rounded-full blur-xl animate-pulse-slow" />
-               {/* Usamos la variante Taco aquí */}
                <Logo variant="taco" size={64} className="drop-shadow-2xl" />
              </div>
           </Link>
