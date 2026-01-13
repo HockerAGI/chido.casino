@@ -8,7 +8,7 @@ import { useWalletBalance } from "@/lib/useWalletBalance";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { 
   Home, Wallet, Menu, X, LogOut, Search, 
-  Zap, Gift, Trophy, User, ShieldCheck, ChevronRight, MessageCircleHeart, Users
+  Zap, Gift, User, ShieldCheck, ChevronRight, MessageCircleHeart, Users
 } from "lucide-react";
 
 const routes = [
@@ -32,12 +32,14 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen bg-mexican-pattern bg-fixed text-white font-sans flex flex-col lg:flex-row overflow-x-hidden selection:bg-chido-pink/30">
+    <div className="min-h-screen bg-[#050510] bg-mexican-pattern bg-fixed text-white font-sans flex flex-col lg:flex-row overflow-x-hidden selection:bg-chido-pink/30">
       
-      {/* HEADER MÓVIL */}
+      {/* === HEADER MÓVIL === */}
       <header className="lg:hidden fixed top-0 w-full z-50 bg-[#050510]/95 backdrop-blur-xl border-b border-white/5 px-4 h-16 flex items-center justify-between shadow-2xl transition-all">
-        {/* Solo Logo Imagen */}
-        <Logo size={40} showText={false} variant="default" /> 
+        {/* REGLA DE ORO: SOLO LOGO */}
+        <Link href="/lobby">
+           <Logo size={42} variant="default" /> 
+        </Link>
         
         <div className="flex items-center gap-3">
             <Link href="/wallet" className="bg-zinc-900/80 border border-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 active:scale-95 transition-transform">
@@ -52,18 +54,21 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      {/* SIDEBAR */}
+      {/* === SIDEBAR (ESCRITORIO) === */}
       <aside className={`
         fixed inset-y-0 left-0 z-50 w-80 bg-[#08080a] border-r border-white/5 transform transition-transform duration-300 ease-out
         lg:translate-x-0 lg:static lg:block shadow-[10px_0_40px_rgba(0,0,0,0.5)]
         ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}
       `}>
         <div className="h-full flex flex-col">
+          {/* LOGO AREA */}
           <div className="h-24 hidden lg:flex items-center justify-center border-b border-white/5 bg-black/20">
-             {/* Logo sin texto */}
-             <Logo size={50} showText={false} /> 
+             <Link href="/lobby">
+                <Logo size={55} variant="default" /> 
+             </Link>
           </div>
 
+          {/* PERFIL RESUMEN */}
           <div className="p-6 mt-16 lg:mt-0 bg-gradient-to-br from-zinc-900 via-black to-black border-b border-white/5 relative overflow-hidden group cursor-pointer" onClick={() => router.push('/profile')}>
             <div className="absolute top-0 right-0 w-20 h-20 bg-chido-pink/10 blur-2xl rounded-full group-hover:bg-chido-pink/20 transition-colors" />
             <div className="relative z-10 flex items-center gap-4 mb-4">
@@ -78,11 +83,13 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                </div>
                <ChevronRight className="ml-auto text-zinc-600" size={16} />
             </div>
+            {/* Barra XP */}
             <div className="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
-               <div className="h-full w-[35%] bg-gradient-to-r from-chido-cyan to-chido-pink rounded-full animate-pulse-slow" />
+               <div className="h-full w-[10%] bg-gradient-to-r from-chido-cyan to-chido-pink rounded-full animate-pulse-slow" />
             </div>
           </div>
 
+          {/* NAV LINKS */}
           <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto scrollbar-hide">
             {routes.map((route) => {
               const Icon = route.icon;
@@ -105,6 +112,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             
             <div className="my-6 border-t border-white/5 mx-4" />
             
+            {/* NOVA Assist */}
             <button className="w-full flex items-center gap-4 px-4 py-3 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-all group">
                <div className="relative">
                  <MessageCircleHeart size={20} className="group-hover:text-chido-cyan transition-colors" />
@@ -125,15 +133,16 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* CONTENIDO */}
+      {/* === CONTENIDO PRINCIPAL === */}
       <main className="flex-1 overflow-y-auto relative scrollbar-hide pt-16 lg:pt-0">
+        {/* Topbar Desktop */}
         <div className="hidden lg:flex items-center justify-between px-8 py-5 sticky top-0 z-30 bg-[#050510]/80 backdrop-blur-xl border-b border-white/5">
            <div className="flex items-center gap-6">
              <div className="relative group w-80">
                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-chido-cyan transition-colors" size={18} />
                <input 
                  type="text" 
-                 placeholder="Busca juegos..." 
+                 placeholder="Busca juegos, proveedores..." 
                  className="w-full bg-zinc-900/50 border border-white/5 rounded-full pl-12 pr-4 py-2.5 text-sm text-white focus:border-chido-cyan/50 focus:bg-zinc-900 transition-all outline-none"
                />
              </div>
@@ -151,7 +160,6 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
              
              <div className="w-10 h-10 rounded-full border border-white/10 p-1 cursor-pointer hover:border-chido-pink transition-colors relative" onClick={() => router.push('/profile')}>
                 <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${formatted}`} alt="Avatar" className="rounded-full bg-zinc-800" />
-                <span className="absolute top-0 right-0 w-3 h-3 bg-chido-green rounded-full border-2 border-[#050510]" />
              </div>
            </div>
         </div>
@@ -161,7 +169,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </div>
       </main>
 
-      {/* BARRA INFERIOR MÓVIL */}
+      {/* === BARRA INFERIOR MÓVIL (Con Taco) === */}
       <nav className="lg:hidden fixed bottom-0 w-full bg-[#050510]/90 backdrop-blur-2xl border-t border-white/5 pb-safe z-40 shadow-[0_-10px_40px_rgba(0,0,0,0.9)]">
         <div className="flex justify-around items-center h-[75px]">
           <Link href="/lobby" className={`flex flex-col items-center gap-1 ${pathname === '/lobby' ? 'text-chido-cyan' : 'text-zinc-600'}`}>
@@ -173,6 +181,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             <span className="text-[9px] font-bold">Crash</span>
           </Link>
           
+          {/* EL BOTÓN CENTRAL ES EL TACO SLOT */}
           <Link href="/wallet?deposit=1" className="-mt-10 group">
              <div className="relative w-16 h-16 transition-transform group-active:scale-95">
                <div className="absolute inset-0 bg-chido-cyan/20 rounded-full blur-xl animate-pulse-slow" />
