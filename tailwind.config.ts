@@ -13,13 +13,13 @@ const config: Config = {
       },
       colors: {
         chido: {
-          bg: "#050510",      // Negro profundo
-          card: "#121225",    // Tarjeta
-          cyan: "#00F0FF",    // Tech
-          pink: "#FF0099",    // Rosa Mexicano
-          red: "#FF3D00",     // Acción
-          green: "#32CD32",   // Dinero/Éxito
-          gold: "#FFD700",    // VIP
+          bg: "#050510",
+          card: "#121225",
+          cyan: "#00F0FF",
+          pink: "#FF0099",
+          red: "#FF3D00",
+          green: "#32CD32",
+          gold: "#FFD700",
           text: "#EAEAEA"
         },
         zinc: {
