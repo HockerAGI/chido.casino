@@ -52,7 +52,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      {/* SIDEBAR / MENÚ LATERAL */}
+      {/* SIDEBAR */}
       <aside className={`
         fixed inset-y-0 left-0 z-50 w-80 bg-[#08080a] border-r border-white/5 transform transition-transform duration-300 ease-out
         lg:translate-x-0 lg:static lg:block shadow-[10px_0_40px_rgba(0,0,0,0.5)]
@@ -60,6 +60,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       `}>
         <div className="h-full flex flex-col">
           <div className="h-24 hidden lg:flex items-center justify-center border-b border-white/5 bg-black/20">
+             {/* Logo sin texto */}
              <Logo size={50} showText={false} /> 
           </div>
 
@@ -124,7 +125,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* CONTENIDO PRINCIPAL */}
+      {/* CONTENIDO */}
       <main className="flex-1 overflow-y-auto relative scrollbar-hide pt-16 lg:pt-0">
         <div className="hidden lg:flex items-center justify-between px-8 py-5 sticky top-0 z-30 bg-[#050510]/80 backdrop-blur-xl border-b border-white/5">
            <div className="flex items-center gap-6">
@@ -160,7 +161,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </div>
       </main>
 
-      {/* BARRA INFERIOR MÓVIL (Con Taco Slot) */}
+      {/* BARRA INFERIOR MÓVIL */}
       <nav className="lg:hidden fixed bottom-0 w-full bg-[#050510]/90 backdrop-blur-2xl border-t border-white/5 pb-safe z-40 shadow-[0_-10px_40px_rgba(0,0,0,0.9)]">
         <div className="flex justify-around items-center h-[75px]">
           <Link href="/lobby" className={`flex flex-col items-center gap-1 ${pathname === '/lobby' ? 'text-chido-cyan' : 'text-zinc-600'}`}>
@@ -172,7 +173,6 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             <span className="text-[9px] font-bold">Crash</span>
           </Link>
           
-          {/* EL TACO SLOT CENTRAL */}
           <Link href="/wallet?deposit=1" className="-mt-10 group">
              <div className="relative w-16 h-16 transition-transform group-active:scale-95">
                <div className="absolute inset-0 bg-chido-cyan/20 rounded-full blur-xl animate-pulse-slow" />
