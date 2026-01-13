@@ -36,7 +36,8 @@ export default function ProfilePage() {
                   <div className="text-center">
                     <Award size={60} className="text-chido-gold mx-auto mb-4" />
                     <h2 className="text-2xl font-black text-white">Salsa Verde</h2>
-                    <p className="text-zinc-400">Juega más para subir de nivel.</p>
+                    <p className="text-zinc-400 mb-4">Juega más para subir de nivel.</p>
+                    <div className="text-xs text-zinc-500 uppercase font-bold border border-white/10 p-2 rounded inline-block">Atención VIP: Chido Gerente (Solo Habanero)</div>
                   </div>
               )}
            </div>
