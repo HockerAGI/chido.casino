@@ -1,8 +1,7 @@
 import { Suspense } from "react";
 import WalletClient from "./wallet-client";
 
-// ESTA LÍNEA ES LA SOLUCIÓN AL ERROR DE BUILD
-// Le dice a Vercel: "Esta página cambia según el usuario, no la pre-generes estáticamente".
+// ESTA LÍNEA EVITA EL ERROR DE BUILD EN VERCEL
 export const dynamic = "force-dynamic";
 
 export default function WalletPage() {
