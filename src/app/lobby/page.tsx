@@ -1,16 +1,17 @@
 "use client";
 
 import { MainLayout } from "@/components/layout/main-layout";
-import { Play, Zap, Star, ShieldCheck, Flame, Gift, Search, Trophy } from "lucide-react";
+// CORRECCIÓN: Agregué 'Users' a la lista de imports
+import { Play, Zap, Star, ShieldCheck, Flame, Gift, Search, Trophy, Users } from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 // Categorías de Juegos (Punto 5)
 const CATEGORIES = [
   { id: 'all', label: 'Todos', icon: Search },
   { id: 'slots', label: 'Slots', icon: Flame },
   { id: 'crash', label: 'Crash', icon: Zap },
-  { id: 'live', label: 'En Vivo', icon: Users }, // Placeholder
+  { id: 'live', label: 'En Vivo', icon: Users }, // Ahora sí funcionará
   { id: 'originals', label: 'Originals', icon: Star },
 ];
 
