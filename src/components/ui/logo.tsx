@@ -4,19 +4,20 @@ import { cn } from "@/lib/cn";
 interface LogoProps {
   className?: string;
   size?: number;
-  showText?: boolean; // <--- ESTO ARREGLA EL ERROR DE BUILD
-  variant?: "default" | "giant" | "taco" | "iso-color" | "iso-bw";
+  showText?: boolean;
+  // Variantes estrictas según tus archivos subidos
+  variant?: "default" | "giant" | "iso-color" | "iso-bw" | "app-icon";
 }
 
 export function Logo({ className, size = 45, showText = false, variant = "default" }: LogoProps) {
   const finalSize = variant === "giant" ? 140 : size;
   
-  // Selección de assets (Asegúrate de tenerlos en /public)
-  let imageSrc = "/chido-logo.png";
-  if (variant === "taco") imageSrc = "/taco-slot.png";
+  // Mapeo exacto a tus archivos en /public
+  let imageSrc = "/chido-logo.png"; // Logo principal
+  
   if (variant === "iso-color") imageSrc = "/isotipo-color.png";
   if (variant === "iso-bw") imageSrc = "/isotipo-bw.png";
-  if (variant === "giant") imageSrc = "/icon-512.png"; 
+  if (variant === "app-icon" || variant === "giant") imageSrc = "/icon-512.png"; 
 
   return (
     <div className={cn("flex items-center gap-4 select-none", className)}>
@@ -24,7 +25,7 @@ export function Logo({ className, size = 45, showText = false, variant = "defaul
         className={cn(
           "relative transition-transform duration-500 hover:scale-110 cursor-pointer",
           variant === "giant" && "animate-float drop-shadow-[0_0_35px_rgba(0,240,255,0.4)]",
-          variant === "taco" && "drop-shadow-[0_0_15px_rgba(255,215,0,0.5)]"
+          variant === "iso-color" && "drop-shadow-[0_0_15px_rgba(255,0,153,0.4)]"
         )}
         style={{ width: finalSize, height: finalSize }}
       >
@@ -37,7 +38,6 @@ export function Logo({ className, size = 45, showText = false, variant = "defaul
         />
       </div>
       
-      {/* El texto solo aparece si showText es true explícitamente */}
       {showText && (
         <div className="flex flex-col justify-center leading-none">
           <span className={cn(
