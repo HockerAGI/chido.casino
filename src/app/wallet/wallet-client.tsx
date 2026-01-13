@@ -61,13 +61,12 @@ export default function WalletClient() {
            </div>
            <div>
              <h1 className="text-3xl font-black text-white">Bóveda Numia</h1>
-             <p className="text-zinc-500 text-sm font-medium">Motor financiero de alta velocidad.</p>
+             <p className="text-zinc-500 text-sm font-medium">Gestión financiera atómica en tiempo real.</p>
            </div>
         </div>
 
         <div className="grid lg:grid-cols-[1.2fr_1fr] gap-8">
           
-          {/* TARJETA VISUAL */}
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0a0a0a] to-[#1a1a1a] border border-white/10 p-8 shadow-2xl group">
              <div className="absolute top-0 right-0 p-40 bg-chido-pink/10 blur-3xl rounded-full group-hover:bg-chido-pink/15 transition-colors"></div>
              <div className="absolute bottom-0 left-0 p-32 bg-chido-cyan/10 blur-3xl rounded-full"></div>
@@ -94,12 +93,11 @@ export default function WalletClient() {
              </div>
           </div>
 
-          {/* FORMULARIO */}
           <div className="rounded-3xl bg-zinc-900/50 border border-white/5 p-6 backdrop-blur-sm">
              <div className="flex items-center justify-between mb-6">
                 <h2 className="font-bold text-lg text-white">Ingresar Fondos</h2>
                 <span className="text-[10px] font-bold text-chido-green flex items-center gap-1 bg-chido-green/10 px-2 py-1 rounded-full border border-chido-green/20">
-                  <ShieldCheck size={12} /> Seguro
+                  <ShieldCheck size={12} /> Pagos Seguros
                 </span>
              </div>
 
@@ -111,6 +109,7 @@ export default function WalletClient() {
                    onChange={(e) => setAmount(e.target.value)}
                    className="w-full bg-black border border-white/10 rounded-xl py-4 pl-8 pr-4 text-white font-black text-2xl focus:border-chido-cyan outline-none transition-colors"
                    inputMode="numeric"
+                   placeholder="100"
                  />
                </div>
 
