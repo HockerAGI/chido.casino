@@ -1,99 +1,196 @@
 "use client";
 
 import { MainLayout } from "@/components/layout/main-layout";
-import { Play, TrendingUp, Zap, Star, ShieldCheck } from "lucide-react";
+import { Play, Zap, Star, ShieldCheck, Flame, Gift, Search, Trophy } from "lucide-react";
 import Link from "next/link";
+import { useState, useEffect } from "react";
 
-// Datos simulados (Pronto vendrán de Supabase)
-const GAMES = [
-  { id: "crash", name: "Chido Crash", provider: "Hocker Originals", hot: true, type: "original" },
-  { id: "mines", name: "Mines", provider: "Hocker Originals", hot: false, type: "original" },
-  { id: "plinko", name: "Plinko", provider: "Hocker Originals", hot: false, type: "original" },
+// Categorías de Juegos (Punto 5)
+const CATEGORIES = [
+  { id: 'all', label: 'Todos', icon: Search },
+  { id: 'slots', label: 'Slots', icon: Flame },
+  { id: 'crash', label: 'Crash', icon: Zap },
+  { id: 'live', label: 'En Vivo', icon: Users }, // Placeholder
+  { id: 'originals', label: 'Originals', icon: Star },
+];
+
+// Simulador de Ganadores (Punto 11)
+const RECENT_WINNERS = [
+  { user: "Juan P.", game: "Chido Crash", amount: 4500 },
+  { user: "Maria L.", game: "Slots", amount: 1200 },
+  { user: "Carlos X.", game: "Plinko", amount: 850 },
 ];
 
 export default function LobbyPage() {
+  const [activeCategory, setActiveCategory] = useState('all');
+  const [promoCode, setPromoCode] = useState('');
+
   return (
     <MainLayout>
       
-      {/* === HERO BANNER: CRASH === */}
-      <section className="relative w-full h-[400px] lg:h-[480px] rounded-3xl overflow-hidden mb-12 group border border-white/5 shadow-2xl animate-fade-in">
-        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent z-10" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(0,240,255,0.1),transparent_60%)] z-10" />
-        
-        {/* Fondo Visual Abstracto (CSS Pattern) */}
-        <div className="absolute inset-0 bg-zinc-900 overflow-hidden">
-             <div className="absolute inset-0 opacity-30 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-overlay"></div>
-             <div className="absolute -right-20 -top-20 w-[600px] h-[600px] bg-chido-cyan/20 rounded-full blur-[100px] animate-pulse-slow"></div>
-             <div className="absolute -left-20 bottom-0 w-[400px] h-[400px] bg-chido-red/10 rounded-full blur-[80px]"></div>
+      {/* === 2. HERO SECTION (Zona de impacto) === */}
+      <section className="relative w-full h-[420px] lg:h-[500px] rounded-3xl overflow-hidden mb-8 border border-white/5 shadow-2xl group">
+        {/* Fondo con "Toque Mexicano Cyberpunk" */}
+        <div className="absolute inset-0 bg-zinc-900">
+           {/* Gradiente Alebrije */}
+           <div className="absolute top-[-50%] right-[-20%] w-[800px] h-[800px] bg-chido-pink/20 blur-[120px] rounded-full mix-blend-screen animate-pulse-slow" />
+           <div className="absolute bottom-[-20%] left-[-10%] w-[600px] h-[600px] bg-chido-cyan/10 blur-[100px] rounded-full mix-blend-screen" />
+           <div className="absolute inset-0 bg-mexican-pattern opacity-10" />
         </div>
         
-        <div className="relative z-20 h-full flex flex-col justify-end p-8 lg:p-12 pb-12">
-          <div className="max-w-2xl">
-            <span className="inline-flex items-center gap-2 px-3 py-1 bg-chido-cyan/10 border border-chido-cyan/20 text-chido-cyan text-xs font-black rounded-full uppercase tracking-wider mb-4 backdrop-blur-md">
-              <Zap size={12} fill="currentColor" /> Provably Fair
-            </span>
-            <h1 className="text-5xl lg:text-7xl font-black text-white mb-4 italic tracking-tighter drop-shadow-lg leading-[0.9]">
-              CHIDO <span className="text-transparent bg-clip-text bg-gradient-to-r from-chido-cyan to-white">CRASH</span>
-            </h1>
-            <p className="text-zinc-300 mb-8 text-lg font-medium leading-relaxed drop-shadow-md border-l-2 border-chido-cyan pl-4">
-              Multiplicadores infinitos. Retiro automático. 
-              <br/>El juego insignia del ecosistema Hocker.
-            </p>
-            <div className="flex gap-4">
-                <Link href="/games/crash" className="bg-white text-black px-10 py-4 rounded-full font-black text-lg hover:scale-105 transition-transform flex items-center gap-2 shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:bg-chido-cyan hover:text-black">
-                    <Play size={20} fill="currentColor" /> JUGAR AHORA
-                </Link>
-            </div>
+        <div className="relative z-20 h-full flex flex-col justify-center px-6 lg:px-16 max-w-3xl">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-chido-gold/20 border border-chido-gold/40 text-chido-gold text-xs font-black rounded-full uppercase tracking-wider mb-4 w-fit">
+            <Trophy size={14} /> Bono de Bienvenida
+          </div>
+          
+          <h1 className="text-5xl lg:text-7xl font-black text-white mb-4 italic tracking-tighter leading-[0.9] drop-shadow-xl">
+            100% HASTA <br/>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-chido-cyan to-chido-pink">$5,000 MXN</span>
+          </h1>
+          
+          <p className="text-zinc-300 mb-8 text-lg font-medium drop-shadow-md">
+            Duplicamos tu primer depósito. Juega Crash, Slots y más con la velocidad de Hocker AGI.
+          </p>
+          
+          <div className="flex gap-4">
+              <Link href="/wallet?deposit=1" className="bg-white text-black px-8 py-4 rounded-full font-black text-lg hover:scale-105 transition-transform flex items-center gap-2 shadow-[0_0_30px_rgba(255,255,255,0.2)]">
+                  <Play size={20} fill="currentColor" /> DEPOSITAR Y JUGAR
+              </Link>
+              <button className="px-8 py-4 rounded-full border border-white/20 bg-black/20 backdrop-blur-md font-bold hover:bg-white/10 transition-colors">
+                  Ver Detalles
+              </button>
           </div>
         </div>
       </section>
 
-      {/* === SECCIÓN: ORIGINALS === */}
-      <div className="mb-12">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-black flex items-center gap-3 text-white tracking-tight">
-            <Star className="text-chido-gold" fill="currentColor" />
-            Hocker Originals
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-6">
-          {GAMES.map((game) => (
-            <Link href={game.id === 'crash' ? '/games/crash' : '#'} key={game.id} className="group relative aspect-[3/4] bg-zinc-900 rounded-2xl overflow-hidden border border-white/5 hover:border-chido-cyan/50 transition-all cursor-pointer shadow-lg hover:shadow-chido-cyan/10 hover:-translate-y-1">
-              
-              {/* Etiqueta HOT */}
-              {game.hot && (
-                <div className="absolute top-3 right-0 bg-chido-red text-white text-[10px] font-black px-3 py-1 rounded-l-full shadow-lg z-20">
-                  HOT
-                </div>
-              )}
-              
-              {/* Imagen Placeholder Generativa */}
-              <div className={`absolute inset-0 flex flex-col items-center justify-center text-zinc-600 group-hover:text-chido-cyan transition-colors bg-gradient-to-br ${game.id === 'crash' ? 'from-zinc-800 to-zinc-900' : 'from-zinc-900 to-black'}`}>
-                 {game.id === 'crash' ? <Zap size={48} className="mb-2 text-chido-cyan/50" /> : <TrendingUp size={48} className="mb-2 opacity-50" />}
-                 <span className="font-bold uppercase tracking-widest text-xs mt-2">{game.name}</span>
-                 <span className="text-[10px] text-zinc-500 font-mono mt-1">{game.provider}</span>
-              </div>
-
-              {/* Overlay Hover */}
-              <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3 backdrop-blur-sm z-10">
-                <button className="bg-chido-cyan text-black rounded-full p-4 hover:scale-110 transition-transform shadow-[0_0_20px_#00F0FF]">
-                  <Play size={28} fill="currentColor" className="ml-1" />
+      {/* === 3. BARRA RÁPIDA DE ACCIONES === */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 mb-12">
+         {/* Filtros de Categoría */}
+         <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+            {CATEGORIES.map((cat) => {
+              const Icon = cat.icon;
+              const isActive = activeCategory === cat.id;
+              return (
+                <button 
+                  key={cat.id} 
+                  onClick={() => setActiveCategory(cat.id)}
+                  className={`flex items-center gap-2 px-5 py-3 rounded-xl border font-bold whitespace-nowrap transition-all ${
+                    isActive 
+                    ? 'bg-chido-pink text-white border-chido-pink shadow-[0_0_15px_rgba(255,0,153,0.3)]' 
+                    : 'bg-zinc-900 border-white/5 text-zinc-400 hover:text-white hover:bg-zinc-800'
+                  }`}
+                >
+                  <Icon size={18} /> {cat.label}
                 </button>
-                <span className="text-sm font-bold text-white tracking-wider">JUGAR</span>
-              </div>
-            </Link>
+              )
+            })}
+         </div>
+
+         {/* Input Código Promocional (Punto 7) */}
+         <div className="flex gap-2">
+            <input 
+              type="text" 
+              placeholder="CÓDIGO PROMO" 
+              value={promoCode}
+              onChange={(e) => setPromoCode(e.target.value)}
+              className="flex-1 bg-zinc-900 border border-white/10 rounded-xl px-4 text-sm font-bold text-white focus:border-chido-cyan outline-none uppercase placeholder:text-zinc-600"
+            />
+            <button className="bg-zinc-800 hover:bg-chido-cyan hover:text-black text-white px-4 rounded-xl font-bold transition-colors">
+              <Zap size={20} />
+            </button>
+         </div>
+      </div>
+
+      {/* === 11. FEED DE GANADORES (Prueba Social) === */}
+      <div className="mb-8 flex items-center gap-4 overflow-hidden bg-black/20 border-y border-white/5 py-2">
+         <span className="text-[10px] font-bold text-chido-green uppercase px-4 whitespace-nowrap animate-pulse">● Pagos en Vivo</span>
+         <div className="flex gap-8 animate-float-horizontal">
+            {RECENT_WINNERS.map((win, i) => (
+               <div key={i} className="flex items-center gap-2 text-xs font-medium text-zinc-400 whitespace-nowrap">
+                  <span className="text-white">{win.user}</span> ganó <span className="text-chido-green font-bold">${win.amount}</span> en {win.game}
+               </div>
+            ))}
+         </div>
+      </div>
+
+      {/* === 4. JUEGOS DESTACADOS === */}
+      <div className="mb-12">
+        <h2 className="text-2xl font-black flex items-center gap-3 text-white mb-6">
+          <Star className="text-chido-gold" fill="currentColor" />
+          Hocker Originals & Favoritos
+        </h2>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {/* Card: Crash (Featured) */}
+          <Link href="/games/crash" className="group relative aspect-[3/4] bg-zinc-900 rounded-2xl overflow-hidden border border-white/5 hover:border-chido-cyan transition-all shadow-lg hover:shadow-[0_0_20px_rgba(0,240,255,0.2)]">
+             <div className="absolute top-3 right-0 bg-chido-red text-white text-[10px] font-black px-3 py-1 rounded-l-full shadow-lg z-20">HOT</div>
+             <div className="absolute inset-0 bg-gradient-to-br from-zinc-800 to-black flex flex-col items-center justify-center group-hover:scale-110 transition-transform duration-500">
+                <Zap size={50} className="text-chido-cyan mb-2 drop-shadow-[0_0_10px_rgba(0,240,255,0.8)]" />
+                <span className="font-black text-xl uppercase italic">CRASH</span>
+             </div>
+             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity backdrop-blur-sm">
+                <button className="bg-chido-cyan text-black px-6 py-2 rounded-full font-bold text-sm transform scale-90 group-hover:scale-100 transition-transform">JUGAR</button>
+             </div>
+          </Link>
+
+          {/* Placeholders Slots */}
+          {[1,2,3,4].map((i) => (
+            <div key={i} className="aspect-[3/4] bg-zinc-900 rounded-2xl border border-white/5 flex flex-col items-center justify-center grayscale opacity-50 hover:opacity-100 hover:grayscale-0 transition-all cursor-pointer">
+               <span className="text-xs font-bold text-zinc-600">PRÓXIMAMENTE</span>
+            </div>
           ))}
         </div>
       </div>
 
-      {/* FOOTER */}
-      <footer className="mt-20 border-t border-white/5 pt-12 pb-8 text-center text-zinc-500 text-sm">
-        <div className="flex justify-center gap-8 mb-8 opacity-50 grayscale hover:grayscale-0 transition-all duration-500">
-           <div className="flex items-center gap-2"><ShieldCheck size={16}/><span>SSL Secure</span></div>
-           <div className="flex items-center gap-2"><Zap size={16}/><span>RNG Certified</span></div>
+      {/* === 10. CONFIANZA Y SEGURIDAD === */}
+      <section className="bg-zinc-900/50 rounded-3xl p-8 border border-white/5 mb-20 text-center">
+         <h3 className="text-lg font-bold text-white mb-6">Casino Oficial Certificado</h3>
+         <div className="flex flex-wrap justify-center gap-8 opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
+            <div className="flex flex-col items-center gap-2"><ShieldCheck size={32} /> <span className="text-[10px]">SSL Secure</span></div>
+            <div className="flex flex-col items-center gap-2"><Zap size={32} /> <span className="text-[10px]">RNG Certified</span></div>
+            <div className="flex flex-col items-center gap-2"><Users size={32} /> <span className="text-[10px]">+18 Only</span></div>
+         </div>
+      </section>
+
+      {/* === 14. FOOTER COMPLETO === */}
+      <footer className="border-t border-white/10 pt-16 pb-8 text-zinc-500 text-sm">
+        <div className="grid md:grid-cols-4 gap-8 mb-12">
+           <div>
+              <h4 className="font-bold text-white mb-4">Casino</h4>
+              <ul className="space-y-2 text-xs">
+                 <li>Juegos</li>
+                 <li>Originals</li>
+                 <li>Torneos</li>
+              </ul>
+           </div>
+           <div>
+              <h4 className="font-bold text-white mb-4">Soporte</h4>
+              <ul className="space-y-2 text-xs">
+                 <li>Chat en Vivo</li>
+                 <li>Centro de Ayuda</li>
+                 <li>Juego Responsable</li>
+              </ul>
+           </div>
+           <div>
+              <h4 className="font-bold text-white mb-4">Comunidad</h4>
+              <ul className="space-y-2 text-xs">
+                 <li>Afiliados</li>
+                 <li>Blog</li>
+                 <li>Redes Sociales</li>
+              </ul>
+           </div>
+           <div>
+              <h4 className="font-bold text-white mb-4">Legal</h4>
+              <ul className="space-y-2 text-xs">
+                 <li>Términos y Condiciones</li>
+                 <li>Privacidad</li>
+                 <li>KYC / AML</li>
+              </ul>
+           </div>
         </div>
-        <p className="mb-2">© 2026 Chido Casino. Una experiencia Hocker AGI.</p>
+        <div className="text-center pt-8 border-t border-white/5">
+           <p className="text-xs">© 2026 Chido Casino. Orgullosamente Mexicano 🇲🇽. Hocker AGI Tech.</p>
+        </div>
       </footer>
 
     </MainLayout>
