@@ -41,25 +41,10 @@ export default function LoginPage() {
           <p className="text-zinc-400 text-center text-sm mb-8">Ingresa para seguir ganando.</p>
 
           <form onSubmit={handleLogin} className="space-y-4">
-            <input 
-              type="email" 
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-chido-cyan outline-none transition-colors"
-              placeholder="correo@ejemplo.com"
-            />
-            <input 
-              type="password" 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-chido-cyan outline-none transition-colors"
-              placeholder="••••••••"
-            />
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-chido-cyan outline-none transition-colors" placeholder="correo@ejemplo.com" />
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-chido-cyan outline-none transition-colors" placeholder="••••••••" />
             {error && <div className="text-red-400 text-xs text-center font-bold">{error}</div>}
-            <button 
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-chido-cyan to-blue-600 text-white font-black py-4 rounded-xl text-lg hover:scale-[1.02] transition-all shadow-[0_0_20px_rgba(0,240,255,0.25)] flex items-center justify-center gap-2"
-            >
+            <button disabled={loading} className="w-full bg-gradient-to-r from-chido-cyan to-blue-600 text-white font-black py-4 rounded-xl text-lg hover:scale-[1.02] transition-all shadow-[0_0_20px_rgba(0,240,255,0.25)] flex items-center justify-center gap-2">
               {loading ? "..." : "ENTRAR"} <ArrowRight size={20} />
             </button>
           </form>
