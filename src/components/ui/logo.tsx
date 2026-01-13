@@ -5,34 +5,27 @@ interface LogoProps {
   className?: string;
   size?: number;
   showText?: boolean;
-  // Nuevas variantes alineadas a tus archivos
-  variant?: "default" | "giant" | "iso-color" | "iso-bw" | "app-icon";
+  // Variantes alineadas a tus archivos en public/
+  variant?: "default" | "giant" | "taco" | "iso-color" | "iso-bw";
 }
 
 export function Logo({ className, size = 45, showText = false, variant = "default" }: LogoProps) {
-  // Ajuste de tamaño automático para variantes grandes
   const finalSize = variant === "giant" ? 140 : size;
-
-  // Lógica de selección de imagen
-  let imageSrc = "/chido-logo.png"; // Default (Logo Oficial Completo)
-
+  
+  // Selección de imagen según variante
+  let imageSrc = "/chido-logo.png"; // Default
+  if (variant === "taco") imageSrc = "/taco-slot.png";
   if (variant === "iso-color") imageSrc = "/isotipo-color.png";
   if (variant === "iso-bw") imageSrc = "/isotipo-bw.png";
-  if (variant === "app-icon") imageSrc = "/icon-512.png";
-  
-  // Si es gigante (Login), usamos el de App Icon que suele tener mejor resolución/cuadrado
-  // o mantenemos el chido-logo si prefieres el texto integrado.
-  if (variant === "giant") imageSrc = "/icon-512.png"; 
+  if (variant === "giant") imageSrc = "/icon-512.png"; // Usamos la mejor resolución para el gigante
 
   return (
-    <div className={cn("flex items-center gap-3 select-none", className)}>
+    <div className={cn("flex items-center gap-4 select-none", className)}>
       <div 
         className={cn(
           "relative transition-transform duration-500 hover:scale-110 cursor-pointer",
-          // Efectos especiales según variante
           variant === "giant" && "animate-float drop-shadow-[0_0_35px_rgba(0,240,255,0.4)]",
-          variant === "iso-bw" && "opacity-50 hover:opacity-100 hover:grayscale-0 grayscale transition-all",
-          variant === "iso-color" && "drop-shadow-[0_0_15px_rgba(255,0,153,0.3)]"
+          variant === "taco" && "drop-shadow-[0_0_15px_rgba(255,215,0,0.5)]"
         )}
         style={{ width: finalSize, height: finalSize }}
       >
@@ -45,6 +38,7 @@ export function Logo({ className, size = 45, showText = false, variant = "defaul
         />
       </div>
       
+      {/* El texto solo se renderiza si explícitamente se pide (showText=true) */}
       {showText && (
         <div className="flex flex-col justify-center leading-none">
           <span className={cn(
