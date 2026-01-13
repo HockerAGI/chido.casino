@@ -4,14 +4,14 @@ import { cn } from "@/lib/cn";
 interface LogoProps {
   className?: string;
   size?: number;
-  showText?: boolean; // CORRECCIÓN CRÍTICA
+  showText?: boolean; // <--- ESTO ARREGLA EL ERROR DE BUILD
   variant?: "default" | "giant" | "taco" | "iso-color" | "iso-bw";
 }
 
 export function Logo({ className, size = 45, showText = false, variant = "default" }: LogoProps) {
   const finalSize = variant === "giant" ? 140 : size;
   
-  // Mapeo de assets (Asegúrate de tenerlos en /public)
+  // Selección de assets (Asegúrate de tenerlos en /public)
   let imageSrc = "/chido-logo.png";
   if (variant === "taco") imageSrc = "/taco-slot.png";
   if (variant === "iso-color") imageSrc = "/isotipo-color.png";
@@ -37,6 +37,7 @@ export function Logo({ className, size = 45, showText = false, variant = "defaul
         />
       </div>
       
+      {/* El texto solo aparece si showText es true explícitamente */}
       {showText && (
         <div className="flex flex-col justify-center leading-none">
           <span className={cn(
