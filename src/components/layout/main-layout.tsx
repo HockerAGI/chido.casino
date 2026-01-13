@@ -7,17 +7,18 @@ import { Logo } from "@/components/ui/logo";
 import { useWalletBalance } from "@/lib/useWalletBalance";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { 
-  Home, Wallet, Gamepad2, Users, Menu, X, LogOut, 
-  Bell, Search, Zap, Gift, Globe, ShieldCheck, Trophy
+  Home, Wallet, Users, Menu, X, LogOut, 
+  Bell, Search, Zap, Gift, Globe, MessageCircleHeart, Trophy
 } from "lucide-react";
 
+// Navegación Comercial
 const routes = [
   { href: "/lobby", label: "Lobby", icon: Home },
   { href: "/games/crash", label: "Crash", icon: Zap },
-  { href: "/promos", label: "Bonos", icon: Gift }, // Nuevo punto 6
-  { href: "/wallet", label: "Wallet", icon: Wallet },
-  { href: "/affiliates", label: "Socios", icon: Users },
-  { href: "/tournaments", label: "Torneos", icon: Trophy }, // Nuevo punto 12
+  { href: "/promos", label: "Promociones", icon: Gift },
+  { href: "/wallet", label: "Bóveda", icon: Wallet }, // Bóveda suena más seguro/premium
+  { href: "/affiliates", label: "Afiliados", icon: Users },
+  { href: "/tournaments", label: "Torneos", icon: Trophy },
 ];
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
@@ -36,10 +37,9 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-mexican-pattern bg-fixed text-white font-sans flex flex-col lg:flex-row">
       
-      {/* === 1. HEADER / TOP BAR MÓVIL === */}
+      {/* HEADER MÓVIL */}
       <header className="lg:hidden fixed top-0 w-full z-50 bg-chido-bg/95 backdrop-blur-xl border-b border-white/5 px-4 h-16 flex items-center justify-between shadow-lg">
-        <Logo size={42} /> {/* Logo más grande en móvil */}
-        
+        <Logo size={42} />
         <div className="flex items-center gap-3">
             <Link href="/wallet" className="bg-zinc-800/50 border border-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 active:scale-95 transition-transform">
                <span className="text-[10px] text-zinc-400 font-medium">MXN</span>
@@ -47,42 +47,28 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                  ${loading ? "..." : formatted}
                </span>
             </Link>
-            
             <button onClick={() => setSidebarOpen(!isSidebarOpen)} className="p-2 text-white">
               {isSidebarOpen ? <X size={26} /> : <Menu size={26} />}
             </button>
         </div>
       </header>
 
-      {/* === SIDEBAR (ESCRITORIO + DRAWER MÓVIL) === */}
+      {/* SIDEBAR */}
       <aside className={`
         fixed inset-y-0 left-0 z-40 w-72 bg-[#08080a] border-r border-white/5 transform transition-transform duration-300 ease-out
         lg:translate-x-0 lg:static lg:block shadow-2xl
         ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}
       `}>
         <div className="h-full flex flex-col">
-          {/* Logo Desktop */}
           <div className="h-24 hidden lg:flex items-center px-8 border-b border-white/5 bg-black/20">
              <Logo size={55} showText={true} /> 
           </div>
 
-          {/* Estado Usuario Móvil (Punto 3) */}
           <div className="lg:hidden p-6 mt-16 bg-gradient-to-r from-zinc-900 to-black border-b border-white/5">
-            <div className="flex items-center gap-3 mb-2">
-               <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-chido-cyan to-chido-pink p-[2px]">
-                 <div className="w-full h-full rounded-full bg-black flex items-center justify-center">
-                   <Users size={20} className="text-white"/>
-                 </div>
-               </div>
-               <div>
-                 <div className="text-xs text-zinc-400 uppercase">Jugador</div>
-                 <div className="text-sm font-bold text-white">VIP Nivel 1</div>
-               </div>
-            </div>
-            <div className="text-2xl font-black text-white tabular-nums">${loading ? "..." : formatted}</div>
+            <div className="text-xs text-zinc-400 uppercase mb-1">Tu Saldo Disponible</div>
+            <div className="text-3xl font-black text-white tabular-nums">${loading ? "..." : formatted}</div>
           </div>
 
-          {/* Navegación Principal */}
           <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto scrollbar-hide">
             {routes.map((route) => {
               const Icon = route.icon;
@@ -103,38 +89,41 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
               );
             })}
 
-            {/* Separador */}
-            <div className="my-4 border-t border-white/5 mx-4" />
+            <div className="my-6 border-t border-white/5 mx-4" />
             
-            {/* Accesos de Ayuda (Punto 13) */}
-            <div className="px-4 text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-2">Soporte</div>
-            <button className="w-full flex items-center gap-4 px-4 py-3 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-all">
-               <ShieldCheck size={20} /> <span className="text-sm font-medium">Juego Justo</span>
+            {/* AGIs Integration: NOVA ASSIST */}
+            <div className="px-4 text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-2">Ayuda Inteligente</div>
+            <button className="w-full flex items-center gap-4 px-4 py-3 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-all group">
+               <div className="relative">
+                 <MessageCircleHeart size={20} className="group-hover:text-chido-cyan transition-colors" />
+                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-chido-green rounded-full animate-pulse"></span>
+               </div>
+               <div className="flex flex-col items-start leading-none gap-1">
+                 <span className="font-semibold text-sm">NOVA Assist</span>
+                 <span className="text-[9px] text-zinc-600 group-hover:text-zinc-400">Siempre en línea</span>
+               </div>
             </button>
           </nav>
 
-          {/* Footer Sidebar */}
           <div className="p-6 border-t border-white/5 bg-black/40">
             <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-chido-red/80 hover:bg-chido-red/10 hover:text-chido-red transition-all font-bold text-sm">
-              <LogOut size={18} /> Cerrar Sesión
+              <LogOut size={18} /> Salir
             </button>
           </div>
         </div>
       </aside>
 
-      {/* === MAIN CONTENT === */}
+      {/* CONTENIDO PRINCIPAL */}
       <main className="flex-1 overflow-y-auto relative scrollbar-hide bg-chido-bg pt-16 lg:pt-0">
         
-        {/* === 1. TOP BAR DESKTOP (Punto 1) === */}
+        {/* HEADER DESKTOP */}
         <div className="hidden lg:flex items-center justify-between px-8 py-4 sticky top-0 z-30 bg-chido-bg/90 backdrop-blur-md border-b border-white/5">
-           
-           {/* Buscador + Idioma */}
            <div className="flex items-center gap-4">
              <div className="relative group">
                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-chido-cyan transition-colors" size={16} />
                <input 
                  type="text" 
-                 placeholder="Buscar juegos, alebrijes..." 
+                 placeholder="Buscar..." 
                  className="bg-zinc-900 border border-white/5 rounded-full pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-chido-pink/50 w-64 transition-all focus:w-80"
                />
              </div>
@@ -143,8 +132,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
              </button>
            </div>
 
-           {/* Wallet Rápida + Perfil */}
            <div className="flex items-center gap-4">
+             {/* Call to Action Principal */}
              <Link href="/wallet?deposit=1" className="bg-gradient-to-r from-chido-green to-emerald-600 text-black px-6 py-2 rounded-full font-black text-sm hover:scale-105 transition-transform shadow-[0_0_15px_rgba(50,205,50,0.3)] flex items-center gap-2">
                <Wallet size={16} /> DEPOSITAR
              </Link>
@@ -172,7 +161,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </div>
       </main>
 
-      {/* === 15. BARRA INFERIOR MÓVIL (Punto 15) === */}
+      {/* NAV MÓVIL INFERIOR */}
       <nav className="lg:hidden fixed bottom-0 w-full bg-[#0c0c0e]/95 backdrop-blur-2xl border-t border-white/5 pb-safe z-40 shadow-[0_-10px_40px_rgba(0,0,0,0.8)]">
         <div className="flex justify-around items-center h-[70px]">
           <Link href="/lobby" className={`flex flex-col items-center gap-1 ${pathname === '/lobby' ? 'text-chido-pink' : 'text-zinc-500'}`}>
@@ -184,7 +173,6 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             <span className="text-[10px] font-bold">Crash</span>
           </Link>
           
-          {/* Botón Central Flotante */}
           <Link href="/wallet?deposit=1" className="-mt-8">
             <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-chido-cyan to-chido-pink p-[3px] shadow-[0_0_20px_rgba(255,0,153,0.4)] animate-pulse-slow">
               <div className="w-full h-full rounded-full bg-black flex items-center justify-center">
@@ -197,9 +185,10 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             <Gift size={22} />
             <span className="text-[10px] font-bold">Bonos</span>
           </Link>
+          {/* NOVA en Móvil */}
           <Link href="/chat" className="flex flex-col items-center gap-1 text-zinc-500">
-            <Users size={22} />
-            <span className="text-[10px] font-bold">Chat</span>
+            <MessageCircleHeart size={22} />
+            <span className="text-[10px] font-bold">NOVA</span>
           </Link>
         </div>
       </nav>
