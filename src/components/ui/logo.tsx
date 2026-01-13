@@ -4,14 +4,14 @@ import { cn } from "@/lib/cn";
 interface LogoProps {
   className?: string;
   size?: number;
-  showText?: boolean; // <--- CORRECCIÓN APLICADA AQUÍ
+  showText?: boolean; // CORRECCIÓN CRÍTICA
   variant?: "default" | "giant" | "taco" | "iso-color" | "iso-bw";
 }
 
 export function Logo({ className, size = 45, showText = false, variant = "default" }: LogoProps) {
   const finalSize = variant === "giant" ? 140 : size;
   
-  // Selección de imagen
+  // Mapeo de assets (Asegúrate de tenerlos en /public)
   let imageSrc = "/chido-logo.png";
   if (variant === "taco") imageSrc = "/taco-slot.png";
   if (variant === "iso-color") imageSrc = "/isotipo-color.png";
