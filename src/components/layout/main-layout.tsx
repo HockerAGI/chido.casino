@@ -8,7 +8,7 @@ import { useWalletBalance } from "@/lib/useWalletBalance";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { 
   Home, Wallet, Menu, X, LogOut, Bell, Search, 
-  Zap, Gift, Trophy, User, Settings, ShieldCheck, ChevronRight
+  Zap, Gift, Trophy, User, ShieldCheck, ChevronRight, MessageCircleHeart, Users
 } from "lucide-react";
 
 const routes = [
@@ -16,10 +16,8 @@ const routes = [
   { href: "/games/crash", label: "Crash", icon: Zap },
   { href: "/promos", label: "Bonos", icon: Gift },
   { href: "/affiliates", label: "Socios", icon: Users },
-  { href: "/profile", label: "Mi Perfil", icon: User }, // Nueva sección completa
+  { href: "/profile", label: "Perfil", icon: User },
 ];
-
-import { Users } from "lucide-react"; // Fix import
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -38,7 +36,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       
       {/* HEADER MÓVIL */}
       <header className="lg:hidden fixed top-0 w-full z-50 bg-[#050510]/95 backdrop-blur-xl border-b border-white/5 px-4 h-16 flex items-center justify-between shadow-2xl transition-all">
-        <Logo size={40} /> {/* Solo Logo Imagen */}
+        {/* Solo Logo Imagen */}
+        <Logo size={40} showText={false} variant="default" /> 
         
         <div className="flex items-center gap-3">
             <Link href="/wallet" className="bg-zinc-900/80 border border-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 active:scale-95 transition-transform">
@@ -61,13 +60,14 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       `}>
         <div className="h-full flex flex-col">
           <div className="h-24 hidden lg:flex items-center justify-center border-b border-white/5 bg-black/20">
-             <Logo size={50} showText={true} /> 
+             {/* En Desktop Sidebar sí mostramos texto para llenar espacio, o lo quitamos si prefieres minimalismo */}
+             <Logo size={45} showText={true} /> 
           </div>
 
-          {/* PERFIL RESUMEN (Estilo Afun) */}
-          <div className="p-6 mt-16 lg:mt-0 bg-gradient-to-br from-zinc-900 via-black to-black border-b border-white/5 relative overflow-hidden group">
+          {/* PERFIL RESUMEN */}
+          <div className="p-6 mt-16 lg:mt-0 bg-gradient-to-br from-zinc-900 via-black to-black border-b border-white/5 relative overflow-hidden group cursor-pointer" onClick={() => router.push('/profile')}>
             <div className="absolute top-0 right-0 w-20 h-20 bg-chido-pink/10 blur-2xl rounded-full group-hover:bg-chido-pink/20 transition-colors" />
-            <Link href="/profile" className="relative z-10 flex items-center gap-4 mb-4">
+            <div className="relative z-10 flex items-center gap-4 mb-4">
                <div className="w-12 h-12 rounded-full border-2 border-chido-cyan p-[2px]">
                  <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${formatted}`} className="w-full h-full rounded-full bg-zinc-800" alt="Avatar"/>
                </div>
@@ -78,7 +78,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                  </div>
                </div>
                <ChevronRight className="ml-auto text-zinc-600" size={16} />
-            </Link>
+            </div>
             <div className="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
                <div className="h-full w-[35%] bg-gradient-to-r from-chido-cyan to-chido-pink rounded-full animate-pulse-slow" />
             </div>
@@ -108,6 +108,21 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                 </Link>
               );
             })}
+            
+            <div className="my-6 border-t border-white/5 mx-4" />
+            
+            {/* NOVA Assist */}
+            <div className="px-4 text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-2">Ayuda Hocker AGI</div>
+            <button className="w-full flex items-center gap-4 px-4 py-3 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-all group">
+               <div className="relative">
+                 <MessageCircleHeart size={20} className="group-hover:text-chido-cyan transition-colors" />
+                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-chido-green rounded-full animate-pulse"></span>
+               </div>
+               <div className="flex flex-col items-start leading-none gap-1">
+                 <span className="font-semibold text-sm">NOVA Assist</span>
+                 <span className="text-[9px] text-zinc-600 group-hover:text-zinc-400">En línea</span>
+               </div>
+            </button>
           </nav>
 
           <div className="p-6 border-t border-white/5 bg-black/40">
@@ -145,7 +160,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                 <span className="text-xl font-black text-white tabular-nums">${loading ? "..." : formatted}</span>
              </div>
              
-             <div className="w-10 h-10 rounded-full border border-white/10 p-1 cursor-pointer hover:border-chido-pink transition-colors relative">
+             <div className="w-10 h-10 rounded-full border border-white/10 p-1 cursor-pointer hover:border-chido-pink transition-colors relative" onClick={() => router.push('/profile')}>
                 <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${formatted}`} alt="Avatar" className="rounded-full bg-zinc-800" />
                 <span className="absolute top-0 right-0 w-3 h-3 bg-chido-green rounded-full border-2 border-[#050510]" />
              </div>
@@ -157,7 +172,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </div>
       </main>
 
-      {/* BARRA INFERIOR MÓVIL (Con Taco Slot Isotipo) */}
+      {/* BARRA INFERIOR MÓVIL (Con Taco Slot) */}
       <nav className="lg:hidden fixed bottom-0 w-full bg-[#050510]/90 backdrop-blur-2xl border-t border-white/5 pb-safe z-40 shadow-[0_-10px_40px_rgba(0,0,0,0.9)]">
         <div className="flex justify-around items-center h-[75px]">
           <Link href="/lobby" className={`flex flex-col items-center gap-1 ${pathname === '/lobby' ? 'text-chido-cyan' : 'text-zinc-600'}`}>
@@ -169,10 +184,11 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             <span className="text-[9px] font-bold">Crash</span>
           </Link>
           
-          {/* TACO SLOT CENTRAL */}
+          {/* EL TACO SLOT CENTRAL */}
           <Link href="/wallet?deposit=1" className="-mt-10 group">
              <div className="relative w-16 h-16 transition-transform group-active:scale-95">
                <div className="absolute inset-0 bg-chido-cyan/20 rounded-full blur-xl animate-pulse-slow" />
+               {/* Usamos la variante Taco aquí */}
                <Logo variant="taco" size={64} className="drop-shadow-2xl" />
              </div>
           </Link>
