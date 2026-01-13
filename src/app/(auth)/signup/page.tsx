@@ -1,197 +1,100 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { cn } from "@/lib/cn";
-
-function isValidEmail(email: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-}
-
-function SoftSpinner() {
-  return (
-    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/25 border-t-white/90" />
-  );
-}
+import { Logo } from "@/components/ui/logo";
+import { ArrowRight, ShieldCheck, Gift } from "lucide-react";
 
 export default function SignupPage() {
   const router = useRouter();
-  const cardRef = useRef<HTMLDivElement | null>(null);
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
-  const [touched, setTouched] = useState({ email: false, password: false });
   const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const emailError = useMemo(() => {
-    if (!touched.email) return "";
-    if (!email.trim()) return "Escribe tu correo.";
-    if (!isValidEmail(email)) return "Correo inválido.";
-    return "";
-  }, [email, touched.email]);
-
-  const passError = useMemo(() => {
-    if (!touched.password) return "";
-    if (!password) return "Crea una contraseña.";
-    if (password.length < 6) return "Mínimo 6 caracteres.";
-    return "";
-  }, [password, touched.password]);
-
-  const canSubmit = useMemo(() => {
-    return isValidEmail(email) && password.length >= 6 && !loading;
-  }, [email, password, loading]);
-
-  function shake() {
-    cardRef.current?.classList.remove("shake");
-    void cardRef.current?.offsetWidth;
-    cardRef.current?.classList.add("shake");
-  }
-
-  async function onSubmit(e: React.FormEvent) {
+  async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
-    setMsg(null);
-    setTouched({ email: true, password: true });
-
-    if (!isValidEmail(email) || password.length < 6) {
-      shake();
-      return;
-    }
-
     setLoading(true);
-    try {
-      const { error } = await supabase.auth.signUp({
-        email: email.trim(),
-        password
-      });
-
-      // --- CAMBIO AQUÍ PARA VER EL ERROR REAL ---
-      if (error) {
-        console.error("ERROR REAL DE SUPABASE:", error.message);
-        setMsg(`Error: ${error.message}`); // Ahora verás el mensaje exacto en la tarjeta
-        shake();
-        return;
-      }
-      // ------------------------------------------
-
-      setMsg("Cuenta creada. Ya puedes iniciar sesión.");
-      router.push("/login");
-      router.refresh();
-    } finally {
-      setLoading(false);
+    setError(null);
+    const { error } = await supabase.auth.signUp({ 
+      email, 
+      password,
+      options: { emailRedirectTo: `${location.origin}/auth/callback` }
+    });
+    
+    if (error) {
+       setError(error.message);
+       setLoading(false);
+    } else {
+       // Éxito: Redirigir o mostrar mensaje de verificación
+       router.push("/lobby");
     }
   }
 
   return (
-    <div className="w-full max-w-[560px] page-in">
-      <div
-        ref={cardRef}
-        className="card-fade relative rounded-3xl border border-white/10 bg-white/[0.04] p-6 shadow-[0_20px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl md:p-8"
-      >
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 rounded-t-3xl bg-gradient-to-r from-cyan-400/40 via-emerald-400/40 to-red-500/40" />
-
-        <div className="flex flex-col items-center text-center">
-          <img
-            src="/chido-logo.png"
-            alt="Chido Casino"
-            className="h-16 w-16 select-none drop-shadow-[0_0_18px_rgba(0,240,255,0.18)]"
-            draggable={false}
-          />
-          <h1 className="mt-4 text-2xl font-black tracking-tight md:text-3xl">
-            Crear cuenta
-          </h1>
-          <p className="mt-1 text-sm text-white/65">
-            Registro rápido. Luego entras al lobby.
-          </p>
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#050510] relative overflow-hidden">
+      <div className="absolute inset-0 bg-mexican-pattern opacity-10 animate-pulse-slow" />
+      
+      <div className="relative z-10 w-full max-w-md flex flex-col items-center">
+        
+        <div className="mb-8 animate-float">
+           <Logo variant="giant" showText={true} />
         </div>
 
-        <form onSubmit={onSubmit} className="mt-6 space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-white/75">Correo</label>
-            <div
-              className={cn(
-                "group relative rounded-2xl border bg-white/[0.03] px-4 py-3 transition",
-                emailError
-                  ? "border-red-400/40 shadow-[0_0_0_3px_rgba(255,60,60,0.08)]"
-                  : "border-white/10 focus-within:border-cyan-300/40 focus-within:shadow-[0_0_0_3px_rgba(0,240,255,0.08)]"
-              )}
-            >
-              <input
+        {/* TARJETA DE REGISTRO */}
+        <div className="w-full bg-zinc-900/80 backdrop-blur-xl border border-white/10 p-8 rounded-3xl shadow-[0_0_50px_rgba(0,240,255,0.15)] relative">
+          <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-gradient-to-r from-chido-pink to-chido-red text-white px-6 py-2 rounded-full text-xs font-black uppercase tracking-wider shadow-lg flex items-center gap-2 whitespace-nowrap">
+            <Gift size={14} /> Bono: $5,000 MXN
+          </div>
+
+          <h2 className="text-2xl font-black text-white text-center mt-4 mb-1">Únete a la Élite</h2>
+          <p className="text-zinc-400 text-center text-sm mb-6">Crea tu cuenta Hocker ID en segundos.</p>
+
+          <form onSubmit={handleSignup} className="space-y-4">
+            <div>
+              <label className="text-[10px] font-bold text-zinc-500 uppercase ml-3">Correo Electrónico</label>
+              <input 
+                type="email" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                onBlur={() => setTouched((t) => ({ ...t, email: true }))}
-                type="email"
-                autoComplete="email"
-                inputMode="email"
-                placeholder="tu@correo.com"
-                className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/25"
+                className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-chido-cyan outline-none transition-colors"
+                placeholder="ganador@ejemplo.com"
               />
-              <div className="pointer-events-none absolute inset-x-4 bottom-0 h-px bg-gradient-to-r from-transparent via-white/12 to-transparent opacity-0 transition group-focus-within:opacity-100" />
             </div>
-            <p className={cn("min-h-[18px] text-xs", emailError ? "text-red-300/90" : "text-white/45")}>
-              {emailError || "Te mandará directo al login."}
-            </p>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-white/75">Contraseña</label>
-            <div
-              className={cn(
-                "group relative rounded-2xl border bg-white/[0.03] px-4 py-3 transition",
-                passError
-                  ? "border-red-400/40 shadow-[0_0_0_3px_rgba(255,60,60,0.08)]"
-                  : "border-white/10 focus-within:border-cyan-300/40 focus-within:shadow-[0_0_0_3px_rgba(0,240,255,0.08)]"
-              )}
-            >
-              <input
+            <div>
+              <label className="text-[10px] font-bold text-zinc-500 uppercase ml-3">Contraseña Segura</label>
+              <input 
+                type="password" 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                onBlur={() => setTouched((t) => ({ ...t, password: true }))}
-                type="password"
-                autoComplete="new-password"
+                className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-chido-cyan outline-none transition-colors"
                 placeholder="••••••••"
-                className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/25"
               />
-              <div className="pointer-events-none absolute inset-x-4 bottom-0 h-px bg-gradient-to-r from-transparent via-white/12 to-transparent opacity-0 transition group-focus-within:opacity-100" />
             </div>
-            <p className={cn("min-h-[18px] text-xs", passError ? "text-red-300/90" : "text-white/45")}>
-              {passError || "Recomendación: 8+ caracteres para nivel pro."}
-            </p>
+
+            {error && <div className="text-chido-red text-xs text-center font-bold bg-chido-red/10 p-2 rounded-lg">{error}</div>}
+
+            <button 
+              disabled={loading}
+              className="w-full bg-white text-black font-black py-4 rounded-xl text-lg hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(255,255,255,0.3)] flex items-center justify-center gap-2 mt-4"
+            >
+              {loading ? "Creando..." : "CREAR CUENTA"} <ArrowRight size={20} />
+            </button>
+          </form>
+
+          <div className="mt-6 text-center">
+             <Link href="/login" className="text-zinc-500 hover:text-white text-sm transition-colors">
+               ¿Ya tienes cuenta? <span className="font-bold underline">Inicia Sesión</span>
+             </Link>
           </div>
-
-          {msg && (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/80">
-              {msg}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className={cn(
-              "relative w-full rounded-2xl px-4 py-3 font-black text-black shadow-[0_18px_50px_rgba(0,0,0,0.45)] transition active:scale-[0.99]",
-              canSubmit
-                ? "bg-gradient-to-r from-emerald-400 via-cyan-300 to-cyan-400 hover:brightness-105"
-                : "cursor-not-allowed bg-white/10 text-white/40"
-            )}
-          >
-            <span className="inline-flex items-center justify-center gap-2">
-              {loading ? <SoftSpinner /> : null}
-              {loading ? "Creando..." : "Crear cuenta"}
-            </span>
-            <span className="pointer-events-none absolute inset-0 rounded-2xl opacity-60 [background:radial-gradient(1200px_120px_at_50%_0%,rgba(255,255,255,0.18),transparent_55%)]" />
-          </button>
-
-          <div className="pt-2 text-center text-xs text-white/60">
-            ¿Ya tienes cuenta?{" "}
-            <Link className="font-bold text-cyan-200 hover:text-cyan-100" href="/login">
-              Inicia sesión
-            </Link>
-          </div>
-        </form>
+        </div>
+        
+        <div className="mt-8 flex items-center gap-2 opacity-50">
+           <ShieldCheck size={14} className="text-chido-green" />
+           <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Protección Vertx Garantizada</span>
+        </div>
       </div>
     </div>
   );
