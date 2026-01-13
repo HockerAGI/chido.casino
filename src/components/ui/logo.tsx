@@ -4,7 +4,7 @@ import { cn } from "@/lib/cn";
 interface LogoProps {
   className?: string;
   size?: number;
-  showText?: boolean; // <--- ESTA LÍNEA ES LA QUE FALTA EN TU CÓDIGO ACTUAL
+  showText?: boolean; // <--- ESTA ES LA LÍNEA QUE FALTABA
   variant?: "default" | "giant" | "taco" | "iso-color" | "iso-bw";
 }
 
