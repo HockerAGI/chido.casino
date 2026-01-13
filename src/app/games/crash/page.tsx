@@ -5,7 +5,7 @@ import { Zap, Users } from "lucide-react";
 
 export default function CrashGamePage() {
   const [betAmount, setBetAmount] = useState("10");
-  const [multiplier] = useState(1.00);
+  const [multiplier, setMultiplier] = useState(1.00);
 
   return (
     <MainLayout>
