@@ -9,7 +9,7 @@ export default function Home() {
 
       <div className="relative z-10 max-w-7xl mx-auto px-6 py-8 flex flex-col min-h-screen">
         <header className="flex justify-between items-center mb-20 animate-fade-in">
-          {/* Aquí SÍ se permite texto por ser Landing/Marketing */}
+          {/* En Landing SÍ se permite texto para vender la marca */}
           <Logo size={50} showText={true} />
           <div className="flex gap-4">
             <Link href="/login" className="hidden md:block px-6 py-2.5 rounded-full text-sm font-bold text-zinc-300 hover:text-white transition-colors">
@@ -30,10 +30,8 @@ export default function Home() {
             GANA <span className="text-transparent bg-clip-text bg-gradient-to-r from-chido-cyan to-chido-green">RÁPIDO.</span>
           </h1>
           <p className="text-xl md:text-2xl text-zinc-300 mb-10 max-w-xl leading-relaxed animate-fade-in font-medium">
-            Olvídate de los casinos lentos. Aquí hay retiros al instante y juegos originales que sí pagan. 
-            <span className="text-white font-bold block mt-2">¿Le entras o te da frío?</span>
+            Olvídate de los casinos lentos. Aquí hay retiros al instante y juegos originales que sí pagan.
           </p>
-
           <div className="flex flex-col sm:flex-row gap-4 animate-fade-in w-full sm:w-auto">
             <Link href="/signup" className="px-10 py-5 rounded-full bg-gradient-to-r from-chido-pink to-chido-red text-white font-black text-xl hover:scale-105 transition-transform shadow-[0_0_40px_rgba(255,0,153,0.5)] flex items-center justify-center gap-3 group">
               QUIERO MI BONO <ArrowRight className="group-hover:translate-x-1 transition-transform" />
@@ -42,23 +40,23 @@ export default function Home() {
         </main>
 
         <footer className="grid md:grid-cols-3 gap-8 border-t border-white/10 pt-12 mt-12 animate-fade-in pb-8">
-          <div className="bg-white/5 p-6 rounded-3xl border border-white/5 hover:bg-white/10 transition-colors group">
+          <div className="bg-white/5 p-6 rounded-3xl border border-white/5 hover:bg-white/10 transition-colors">
             <div className="flex items-center gap-2 mb-4">
                <Coins className="text-chido-green" size={24} />
                <span className="text-[10px] font-bold text-zinc-500 uppercase border border-white/10 px-2 py-0.5 rounded">Powered by Numia</span>
             </div>
             <h3 className="font-bold text-white text-lg mb-2">Pagos "En Fa"</h3>
-            <p className="text-sm text-zinc-400">Tu lana es tuya. Retira tus ganancias en segundos directo a tu cuenta.</p>
+            <p className="text-sm text-zinc-400">Tu lana es tuya. Retira tus ganancias en segundos.</p>
           </div>
-          <div className="bg-white/5 p-6 rounded-3xl border border-white/5 hover:bg-white/10 transition-colors group">
+          <div className="bg-white/5 p-6 rounded-3xl border border-white/5 hover:bg-white/10 transition-colors">
             <div className="flex items-center gap-2 mb-4">
                <ShieldCheck className="text-chido-cyan" size={24} />
                <span className="text-[10px] font-bold text-zinc-500 uppercase border border-white/10 px-2 py-0.5 rounded">Vertx Protected</span>
             </div>
             <h3 className="font-bold text-white text-lg mb-2">Seguridad Total</h3>
-            <p className="text-sm text-zinc-400">Tus datos no se tocan, tu suerte se respeta.</p>
+            <p className="text-sm text-zinc-400">Infraestructura blindada. Tus datos no se tocan.</p>
           </div>
-          <div className="bg-white/5 p-6 rounded-3xl border border-white/5 hover:bg-white/10 transition-colors group">
+          <div className="bg-white/5 p-6 rounded-3xl border border-white/5 hover:bg-white/10 transition-colors">
             <div className="flex items-center gap-2 mb-4">
                <Zap className="text-chido-gold" size={24} />
                <span className="text-[10px] font-bold text-zinc-500 uppercase border border-white/10 px-2 py-0.5 rounded">Hocker Originals</span>
