@@ -66,11 +66,9 @@ export default function WalletClient() {
         </div>
 
         <div className="grid lg:grid-cols-[1.2fr_1fr] gap-8">
-          
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0a0a0a] to-[#1a1a1a] border border-white/10 p-8 shadow-2xl group">
              <div className="absolute top-0 right-0 p-40 bg-chido-pink/10 blur-3xl rounded-full group-hover:bg-chido-pink/15 transition-colors"></div>
              <div className="absolute bottom-0 left-0 p-32 bg-chido-cyan/10 blur-3xl rounded-full"></div>
-             
              <div className="relative z-10 flex flex-col h-full justify-between min-h-[220px]">
                <div className="flex justify-between items-start">
                   <div className="text-zinc-400 font-bold text-xs uppercase tracking-[0.2em]">Saldo Total</div>
@@ -94,55 +92,21 @@ export default function WalletClient() {
           </div>
 
           <div className="rounded-3xl bg-zinc-900/50 border border-white/5 p-6 backdrop-blur-sm">
-             <div className="flex items-center justify-between mb-6">
-                <h2 className="font-bold text-lg text-white">Ingresar Fondos</h2>
-                <span className="text-[10px] font-bold text-chido-green flex items-center gap-1 bg-chido-green/10 px-2 py-1 rounded-full border border-chido-green/20">
-                  <ShieldCheck size={12} /> Pagos Seguros
-                </span>
-             </div>
-
+             <h2 className="font-bold text-lg text-white mb-6">Cargar Saldo</h2>
              <div className="space-y-4">
-               <div className="relative mt-1">
-                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-chido-cyan font-black text-xl">$</span>
-                 <input
-                   value={amount}
-                   onChange={(e) => setAmount(e.target.value)}
-                   className="w-full bg-black border border-white/10 rounded-xl py-4 pl-8 pr-4 text-white font-black text-2xl focus:border-chido-cyan outline-none transition-colors"
-                   inputMode="numeric"
-                   placeholder="100"
-                 />
+               <div>
+                 <div className="relative mt-1">
+                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-chido-cyan font-black text-xl">$</span>
+                   <input value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full bg-black border border-white/10 rounded-xl py-4 pl-8 pr-4 text-white font-black text-2xl focus:border-chido-cyan outline-none transition-colors" inputMode="numeric" />
+                 </div>
                </div>
-
                <div className="grid grid-cols-4 gap-2">
                  {quickAmounts.map((val) => (
-                   <button 
-                     key={val}
-                     onClick={() => setAmount(val)}
-                     className={`py-2 rounded-lg text-xs font-bold transition-all border ${amount === val ? 'bg-chido-cyan text-black border-chido-cyan' : 'bg-white/5 text-zinc-400 border-transparent hover:bg-white/10'}`}
-                   >
-                     ${val}
-                   </button>
+                   <button key={val} onClick={() => setAmount(val)} className={`py-2 rounded-lg text-xs font-bold transition-all border ${amount === val ? 'bg-chido-cyan text-black border-chido-cyan' : 'bg-white/5 text-zinc-400 border-transparent hover:bg-white/10'}`}>{val}</button>
                  ))}
                </div>
-
-               {msg && (
-                 <div className={`p-3 rounded-xl text-xs font-bold flex items-center gap-2 ${msg.type === 'success' ? 'bg-chido-green/20 text-chido-green' : 'bg-chido-red/20 text-chido-red'}`}>
-                   <AlertCircle size={14} /> {msg.text}
-                 </div>
-               )}
-
-               <button
-                 onClick={createDeposit}
-                 disabled={!canDeposit}
-                 className={cn(
-                   "w-full py-4 rounded-xl font-black text-lg shadow-lg transition-all active:scale-[0.98] mt-2",
-                   canDeposit
-                     ? "bg-gradient-to-r from-chido-cyan to-blue-500 text-white hover:brightness-110 shadow-chido-cyan/20"
-                     : "bg-zinc-800 text-zinc-600 cursor-not-allowed"
-                 )}
-               >
-                 {creating ? "Procesando..." : "PAGAR AHORA"}
-               </button>
+               {msg && <div className={`p-3 rounded-xl text-xs font-bold flex items-center gap-2 ${msg.type === 'success' ? 'bg-chido-green/20 text-chido-green' : 'bg-chido-red/20 text-chido-red'}`}>{msg.text}</div>}
+               <button onClick={createDeposit} disabled={!canDeposit} className={cn("w-full py-4 rounded-xl font-black text-lg shadow-lg transition-all mt-2", canDeposit ? "bg-gradient-to-r from-chido-cyan to-blue-500 text-white" : "bg-zinc-800 text-zinc-600 cursor-not-allowed")}>{creating ? "Procesando..." : "PAGAR AHORA"}</button>
              </div>
           </div>
         </div>
