@@ -9,6 +9,7 @@ export default function Home() {
 
       <div className="relative z-10 max-w-7xl mx-auto px-6 py-8 flex flex-col min-h-screen">
         <header className="flex justify-between items-center mb-20 animate-fade-in">
+          {/* Aquí SÍ se permite texto por ser Landing/Marketing */}
           <Logo size={50} showText={true} />
           <div className="flex gap-4">
             <Link href="/login" className="hidden md:block px-6 py-2.5 rounded-full text-sm font-bold text-zinc-300 hover:text-white transition-colors">
@@ -29,7 +30,7 @@ export default function Home() {
             GANA <span className="text-transparent bg-clip-text bg-gradient-to-r from-chido-cyan to-chido-green">RÁPIDO.</span>
           </h1>
           <p className="text-xl md:text-2xl text-zinc-300 mb-10 max-w-xl leading-relaxed animate-fade-in font-medium">
-            Olvídate de los casinos lentos. Aquí hay retiros al instante y juegos que sí pagan. 
+            Olvídate de los casinos lentos. Aquí hay retiros al instante y juegos originales que sí pagan. 
             <span className="text-white font-bold block mt-2">¿Le entras o te da frío?</span>
           </p>
 
@@ -47,7 +48,7 @@ export default function Home() {
                <span className="text-[10px] font-bold text-zinc-500 uppercase border border-white/10 px-2 py-0.5 rounded">Powered by Numia</span>
             </div>
             <h3 className="font-bold text-white text-lg mb-2">Pagos "En Fa"</h3>
-            <p className="text-sm text-zinc-400">Tu lana es tuya. Retira tus ganancias en segundos.</p>
+            <p className="text-sm text-zinc-400">Tu lana es tuya. Retira tus ganancias en segundos directo a tu cuenta.</p>
           </div>
           <div className="bg-white/5 p-6 rounded-3xl border border-white/5 hover:bg-white/10 transition-colors group">
             <div className="flex items-center gap-2 mb-4">
@@ -63,7 +64,7 @@ export default function Home() {
                <span className="text-[10px] font-bold text-zinc-500 uppercase border border-white/10 px-2 py-0.5 rounded">Hocker Originals</span>
             </div>
             <h3 className="font-bold text-white text-lg mb-2">Juegos Picantes</h3>
-            <p className="text-sm text-zinc-400">Crash y Plinko con multiplicadores locos.</p>
+            <p className="text-sm text-zinc-400">Crash, Plinko y Mines con multiplicadores locos.</p>
           </div>
         </footer>
       </div>
