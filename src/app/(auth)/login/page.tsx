@@ -32,7 +32,6 @@ export default function LoginPage() {
       <div className="absolute inset-0 bg-mexican-pattern opacity-5" />
       <div className="relative z-10 w-full max-w-md flex flex-col items-center">
         
-        {/* LOGO GIGANTE */}
         <div className="mb-12 animate-float">
            <Logo variant="giant" showText={true} />
         </div>
