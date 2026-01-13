@@ -37,7 +37,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       {/* HEADER MÓVIL */}
       <header className="lg:hidden fixed top-0 w-full z-50 bg-[#050510]/95 backdrop-blur-xl border-b border-white/5 px-4 h-16 flex items-center justify-between shadow-2xl transition-all">
         <Link href="/lobby">
-           {/* REGLA: SOLO IMAGEN */}
+           {/* REGLA CUMPLIDA: showText={false} */}
            <Logo size={40} showText={false} variant="default" /> 
         </Link>
         
@@ -67,7 +67,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
              </Link>
           </div>
 
-          {/* PERFIL RESUMEN */}
+          {/* PERFIL */}
           <div className="p-6 mt-16 lg:mt-0 bg-gradient-to-br from-zinc-900 via-black to-black border-b border-white/5 relative overflow-hidden group cursor-pointer" onClick={() => router.push('/profile')}>
             <div className="absolute top-0 right-0 w-20 h-20 bg-chido-pink/10 blur-2xl rounded-full group-hover:bg-chido-pink/20 transition-colors" />
             <div className="relative z-10 flex items-center gap-4 mb-4">
@@ -162,7 +162,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </div>
       </main>
 
-      {/* BARRA INFERIOR MÓVIL (Con Taco Slot) */}
+      {/* BARRA INFERIOR MÓVIL (Con Taco Central) */}
       <nav className="lg:hidden fixed bottom-0 w-full bg-[#050510]/90 backdrop-blur-2xl border-t border-white/5 pb-safe z-40 shadow-[0_-10px_40px_rgba(0,0,0,0.9)]">
         <div className="flex justify-around items-center h-[75px]">
           <Link href="/lobby" className={`flex flex-col items-center gap-1 ${pathname === '/lobby' ? 'text-chido-cyan' : 'text-zinc-600'}`}>
@@ -174,7 +174,6 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             <span className="text-[9px] font-bold">Crash</span>
           </Link>
           
-          {/* BOTÓN CENTRAL: TACO SLOT */}
           <Link href="/wallet?deposit=1" className="-mt-10 group">
              <div className="relative w-16 h-16 transition-transform group-active:scale-95">
                <div className="absolute inset-0 bg-chido-cyan/20 rounded-full blur-xl animate-pulse-slow" />
