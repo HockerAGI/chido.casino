@@ -1,6 +1,6 @@
 "use client";
 import { MainLayout } from "@/components/layout/main-layout";
-import { Gift, Zap } from "lucide-react";
+import { Gift } from "lucide-react";
 
 export default function PromosPage() {
   return (
