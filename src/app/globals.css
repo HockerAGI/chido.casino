@@ -3,13 +3,9 @@
 @tailwind utilities;
 
 :root {
-  --bg-main: #09090b;
+  --bg-main: #050510;
   --text-main: #fff;
 }
-
-/* Scrollbar oculta pero funcional */
-.scrollbar-hide::-webkit-scrollbar { display: none; }
-.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
 body {
   background: var(--bg-main);
@@ -18,19 +14,11 @@ body {
   overflow-x: hidden;
 }
 
-/* Textura sutil mexicana (Patrón abstracto) */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Fondo Global */
 .bg-mexican-pattern {
   background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
   background-size: 20px 20px;
-}
-
-/* Efectos Neon Alebrije */
-.neon-border {
-  box-shadow: 0 0 10px rgba(0, 240, 255, 0.1), inset 0 0 10px rgba(255, 0, 153, 0.1);
-}
-
-.text-gradient-chido {
-  background: linear-gradient(to right, #00F0FF, #FF0099);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
 }
