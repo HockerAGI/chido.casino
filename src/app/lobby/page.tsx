@@ -1,7 +1,8 @@
 "use client";
 
 import { MainLayout } from "@/components/layout/main-layout";
-import { Play, Zap, Star, ShieldCheck, Flame, Gift, Search, Trophy, Users, CheckCircle2 } from "lucide-react";
+// FIX: Importación completa
+import { Play, Zap, Star, ShieldCheck, Flame, Gift, Search, Trophy, Users, CheckCircle2, Coins } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -26,7 +27,7 @@ export default function LobbyPage() {
   return (
     <MainLayout>
       
-      {/* HERO SECTION: ENFOQUE EN GANAR */}
+      {/* HERO: DUPLICAMOS DEPÓSITO */}
       <section className="relative w-full h-[420px] lg:h-[500px] rounded-3xl overflow-hidden mb-8 border border-white/5 shadow-2xl group">
         <div className="absolute inset-0 bg-zinc-900">
            <div className="absolute top-[-50%] right-[-20%] w-[800px] h-[800px] bg-chido-pink/20 blur-[120px] rounded-full mix-blend-screen animate-pulse-slow" />
@@ -57,7 +58,7 @@ export default function LobbyPage() {
         </div>
       </section>
 
-      {/* BARRA DE ACCIÓN */}
+      {/* BARRA ACCIÓN + PROMO */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 mb-12">
          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
             {CATEGORIES.map((cat) => {
@@ -93,7 +94,7 @@ export default function LobbyPage() {
          </div>
       </div>
 
-      {/* WINNERS FEED */}
+      {/* FEED GANADORES */}
       <div className="mb-8 flex items-center gap-4 overflow-hidden bg-black/20 border-y border-white/5 py-2">
          <span className="text-[10px] font-bold text-chido-green uppercase px-4 whitespace-nowrap animate-pulse">● Ganando Ahora</span>
          <div className="flex gap-8 animate-float-horizontal">
@@ -105,7 +106,7 @@ export default function LobbyPage() {
          </div>
       </div>
 
-      {/* JUEGOS GRID */}
+      {/* GRID JUEGOS */}
       <div className="mb-12">
         <h2 className="text-2xl font-black flex items-center gap-3 text-white mb-6">
           <Star className="text-chido-gold" fill="currentColor" />
