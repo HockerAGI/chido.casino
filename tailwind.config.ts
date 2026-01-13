@@ -16,9 +16,9 @@ const config: Config = {
           bg: "#050510",      // Negro profundo
           card: "#121225",    // Tarjeta
           cyan: "#00F0FF",    // Tech
-          pink: "#FF0099",    // Rosa Mexicano (Nuevo!)
+          pink: "#FF0099",    // Rosa Mexicano
           red: "#FF3D00",     // Acción
-          green: "#32CD32",   // Dinero
+          green: "#32CD32",   // Dinero/Éxito
           gold: "#FFD700",    // VIP
           text: "#EAEAEA"
         },
@@ -29,7 +29,10 @@ const config: Config = {
         }
       },
       backgroundImage: {
-        'alebrije-gradient': 'linear-gradient(135deg, rgba(255,0,153,0.2) 0%, rgba(0,240,255,0.2) 50%, rgba(50,205,50,0.2) 100%)',
+        'mexican-pattern': "radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px)",
+      },
+      backgroundSize: {
+        'pattern': '20px 20px'
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-out',
