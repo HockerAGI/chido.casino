@@ -20,7 +20,6 @@ export function Footer() {
             <li className="hover:text-chido-cyan cursor-pointer">Juegos Crash</li>
             <li className="hover:text-chido-cyan cursor-pointer">Slots Exclusivos</li>
             <li className="hover:text-chido-cyan cursor-pointer">Niveles VIP</li>
-            <li className="hover:text-chido-cyan cursor-pointer">Torneos</li>
           </ul>
         </div>
 
@@ -28,9 +27,8 @@ export function Footer() {
           <h4 className="font-bold text-white mb-4 uppercase tracking-wider text-xs">Legal & Ayuda</h4>
           <ul className="space-y-2 text-sm text-zinc-400">
             <li className="hover:text-chido-cyan cursor-pointer">Términos y Condiciones</li>
-            <li className="hover:text-chido-cyan cursor-pointer">Política de Privacidad</li>
             <li className="hover:text-chido-cyan cursor-pointer">Juego Responsable</li>
-            <li className="hover:text-chido-cyan cursor-pointer">Soporte NOVA</li>
+            <li className="hover:text-chido-cyan cursor-pointer">Soporte Hocker</li>
           </ul>
         </div>
 
@@ -46,7 +44,6 @@ export function Footer() {
            </div>
         </div>
       </div>
-      
       <div className="text-center pt-8 border-t border-white/5 text-zinc-600 text-xs">
          © 2026 Chido Casino. Hocker AGI Technologies. Todos los derechos reservados.
       </div>
