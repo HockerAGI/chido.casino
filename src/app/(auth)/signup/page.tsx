@@ -35,7 +35,6 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#050510] relative overflow-hidden">
       <div className="absolute inset-0 bg-mexican-pattern opacity-10 animate-pulse-slow" />
-      
       <div className="relative z-10 w-full max-w-md flex flex-col items-center">
         <div className="mb-8 animate-float">
            <Logo variant="giant" showText={true} />
