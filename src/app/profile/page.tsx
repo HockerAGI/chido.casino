@@ -4,6 +4,7 @@ import { MainLayout } from "@/components/layout/main-layout";
 import { Footer } from "@/components/layout/footer";
 import { useWalletBalance } from "@/lib/useWalletBalance";
 import { User, Award, ShieldCheck, AlertCircle, Camera, UploadCloud } from "lucide-react";
+import Image from "next/image"; // <--- Importante para el badge
 import { useState } from "react";
 
 export default function ProfilePage() {
@@ -60,10 +61,6 @@ export default function ProfilePage() {
                           <label className="text-xs font-bold text-zinc-500 uppercase">Teléfono</label>
                           <input type="text" placeholder="+52 ..." disabled={!isEditing} className={`w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-chido-cyan outline-none ${isEditing ? 'border-chido-cyan/50' : ''}`} />
                        </div>
-                       <div className="space-y-2">
-                          <label className="text-xs font-bold text-zinc-500 uppercase">Nombre Completo</label>
-                          <input type="text" placeholder="Tu nombre" disabled={!isEditing} className={`w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-chido-cyan outline-none ${isEditing ? 'border-chido-cyan/50' : ''}`} />
-                       </div>
                     </div>
                   </div>
               )}
@@ -90,14 +87,34 @@ export default function ProfilePage() {
 
               {activeTab === 'vip' && (
                   <div className="text-center py-8 animate-fade-in">
-                    <Award size={60} className="text-chido-gold mx-auto mb-4 drop-shadow-[0_0_15px_rgba(255,215,0,0.5)]" />
-                    <h2 className="text-2xl font-black text-white">Salsa Verde</h2>
-                    <p className="text-zinc-400 mb-6">Nivel Inicial</p>
-                    
-                    <div className="bg-black/40 rounded-full h-4 w-full max-w-md mx-auto overflow-hidden relative mb-2">
-                       <div className="absolute top-0 left-0 h-full w-[25%] bg-gradient-to-r from-chido-green to-emerald-400"></div>
+                    {/* Badge Habanero Real */}
+                    <div className="relative w-32 h-32 mx-auto mb-4 drop-shadow-[0_0_25px_rgba(255,61,0,0.6)] hover:scale-110 transition-transform duration-500">
+                       <Image 
+                         src="/badge-habanero.png" 
+                         alt="Nivel Habanero" 
+                         fill 
+                         className="object-contain"
+                         priority
+                       /> 
                     </div>
-                    <p className="text-xs text-zinc-500">250 / 1000 XP para siguiente nivel</p>
+                    <h2 className="text-3xl font-black text-white mb-1">Salsa Verde</h2>
+                    <p className="text-chido-green font-bold text-sm mb-6 uppercase tracking-widest">Nivel Actual</p>
+                    
+                    <div className="bg-black/40 rounded-full h-4 w-full max-w-md mx-auto overflow-hidden relative mb-2 border border-white/10">
+                       <div className="absolute top-0 left-0 h-full w-[25%] bg-gradient-to-r from-chido-green to-emerald-400 shadow-[0_0_10px_#32CD32]"></div>
+                    </div>
+                    <p className="text-xs text-zinc-500 mb-8">250 / 1000 XP para siguiente nivel</p>
+
+                    <div className="grid grid-cols-2 gap-4 max-w-md mx-auto">
+                        <div className="p-4 bg-white/5 rounded-xl border border-white/5 flex flex-col items-center">
+                            <span className="text-2xl font-black text-white">1%</span>
+                            <span className="text-[10px] text-zinc-400 uppercase">Rakeback</span>
+                        </div>
+                        <div className="p-4 bg-white/5 rounded-xl border border-white/5 flex flex-col items-center opacity-50">
+                            <span className="text-2xl font-black text-white">5%</span>
+                            <span className="text-[10px] text-zinc-400 uppercase">Próximo Nivel</span>
+                        </div>
+                    </div>
                   </div>
               )}
            </div>
