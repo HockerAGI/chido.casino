@@ -31,9 +31,6 @@ const config: Config = {
       backgroundImage: {
         'mexican-pattern': "radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px)",
       },
-      backgroundSize: {
-        'pattern': '20px 20px'
-      },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-out',
         'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
@@ -53,5 +50,4 @@ const config: Config = {
   },
   plugins: []
 };
-
 export default config;
