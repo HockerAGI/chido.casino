@@ -4,51 +4,54 @@ import { cn } from "@/lib/cn";
 interface LogoProps {
   className?: string;
   size?: number;
-  // Variantes estrictas según tus archivos
-  variant?: "default" | "giant" | "taco" | "iso-color" | "iso-bw" | "text-only";
+  showText?: boolean; // <--- ESTA LÍNEA ES LA QUE FALTA EN TU CÓDIGO ACTUAL
+  variant?: "default" | "giant" | "taco" | "iso-color" | "iso-bw";
 }
 
-export function Logo({ className, size = 45, variant = "default" }: LogoProps) {
-  // Ajuste de tamaño para variantes grandes
-  const finalSize = variant === "giant" ? 160 : size;
+export function Logo({ className, size = 45, showText = false, variant = "default" }: LogoProps) {
+  const finalSize = variant === "giant" ? 140 : size;
   
-  // Mapeo de archivos (Asegúrate que estos existan en /public)
-  let imageSrc = "/chido-logo.png"; // Logo oficial cuadrado por defecto
-  
+  // Selección inteligente de assets
+  let imageSrc = "/chido-logo.png";
   if (variant === "taco") imageSrc = "/taco-slot.png";
   if (variant === "iso-color") imageSrc = "/isotipo-color.png";
   if (variant === "iso-bw") imageSrc = "/isotipo-bw.png";
-  if (variant === "giant") imageSrc = "/icon-512.png"; // Usamos la máxima resolución para login
+  if (variant === "giant") imageSrc = "/icon-512.png"; 
 
-  // Si la variante es SOLO TEXTO (para casos muy específicos donde no cabe imagen)
-  if (variant === "text-only") {
-    return (
-      <div className={cn("flex flex-col leading-none select-none", className)}>
-        <span className="font-black text-white tracking-tighter text-2xl">CHIDO</span>
-        <span className="text-[10px] font-bold text-chido-cyan tracking-[0.4em] uppercase">CASINO</span>
-      </div>
-    );
-  }
-
-  // Comportamiento por defecto: SOLO IMAGEN (Respetando tu regla de oro)
   return (
-    <div 
-      className={cn(
-        "relative transition-transform duration-500 hover:scale-110 cursor-pointer select-none",
-        // Efectos especiales por variante
-        variant === "giant" && "animate-float drop-shadow-[0_0_35px_rgba(0,240,255,0.4)]",
-        variant === "taco" && "drop-shadow-[0_0_15px_rgba(255,215,0,0.5)]",
-        className
+    <div className={cn("flex items-center gap-4 select-none", className)}>
+      <div 
+        className={cn(
+          "relative transition-transform duration-500 hover:scale-110 cursor-pointer",
+          variant === "giant" && "animate-float drop-shadow-[0_0_35px_rgba(0,240,255,0.4)]",
+          variant === "taco" && "drop-shadow-[0_0_15px_rgba(255,215,0,0.5)]"
+        )}
+        style={{ width: finalSize, height: finalSize }}
+      >
+        <Image 
+          src={imageSrc} 
+          alt="Chido Casino" 
+          fill
+          className="object-contain"
+          priority
+        />
+      </div>
+      
+      {showText && (
+        <div className="flex flex-col justify-center leading-none">
+          <span className={cn(
+            "font-black text-white tracking-tighter",
+            variant === "giant" ? "text-5xl drop-shadow-xl" : "text-xl"
+          )}>
+            CHIDO
+          </span>
+          {variant === "giant" && (
+            <span className="text-lg font-bold text-chido-cyan tracking-[0.4em] uppercase mt-1">
+              CASINO
+            </span>
+          )}
+        </div>
       )}
-      style={{ width: finalSize, height: finalSize }}
-    >
-      <Image 
-        src={imageSrc} 
-        alt="Chido Casino" 
-        fill
-        className="object-contain"
-        priority
-      />
     </div>
   );
 }
