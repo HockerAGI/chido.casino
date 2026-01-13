@@ -5,19 +5,17 @@ interface LogoProps {
   className?: string;
   size?: number;
   showText?: boolean;
-  // Variantes alineadas a tus archivos en public/
   variant?: "default" | "giant" | "taco" | "iso-color" | "iso-bw";
 }
 
 export function Logo({ className, size = 45, showText = false, variant = "default" }: LogoProps) {
   const finalSize = variant === "giant" ? 140 : size;
   
-  // Selección de imagen según variante
-  let imageSrc = "/chido-logo.png"; // Default
+  let imageSrc = "/chido-logo.png";
   if (variant === "taco") imageSrc = "/taco-slot.png";
   if (variant === "iso-color") imageSrc = "/isotipo-color.png";
   if (variant === "iso-bw") imageSrc = "/isotipo-bw.png";
-  if (variant === "giant") imageSrc = "/icon-512.png"; // Usamos la mejor resolución para el gigante
+  if (variant === "giant") imageSrc = "/icon-512.png"; 
 
   return (
     <div className={cn("flex items-center gap-4 select-none", className)}>
@@ -38,7 +36,6 @@ export function Logo({ className, size = 45, showText = false, variant = "defaul
         />
       </div>
       
-      {/* El texto solo se renderiza si explícitamente se pide (showText=true) */}
       {showText && (
         <div className="flex flex-col justify-center leading-none">
           <span className={cn(
