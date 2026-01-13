@@ -6,7 +6,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#050510] text-white overflow-hidden relative selection:bg-chido-pink/30">
       
-      {/* Fondo Hero Cyber-Tenochtitlan */}
+      {/* Fondo Hero */}
       <div className="absolute inset-0 z-0 bg-[url('/hero-bg.jpg')] bg-cover bg-center opacity-20" />
       <div className="absolute inset-0 z-0 bg-gradient-to-t from-[#050510] via-[#050510]/80 to-transparent" />
 
@@ -14,6 +14,7 @@ export default function Home() {
         
         {/* NAV */}
         <header className="flex justify-between items-center mb-20 animate-fade-in">
+          {/* Logo con Texto permitido aquí por ser Landing */}
           <Logo size={50} showText={true} />
           <div className="flex gap-4">
             <Link href="/login" className="hidden md:block px-6 py-2.5 rounded-full text-sm font-bold text-zinc-300 hover:text-white transition-colors">
@@ -56,30 +57,39 @@ export default function Home() {
           </div>
         </main>
 
-        {/* FOOTER FEATURES */}
+        {/* FOOTER FEATURES (Sellos de Confianza) */}
         <footer className="grid md:grid-cols-3 gap-8 border-t border-white/10 pt-12 mt-12 animate-fade-in pb-8" style={{ animationDelay: '0.4s' }}>
           <div className="bg-white/5 p-6 rounded-3xl border border-white/5 hover:bg-white/10 transition-colors group">
-            <div className="w-12 h-12 bg-chido-green/20 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-               <Coins className="text-chido-green" size={24} />
+            <div className="flex items-center gap-2 mb-4">
+               <div className="w-10 h-10 bg-chido-green/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                 <Coins className="text-chido-green" size={20} />
+               </div>
+               <span className="text-[10px] font-bold text-zinc-500 uppercase border border-white/10 px-2 py-0.5 rounded">Powered by Numia</span>
             </div>
             <h3 className="font-bold text-white text-lg mb-2">Pagos "En Fa"</h3>
-            <p className="text-sm text-zinc-400">Tu lana es tuya. Retira tus ganancias en segundos directo a tu cuenta.</p>
+            <p className="text-sm text-zinc-400">Tu lana es tuya. Retira tus ganancias en segundos a tu cuenta bancaria.</p>
           </div>
           
           <div className="bg-white/5 p-6 rounded-3xl border border-white/5 hover:bg-white/10 transition-colors group">
-            <div className="w-12 h-12 bg-chido-cyan/20 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-               <ShieldCheck className="text-chido-cyan" size={24} />
+            <div className="flex items-center gap-2 mb-4">
+               <div className="w-10 h-10 bg-chido-cyan/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                 <ShieldCheck className="text-chido-cyan" size={20} />
+               </div>
+               <span className="text-[10px] font-bold text-zinc-500 uppercase border border-white/10 px-2 py-0.5 rounded">Vertx Protected</span>
             </div>
-            <h3 className="font-bold text-white text-lg mb-2">Seguridad Vertx</h3>
+            <h3 className="font-bold text-white text-lg mb-2">Seguridad Total</h3>
             <p className="text-sm text-zinc-400">Infraestructura blindada. Tus datos no se tocan, tu suerte se respeta.</p>
           </div>
           
           <div className="bg-white/5 p-6 rounded-3xl border border-white/5 hover:bg-white/10 transition-colors group">
-            <div className="w-12 h-12 bg-chido-gold/20 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-               <Zap className="text-chido-gold" size={24} />
+            <div className="flex items-center gap-2 mb-4">
+               <div className="w-10 h-10 bg-chido-gold/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                 <Zap className="text-chido-gold" size={20} />
+               </div>
+               <span className="text-[10px] font-bold text-zinc-500 uppercase border border-white/10 px-2 py-0.5 rounded">Hocker Originals</span>
             </div>
-            <h3 className="font-bold text-white text-lg mb-2">Originals Picantes</h3>
-            <p className="text-sm text-zinc-400">Juegos exclusivos como Crash y Plinko con multiplicadores locos.</p>
+            <h3 className="font-bold text-white text-lg mb-2">Juegos Picantes</h3>
+            <p className="text-sm text-zinc-400">Crash, Plinko y Mines con multiplicadores locos que no encontrarás en otro lado.</p>
           </div>
         </footer>
 
