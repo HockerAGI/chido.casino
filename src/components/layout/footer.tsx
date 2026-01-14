@@ -1,12 +1,12 @@
 import { Logo } from "@/components/ui/logo";
-import { ShieldCheck, Instagram, Twitter, Facebook, AlertTriangle } from "lucide-react";
+import { ShieldCheck, Instagram, Twitter, Facebook } from "lucide-react";
 import Link from "next/link";
 
 export function Footer() {
   return (
     <footer className="border-t border-white/5 pt-16 pb-32 lg:pb-10 bg-[#020203] mt-auto relative overflow-hidden">
       
-      <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-4 gap-12 mb-16 relative z-10">
+      <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-4 gap-12 mb-12 relative z-10">
         
         {/* Marca & Licencia */}
         <div className="space-y-6 md:col-span-1">
@@ -67,7 +67,6 @@ export function Footer() {
             © 2026 Chido Casino. Todos los derechos reservados.
          </div>
          <div className="flex items-center gap-2 opacity-40 grayscale">
-            {/* Placeholders de logos de pago (texto por ahora) */}
             <span className="text-[10px] font-black">VISA</span>
             <span className="text-[10px] font-black">MASTERCARD</span>
             <span className="text-[10px] font-black">BITCOIN</span>
