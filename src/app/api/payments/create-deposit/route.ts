@@ -1,84 +1,74 @@
-import { NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { createClient } from "@supabase/supabase-js";
-
-export const runtime = "nodejs";
-
-function jsonError(message: string, status = 400) {
-  return NextResponse.json({ error: message }, { status });
-}
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json().catch(() => null);
-    if (!body) return jsonError("Payload inválido");
+    // 1. Validar Usuario
+    const supabase = createRouteHandlerClient({ cookies });
+    const { data: { session } } = await supabase.auth.getSession();
 
-    const { amount } = body;
-    const mxn = Number(amount);
-
-    if (!Number.isFinite(mxn) || mxn < 50 || mxn > 50000) {
-      return jsonError("Monto inválido (min 50, max 50000).");
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) return jsonError("No token provided", 401);
+    const { amount } = await req.json();
+    const userId = session.user.id;
+    const depositId = `dep-${Date.now()}`;
 
-    const token = authHeader.replace("Bearer ", "");
-
-    // Validar usuario
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    // 2. Configuración AstroPay (Sandbox para pruebas)
+    // Cuando tengas credenciales reales, cámbialas en tus variables de entorno (.env)
+    const ASTROPAY_LOGIN = process.env.ASTROPAY_LOGIN || "tu_login_sandbox";
+    const ASTROPAY_KEY = process.env.ASTROPAY_KEY || "tu_key_sandbox";
+    const IS_PRODUCTION = process.env.NODE_ENV === 'production';
     
-    if (userError || !userData?.user) return jsonError("Invalid token", 401);
+    const apiUrl = IS_PRODUCTION 
+        ? "https://api.astropay.com/merchant/v1/create_payment" // URL Real
+        : "https://sandbox-api.astropay.com/merchant/v1/create_payment"; // URL Pruebas
 
-    const userId = userData.user.id;
+    // 3. Payload para AstroPay
+    const payload = {
+      "amount": amount,
+      "currency": "MXN",
+      "country": "MX",
+      "merchant_reference": depositId,
+      "payment_methods": ["SPEI", "OXXO", "CREDIT_CARD"], 
+      "return_url": `${process.env.NEXT_PUBLIC_SITE_URL}/wallet?deposit=ok`,
+      "callback_url": `${process.env.NEXT_PUBLIC_SITE_URL}/api/webhooks/astropay`,
+      "user": {
+          "id": userId,
+          "email": session.user.email
+      }
+    };
 
-    const reqUrl = new URL(req.url);
-    const host = req.headers.get("x-forwarded-host") || reqUrl.host;
-    const protocol = req.headers.get("x-forwarded-proto") || reqUrl.protocol.replace(":", "");
-    const origin = `${protocol}://${host}`;
+    // 4. Si no hay llaves configuradas, simulamos para no romper el demo
+    if (ASTROPAY_LOGIN === "tu_login_sandbox") {
+        console.warn("⚠️ MODO SIMULACIÓN: Configura ASTROPAY_LOGIN en .env");
+        // Devolvemos URL ficticia de éxito inmediato
+        return NextResponse.json({ url: `/wallet?deposit=ok&simulated=true` });
+    }
 
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      payment_method_types: ["card", "oxxo"],
-      line_items: [
-        {
-          price_data: {
-            currency: "mxn",
-            product_data: { name: "Chido Casino Deposit" },
-            unit_amount: Math.round(mxn * 100)
-          },
-          quantity: 1
-        }
-      ],
-      metadata: { userId },
-      success_url: `${origin}/wallet?deposit=ok`,
-      cancel_url: `${origin}/wallet?deposit=cancel`
+    // 5. Llamada Real a AstroPay
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "ADT-Login": ASTROPAY_LOGIN,
+        "ADT-Key": ASTROPAY_KEY
+      },
+      body: JSON.stringify(payload)
     });
 
-    // AQUÍ ESTÁ LA CLAVE: Enviamos 'deposit' explícitamente
-    const { error: txError } = await supabaseAdmin.from("transactions").insert([
-      {
-        user_id: userId,
-        amount: mxn,
-        status: "pending",
-        type: "deposit",
-        stripe_checkout_session_id: session.id
-      }
-    ]);
+    const data = await response.json();
 
-    if (txError) {
-      console.error("Tx Insert Error:", txError);
-      return jsonError(`DB ERROR: ${txError.message} (Code: ${txError.code})`, 500);
+    if (data.url) {
+        return NextResponse.json({ url: data.url });
+    } else {
+        throw new Error(data.message || "Error contactando AstroPay");
     }
 
-    return NextResponse.json({ url: session.url });
   } catch (error: any) {
-    console.error("Deposit Error:", error);
-    return jsonError(`Deposit create error: ${error.message}`, 500);
+    console.error(error);
+    return NextResponse.json({ error: error.message || 'Error interno' }, { status: 500 });
   }
 }
