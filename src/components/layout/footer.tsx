@@ -10,6 +10,7 @@ export function Footer() {
       <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-4 gap-12 mb-16 relative z-10">
         <div className="space-y-6">
           <Link href="/lobby">
+             {/* Logo más grande */}
              <Logo variant="iso-bw" size={80} showText={true} />
           </Link>
           <p className="text-zinc-500 text-sm leading-relaxed max-w-xs">
@@ -30,7 +31,6 @@ export function Footer() {
             <li className="hover:text-chido-pink cursor-pointer transition-colors flex items-center gap-2"><Zap size={12}/> Crash Original</li>
             <li className="hover:text-chido-pink cursor-pointer transition-colors">Slots Habanero</li>
             <li className="hover:text-chido-pink cursor-pointer transition-colors">Ruleta en Vivo</li>
-            <li className="hover:text-chido-pink cursor-pointer transition-colors">Blackjack VIP</li>
           </ul>
         </div>
 
@@ -39,7 +39,6 @@ export function Footer() {
           <ul className="space-y-3 text-sm text-zinc-400 font-medium">
             <li className="hover:text-chido-cyan cursor-pointer transition-colors">Centro de Ayuda</li>
             <li className="hover:text-chido-cyan cursor-pointer transition-colors">Juego Responsable</li>
-            <li className="hover:text-chido-cyan cursor-pointer transition-colors">Autoexclusión</li>
             <li className="hover:text-chido-cyan cursor-pointer transition-colors">Contacto 24/7</li>
           </ul>
         </div>
