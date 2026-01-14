@@ -55,10 +55,10 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-[#08080a] border-r border-white/5 transform transition-transform duration-300 ease-out lg:translate-x-0 lg:static lg:block shadow-2xl ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="h-full flex flex-col">
           
-          {/* LOGO DE MARCA (Sidebar) - Usamos "full" (Oficial: Isotipo + Texto Imagen) */}
-          <div className="h-24 hidden lg:flex items-center justify-center border-b border-white/5 bg-black/20">
+          {/* LOGO DE MARCA (Sidebar) - Usamos "full" (Oficial: Isotipo + Texto Imagen) con Padding mejorado */}
+          <div className="h-28 hidden lg:flex items-center justify-center border-b border-white/5 bg-black/20 py-6">
              <Link href="/lobby">
-                <Logo size={50} variant="full" />
+                <Logo size={60} variant="full" />
              </Link>
           </div>
 
