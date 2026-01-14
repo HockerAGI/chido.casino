@@ -1,83 +1,57 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+import Image from "next/image";
+import { cn } from "@/lib/cn";
 
-:root {
-  --bg-main: #050510;
-  --text-main: #fff;
-}
-
-body {
-  background: var(--bg-main);
-  color: var(--text-main);
-  -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
+interface LogoProps {
+  className?: string;
+  size?: number;
+  showText?: boolean;
+  variant?: "default" | "giant" | "taco" | "iso-color" | "iso-bw";
 }
 
-/* Ocultar Scrollbar pero permitir scroll */
-.scrollbar-hide::-webkit-scrollbar { display: none; }
-.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+export function Logo({ className, size = 45, showText = false, variant = "default" }: LogoProps) {
+  const finalSize = variant === "giant" ? 140 : size;
+  
+  let imageSrc = "/chido-logo.png";
+  if (variant === "taco") imageSrc = "/taco-slot.png"; // Asegúrate de tener esta imagen o usa isotipo-color
+  if (variant === "iso-color") imageSrc = "/isotipo-color.png";
+  if (variant === "iso-bw") imageSrc = "/isotipo-bw.png";
+  if (variant === "giant") imageSrc = "/icon-512.png"; 
 
-/* Patrón de fondo estilo "Mexican Tech" */
-.bg-mexican-pattern {
-  background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
-  background-size: 20px 20px;
-}
-
-/* Animaciones Personalizadas */
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
-}
-.animate-float {
-  animation: float 4s ease-in-out infinite;
-}
-
-@keyframes pulse-slow {
-  0%, 100% { opacity: 0.5; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(1.1); }
-}
-.animate-pulse-slow {
-  animation: pulse-slow 3s ease-in-out infinite;
-}
-
-@keyframes dash {
-  from { stroke-dasharray: 1000; stroke-dashoffset: 1000; }
-  to { stroke-dashoffset: 0; }
-}
-.animate-dash {
-  animation: dash 2s ease-out forwards;
-}
-
-@keyframes shake {
-  0% { transform: translate(1px, 1px) rotate(0deg); }
-  10% { transform: translate(-1px, -2px) rotate(-1deg); }
-  20% { transform: translate(-3px, 0px) rotate(1deg); }
-  30% { transform: translate(3px, 2px) rotate(0deg); }
-  40% { transform: translate(1px, -1px) rotate(1deg); }
-  50% { transform: translate(-1px, 2px) rotate(-1deg); }
-  60% { transform: translate(-3px, 1px) rotate(0deg); }
-  70% { transform: translate(3px, 1px) rotate(-1deg); }
-  80% { transform: translate(-1px, -1px) rotate(1deg); }
-  90% { transform: translate(1px, 2px) rotate(0deg); }
-  100% { transform: translate(1px, -2px) rotate(-1deg); }
-}
-.shake {
-  animation: shake 0.5s;
-  animation-iteration-count: infinite;
-}
-
-/* Arreglo visual para imágenes Hero de baja resolución */
-.hero-overlay {
-  background-image: url('/hero-bg.jpg');
-  background-size: cover;
-  background-position: center;
-  filter: brightness(0.5) contrast(1.2);
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-}
-
-.pb-safe {
-  padding-bottom: env(safe-area-inset-bottom);
+  return (
+    <div className={cn("flex items-center gap-4 select-none", className)}>
+      <div 
+        className={cn(
+          "relative transition-transform duration-500 hover:scale-110 cursor-pointer",
+          variant === "giant" && "animate-float drop-shadow-[0_0_35px_rgba(0,240,255,0.4)]",
+          variant === "taco" && "drop-shadow-[0_0_15px_rgba(255,215,0,0.5)]",
+          variant === "iso-color" && "drop-shadow-[0_0_15px_rgba(255,0,153,0.3)]"
+        )}
+        style={{ width: finalSize, height: finalSize }}
+      >
+        <Image 
+          src={imageSrc} 
+          alt="Chido Casino" 
+          fill
+          className="object-contain"
+          priority
+        />
+      </div>
+      
+      {showText && (
+        <div className="flex flex-col justify-center leading-none">
+          <span className={cn(
+            "font-black text-white tracking-tighter",
+            variant === "giant" ? "text-5xl drop-shadow-xl" : "text-xl"
+          )}>
+            CHIDO
+          </span>
+          {variant === "giant" && (
+            <span className="text-lg font-bold text-chido-cyan tracking-[0.4em] uppercase mt-1">
+              CASINO
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
