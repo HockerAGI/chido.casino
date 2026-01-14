@@ -49,14 +49,14 @@ body {
   animation: dash 2s ease-out forwards;
 }
 
-/* Clase utilitaria para arreglar imágenes de baja resolución en Hero */
+/* Clase para corregir imágenes de baja resolución en Hero */
 .hero-overlay {
+  position: absolute;
+  inset: 0;
   background-image: url('/hero-bg.jpg');
   background-size: cover;
   background-position: center;
-  filter: brightness(0.5) contrast(1.2) blur(1px); /* Truco visual */
-  position: absolute;
-  inset: 0;
+  filter: brightness(0.5) contrast(1.2) blur(0.5px); /* Truco visual para disimular pixelado */
   z-index: 0;
 }
 
