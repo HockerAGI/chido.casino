@@ -132,7 +132,7 @@ export default function CrashGamePage() {
              ) : (
                  <button 
                     onClick={startGame} 
-                    disabled={gameStatus === 'crashed' && setTimeout(() => setGameStatus('idle'), 1000) === null} // Hack simple para delay
+                    disabled={gameStatus === 'crashed' && setTimeout(() => setGameStatus('idle'), 1000) === null} 
                     className="w-full md:w-auto md:px-12 h-20 bg-gradient-to-r from-chido-cyan to-blue-600 text-white font-black text-2xl rounded-2xl hover:brightness-110 active:scale-95 transition-all shadow-[0_0_30px_rgba(0,240,255,0.3)]"
                  >
                     APOSTAR
