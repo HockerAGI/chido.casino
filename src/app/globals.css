@@ -22,20 +22,20 @@ body {
   background-size: 20px 20px;
 }
 
-/* Solución para imagen Hero pixelada: Overlay con filtros */
+/* FIX: Hero Pixelado - Filtros para suavizar */
 .hero-overlay {
   position: absolute;
   inset: 0;
   background-image: url('/hero-bg.jpg');
   background-size: cover;
   background-position: center;
-  filter: brightness(0.6) contrast(1.1) blur(0.5px); /* El blur leve suaviza pixeles */
+  filter: brightness(0.5) contrast(1.1) blur(0px); 
   z-index: 0;
 }
 
-/* Animaciones */
+/* ANIMACIONES PRO */
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
+  0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-10px); }
 }
 .animate-float { animation: float 6s ease-in-out infinite; }
@@ -54,3 +54,10 @@ body {
   50% { opacity: 0.6; transform: scale(1.1); }
 }
 .animate-pulse-slow { animation: pulse-slow 3s infinite; }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+.shake { animation: shake 0.2s ease-in-out 3; }
