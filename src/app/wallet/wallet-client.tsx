@@ -85,6 +85,23 @@ export default function WalletClient() {
     }
   }
 
+  // === ESTA FUNCIÓN FALTABA Y CAUSÓ EL ERROR ===
+  async function handleWithdraw() {
+    setMsg(null);
+    if (amountNumber < 200) {
+        setMsg({ type: 'error', text: "El retiro mínimo es de $200 MXN." });
+        return;
+    }
+    setCreating(true);
+    // Simulación de solicitud de retiro
+    setTimeout(() => {
+        setCreating(false);
+        setMsg({ type: 'success', text: "Solicitud recibida. Procesando pago SPEI..." });
+        setAmount("");
+    }, 2000);
+  }
+  // ============================================
+
   return (
     <MainLayout>
       <div className="max-w-5xl mx-auto animate-fade-in px-4">
