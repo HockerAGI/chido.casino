@@ -4,7 +4,7 @@ import { MainLayout } from "@/components/layout/main-layout";
 import { Footer } from "@/components/layout/footer";
 import { useWalletBalance } from "@/lib/useWalletBalance";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import { User, Award, ShieldCheck, AlertCircle, Camera, Edit2, Save, Loader2, Image as ImageIcon } from "lucide-react";
+import { User, Award, ShieldCheck, AlertCircle, Camera, Edit2, Save, Loader2, Image as ImageIcon, UploadCloud } from "lucide-react";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -37,7 +37,7 @@ export default function ProfilePage() {
     xp: 0 
   });
 
-  // Carga inicial de datos reales
+  // Carga inicial de datos reales desde Supabase
   useEffect(() => {
     const loadUser = async () => {
         const { data: { user } } = await supabase.auth.getUser();
@@ -97,7 +97,7 @@ export default function ProfilePage() {
                 <div className="absolute inset-0 bg-mexican-pattern opacity-30"></div>
             </div>
             
-            {/* Botón Cambiar Banner */}
+            {/* Botón Cambiar Banner (Visual) */}
             <button className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white px-4 py-2 rounded-full text-xs font-bold backdrop-blur-md flex items-center gap-2 transition-all opacity-0 group-hover:opacity-100">
                 <ImageIcon size={14} /> Cambiar Portada
             </button>
@@ -226,7 +226,48 @@ export default function ProfilePage() {
                     </div>
                   </div>
               )}
-              {/* ... Resto de tabs (KYC, VIP) se mantienen similar pero dentro del nuevo layout ... */}
+              
+              {activeTab === 'verification' && (
+                  <div className="space-y-6 animate-fade-in">
+                    <div className="flex items-center justify-between p-5 bg-chido-red/10 border border-chido-red/20 rounded-2xl">
+                       <div className="flex items-center gap-4">
+                          <div className="p-3 bg-chido-red/20 rounded-full">
+                            <AlertCircle className="text-chido-red" size={24} />
+                          </div>
+                          <div>
+                             <div className="font-bold text-chido-red text-base">KYC Pendiente</div>
+                             <div className="text-xs text-chido-red/70 mt-1">Requisito legal para retiros en México.</div>
+                          </div>
+                       </div>
+                    </div>
+
+                    <div className="border-2 border-dashed border-white/10 rounded-3xl p-10 flex flex-col items-center justify-center text-center hover:bg-white/5 hover:border-chido-cyan/30 transition-all cursor-pointer group">
+                        <UploadCloud size={48} className="text-zinc-600 group-hover:text-chido-cyan transition-colors mb-4" />
+                        <h3 className="font-bold text-white text-lg mb-2">Cargar Documento Oficial</h3>
+                        <p className="text-xs text-zinc-500 max-w-xs mx-auto">INE (Frente y Vuelta) o Pasaporte vigente.</p>
+                        <button className="mt-6 px-6 py-2 bg-white text-black text-xs font-bold rounded-full hover:scale-105 transition-transform">Seleccionar Archivo</button>
+                    </div>
+                  </div>
+              )}
+
+              {activeTab === 'vip' && (
+                  <div className="flex flex-col items-center py-4 animate-fade-in">
+                    <div className="relative w-48 h-48 mb-6 drop-shadow-[0_0_35px_rgba(255,215,0,0.2)] animate-float">
+                       <Image src={levelData.img} alt={levelData.name} fill className="object-contain" priority /> 
+                    </div>
+                    
+                    <h2 className="text-4xl font-black text-white mb-2 italic uppercase tracking-tighter">{levelData.name}</h2>
+                    <div className="w-full max-w-md space-y-2 mt-4">
+                        <div className="flex justify-between text-xs font-bold text-zinc-400">
+                            <span>Progreso XP</span>
+                            <span>{levelData.nextXp} XP</span>
+                        </div>
+                        <div className="bg-black/60 rounded-full h-4 w-full overflow-hidden border border-white/10 relative">
+                           <div className={`absolute top-0 left-0 h-full w-[25%] bg-gradient-to-r ${formData.xp >= 20000 ? 'from-chido-red to-orange-500' : 'from-chido-green to-chido-cyan'} shadow-[0_0_15px_currentColor]`}></div>
+                        </div>
+                    </div>
+                  </div>
+              )}
            </div>
         </div>
       </div>
