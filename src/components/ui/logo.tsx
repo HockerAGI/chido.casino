@@ -12,17 +12,17 @@ export function Logo({ className, size = 45, showText = false, variant = "defaul
   const finalSize = variant === "giant" ? 140 : size;
   
   let imageSrc = "/chido-logo.png";
-  if (variant === "taco") imageSrc = "/taco-slot.png"; // Asegúrate de tener esta imagen o usa isotipo-color
+  if (variant === "taco") imageSrc = "/isotipo-color.png"; // Usamos isotipo-color si no hay taco específico
   if (variant === "iso-color") imageSrc = "/isotipo-color.png";
   if (variant === "iso-bw") imageSrc = "/isotipo-bw.png";
-  if (variant === "giant") imageSrc = "/icon-512.png"; 
+  if (variant === "giant") imageSrc = "/isotipo-color.png"; // Usamos el isotipo para el login gigante
 
   return (
     <div className={cn("flex items-center gap-4 select-none", className)}>
       <div 
         className={cn(
           "relative transition-transform duration-500 hover:scale-110 cursor-pointer",
-          variant === "giant" && "animate-float drop-shadow-[0_0_35px_rgba(0,240,255,0.4)]",
+          variant === "giant" && "animate-float drop-shadow-[0_0_50px_rgba(0,240,255,0.3)]",
           variant === "taco" && "drop-shadow-[0_0_15px_rgba(255,215,0,0.5)]",
           variant === "iso-color" && "drop-shadow-[0_0_15px_rgba(255,0,153,0.3)]"
         )}
