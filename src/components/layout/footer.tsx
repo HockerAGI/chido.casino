@@ -1,5 +1,5 @@
 import { Logo } from "@/components/ui/logo";
-import { ShieldCheck, Zap, Instagram, Twitter, Facebook, MessageCircle } from "lucide-react";
+import { ShieldCheck, Zap, Instagram, Twitter, Facebook } from "lucide-react";
 import Link from "next/link";
 
 export function Footer() {
@@ -11,6 +11,7 @@ export function Footer() {
         {/* COLUMNA 1: MARCA BW */}
         <div className="space-y-6">
           <Link href="/lobby" className="block w-fit opacity-80 hover:opacity-100 transition-opacity">
+             {/* CORRECCIÓN AQUÍ: Sin showText */}
              <Logo variant="iso-bw" size={60} />
           </Link>
           <p className="text-zinc-600 text-xs leading-relaxed max-w-xs">
@@ -60,11 +61,6 @@ export function Footer() {
       <div className="max-w-7xl mx-auto px-6 border-t border-white/5 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
          <div className="text-zinc-700 text-[10px] font-bold uppercase tracking-widest">
             © 2026 Chido Casino. Todos los derechos reservados.
-         </div>
-         <div className="flex items-center gap-4 opacity-30 grayscale hover:grayscale-0 transition-all duration-500">
-            {/* Aquí irían logos de proveedores de pago si tuvieras los svg */}
-            <div className="h-6 w-10 bg-white/20 rounded"></div>
-            <div className="h-6 w-10 bg-white/20 rounded"></div>
          </div>
       </div>
     </footer>
