@@ -171,7 +171,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
              <Link href="/wallet?deposit=1">
                 <div className="w-20 h-20 rounded-full bg-zinc-900 border-4 border-[#050510] flex items-center justify-center shadow-[0_-5px_20px_rgba(0,240,255,0.3)] transform transition-transform active:scale-95 overflow-hidden">
                    <div className="absolute inset-0 rounded-full bg-chido-cyan/20 animate-pulse-slow blur-xl" />
-                   {/* Isotipo Color para el botón central */}
+                   {/* Isotipo Color para el botón central (Sin showText) */}
                    <Logo variant="iso-color" size={75} className="drop-shadow-2xl relative z-10" />
                 </div>
              </Link>
