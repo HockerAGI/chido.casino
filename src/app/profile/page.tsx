@@ -2,24 +2,24 @@
 
 import { MainLayout } from "@/components/layout/main-layout";
 import { Footer } from "@/components/layout/footer";
-import { useWalletBalance } from "@/lib/useWalletBalance"; //
+import { useWalletBalance } from "@/lib/useWalletBalance";
 import { User, Award, ShieldCheck, AlertCircle, Camera, UploadCloud, Save } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 
 // Configuración de Niveles
 const VIP_LEVELS = {
-  1: { name: "Salsa Verde", img: "/badge-verde.png", minXp: 0, nextXp: 1000, color: "text-chido-green" }, // Usa la imagen nueva
+  1: { name: "Salsa Verde", img: "/badge-verde.png", minXp: 0, nextXp: 1000, color: "text-chido-green" },
   2: { name: "Serrano", img: "/badge-serrano.png", minXp: 1000, nextXp: 5000, color: "text-yellow-400" },
   3: { name: "Jalapeño", img: "/badge-jalapeno.png", minXp: 5000, nextXp: 20000, color: "text-orange-500" },
-  4: { name: "Habanero", img: "/badge-habanero.png", minXp: 20000, nextXp: 100000, color: "text-red-600" }, // Tu imagen actual
+  4: { name: "Habanero", img: "/badge-habanero.png", minXp: 20000, nextXp: 100000, color: "text-red-600" },
 };
 
 export default function ProfilePage() {
   const { formatted } = useWalletBalance();
   const [activeTab, setActiveTab] = useState("general");
   const [isEditing, setIsEditing] = useState(false);
-  const [currentLevel] = useState(4); // Cambia esto para probar niveles (1-4)
+  const [currentLevel] = useState(4); // Simulación Nivel 4 (Habanero)
   
   // Estado del formulario
   const [formData, setFormData] = useState({
