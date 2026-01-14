@@ -34,10 +34,9 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-[#050510] bg-mexican-pattern bg-fixed text-white font-sans flex flex-col lg:flex-row overflow-x-hidden selection:bg-chido-pink/30">
       
-      {/* === HEADER MÓVIL (Superior) === */}
+      {/* HEADER MÓVIL */}
       <header className="lg:hidden fixed top-0 w-full z-50 bg-[#050510]/95 backdrop-blur-xl border-b border-white/5 px-4 h-16 flex items-center justify-between shadow-2xl">
         <Link href="/lobby">
-            {/* Logo simple sin texto para móvil */}
             <Logo size={40} variant="default" showText={false} />
         </Link>
         <div className="flex items-center gap-3">
@@ -51,17 +50,15 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      {/* === SIDEBAR (Escritorio y Menú Lateral Móvil) === */}
+      {/* SIDEBAR */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-[#08080a] border-r border-white/5 transform transition-transform duration-300 ease-out lg:translate-x-0 lg:static lg:block shadow-2xl ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="h-full flex flex-col">
-          {/* Logo Escritorio */}
           <div className="h-24 hidden lg:flex items-center justify-center border-b border-white/5 bg-black/20">
              <Link href="/lobby">
                 <Logo size={50} variant="default" showText={false} />
              </Link>
           </div>
 
-          {/* Tarjeta de Perfil Mini */}
           <div className="p-6 mt-16 lg:mt-0 bg-gradient-to-br from-zinc-900 via-black to-black border-b border-white/5 relative group cursor-pointer" onClick={() => router.push('/profile')}>
             <div className="absolute top-0 right-0 w-20 h-20 bg-chido-pink/10 blur-2xl rounded-full group-hover:bg-chido-pink/20 transition-colors" />
             <div className="relative z-10 flex items-center gap-4 mb-2">
@@ -76,13 +73,11 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                </div>
                <ChevronRight className="ml-auto text-zinc-600" size={16} />
             </div>
-            {/* Barra de Progreso XP */}
             <div className="h-1 w-full bg-zinc-800 rounded-full overflow-hidden">
                <div className="h-full w-[25%] bg-gradient-to-r from-chido-cyan to-chido-pink" />
             </div>
           </div>
 
-          {/* Links de Navegación */}
           <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto scrollbar-hide">
             {navLinks.map((route) => {
               const Icon = route.icon;
@@ -103,7 +98,6 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             
             <div className="my-6 border-t border-white/5 mx-4" />
             
-            {/* Botón Soporte */}
             <button className="w-full flex items-center gap-4 px-4 py-3 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-all group">
                <MessageCircleHeart size={20} className="group-hover:text-chido-cyan transition-colors" />
                <div className="flex flex-col items-start leading-none gap-1">
@@ -113,7 +107,6 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             </button>
           </nav>
 
-          {/* Botón Logout */}
           <div className="p-6 border-t border-white/5 bg-black/40">
             <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-chido-red/80 hover:bg-chido-red/10 hover:text-chido-red transition-all font-bold text-sm bg-chido-red/5">
               <LogOut size={18} /> Salir
@@ -122,9 +115,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* === CONTENIDO PRINCIPAL === */}
+      {/* CONTENIDO PRINCIPAL */}
       <main className="flex-1 overflow-y-auto relative scrollbar-hide pt-16 lg:pt-0 flex flex-col">
-        {/* Header Escritorio */}
         <div className="hidden lg:flex items-center justify-between px-8 py-5 sticky top-0 z-30 bg-[#050510]/80 backdrop-blur-xl border-b border-white/5">
            <div className="relative group w-80">
              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600" size={18} />
@@ -145,13 +137,12 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
            </div>
         </div>
 
-        {/* Renderizado de Páginas Hijas */}
         <div className="flex-1">
           {children}
         </div>
       </main>
 
-      {/* === BARRA INFERIOR MÓVIL (Taco Pop) === */}
+      {/* BARRA INFERIOR MÓVIL (Taco Pop) */}
       <nav className="lg:hidden fixed bottom-0 w-full bg-[#050510]/90 backdrop-blur-xl border-t border-white/10 pb-safe z-50">
         <div className="flex justify-around items-end h-[85px] pb-4 px-2 relative">
           
