@@ -4,54 +4,40 @@ import { cn } from "@/lib/cn";
 interface LogoProps {
   className?: string;
   size?: number;
-  showText?: boolean;
-  variant?: "default" | "giant" | "taco" | "iso-color" | "iso-bw";
+  // full: Logo oficial (Texto + Isotipo) -> chido-logo.png
+  // iso-color: Isotipo color (Iconos, botones) -> isotipo-color.png
+  // iso-bw: Isotipo blanco y negro (Footer) -> isotipo-bw.png
+  variant?: "full" | "iso-color" | "iso-bw";
 }
 
-export function Logo({ className, size = 45, showText = false, variant = "default" }: LogoProps) {
-  const finalSize = variant === "giant" ? 140 : size;
+export function Logo({ className, size = 45, variant = "iso-color" }: LogoProps) {
+  // Ajuste de tamaño: Si es 'full', necesitamos más ancho proporcional
+  const width = variant === "full" ? size * 2.5 : size;
+  const height = size;
+
+  let imageSrc = "/isotipo-color.png"; // Default
   
-  let imageSrc = "/chido-logo.png";
-  if (variant === "taco") imageSrc = "/isotipo-color.png"; // Usamos isotipo-color si no hay taco específico
+  if (variant === "full") imageSrc = "/chido-logo.png";
   if (variant === "iso-color") imageSrc = "/isotipo-color.png";
   if (variant === "iso-bw") imageSrc = "/isotipo-bw.png";
-  if (variant === "giant") imageSrc = "/isotipo-color.png"; // Usamos el isotipo para el login gigante
 
   return (
-    <div className={cn("flex items-center gap-4 select-none", className)}>
-      <div 
+    <div 
+      className={cn("relative select-none transition-transform duration-300 hover:scale-105", className)}
+      style={{ width, height }}
+    >
+      <Image 
+        src={imageSrc} 
+        alt="Chido Casino" 
+        fill
         className={cn(
-          "relative transition-transform duration-500 hover:scale-110 cursor-pointer",
-          variant === "giant" && "animate-float drop-shadow-[0_0_50px_rgba(0,240,255,0.3)]",
-          variant === "taco" && "drop-shadow-[0_0_15px_rgba(255,215,0,0.5)]",
-          variant === "iso-color" && "drop-shadow-[0_0_15px_rgba(255,0,153,0.3)]"
+          "object-contain",
+          // Efectos específicos por variante
+          variant === "iso-color" && "drop-shadow-[0_0_15px_rgba(255,0,153,0.3)]",
+          variant === "full" && "drop-shadow-xl"
         )}
-        style={{ width: finalSize, height: finalSize }}
-      >
-        <Image 
-          src={imageSrc} 
-          alt="Chido Casino" 
-          fill
-          className="object-contain"
-          priority
-        />
-      </div>
-      
-      {showText && (
-        <div className="flex flex-col justify-center leading-none">
-          <span className={cn(
-            "font-black text-white tracking-tighter",
-            variant === "giant" ? "text-5xl drop-shadow-xl" : "text-xl"
-          )}>
-            CHIDO
-          </span>
-          {variant === "giant" && (
-            <span className="text-lg font-bold text-chido-cyan tracking-[0.4em] uppercase mt-1">
-              CASINO
-            </span>
-          )}
-        </div>
-      )}
+        priority
+      />
     </div>
   );
 }
