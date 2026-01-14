@@ -1,19 +1,21 @@
 import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
-import { ArrowRight, Zap, ShieldCheck, Coins, Flame } from "lucide-react";
+import { ArrowRight, Flame } from "lucide-react";
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-[#050510] text-white overflow-hidden relative selection:bg-chido-pink/30">
       
-      {/* FONDO HERO CON OVERLAY (Corrección Pixelado) */}
+      {/* FONDO HERO CON OVERLAY */}
       <div className="hero-overlay" />
       <div className="absolute inset-0 bg-gradient-to-t from-[#050510] via-[#050510]/80 to-transparent mix-blend-multiply z-0" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-6 py-8 flex flex-col min-h-screen">
         
         <header className="flex justify-between items-center mb-20 animate-fade-in">
-          <Logo size={50} showText={true} />
+          {/* CORRECCIÓN AQUÍ: variant="full" carga chido-logo.png */}
+          <Logo variant="full" size={140} />
+          
           <div className="flex gap-4">
             <Link href="/login" className="hidden md:block px-6 py-2.5 rounded-full text-sm font-bold text-zinc-300 hover:text-white transition-colors">
               Ya tengo cuenta
