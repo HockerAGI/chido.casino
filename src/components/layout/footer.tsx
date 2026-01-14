@@ -1,16 +1,13 @@
 import { Logo } from "@/components/ui/logo";
-import { ShieldCheck, Zap, Users, Instagram, Twitter, Facebook } from "lucide-react";
+import { ShieldCheck, Zap, Instagram, Twitter, Facebook } from "lucide-react";
 import Link from "next/link";
 
 export function Footer() {
   return (
     <footer className="border-t border-white/5 pt-20 pb-32 lg:pb-8 bg-[#030305] mt-auto relative overflow-hidden">
-      {/* Línea Neón Superior */}
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-chido-cyan via-chido-pink to-chido-gold opacity-30" />
       
       <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-4 gap-12 mb-16 relative z-10">
-        
-        {/* Columna Marca */}
         <div className="space-y-6">
           <Link href="/lobby">
              <Logo variant="iso-bw" size={80} showText={true} />
@@ -27,7 +24,6 @@ export function Footer() {
           </div>
         </div>
         
-        {/* Columna Juegos */}
         <div>
           <h4 className="font-black text-white mb-6 uppercase tracking-widest text-xs">Juegos</h4>
           <ul className="space-y-3 text-sm text-zinc-400 font-medium">
@@ -38,7 +34,6 @@ export function Footer() {
           </ul>
         </div>
 
-        {/* Columna Soporte */}
         <div>
           <h4 className="font-black text-white mb-6 uppercase tracking-widest text-xs">Soporte</h4>
           <ul className="space-y-3 text-sm text-zinc-400 font-medium">
@@ -49,13 +44,12 @@ export function Footer() {
           </ul>
         </div>
 
-        {/* Columna Licencia */}
-        <div className="bg-zinc-900/50 p-6 rounded-3xl border border-white/5 text-center h-fit">
+        <div className="bg-zinc-900/50 p-6 rounded-3xl border border-white/5 text-center">
            <div className="w-12 h-12 bg-chido-green/20 text-chido-green rounded-xl flex items-center justify-center mx-auto mb-4">
               <ShieldCheck size={24} />
            </div>
            <div className="text-xs font-bold text-zinc-300 mb-1">Licencia Operativa</div>
-           <div className="text-[10px] text-zinc-600 leading-tight">Regulado por Curacao Gaming Authority bajo licencia GLH-OCCHKTW07022026.</div>
+           <div className="text-[10px] text-zinc-600">Regulado por Curacao Gaming Authority bajo licencia GLH-OCCHKTW07022026.</div>
         </div>
       </div>
       
