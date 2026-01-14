@@ -52,7 +52,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-[#08080a] border-r border-white/5 transform transition-transform duration-300 ease-out lg:translate-x-0 lg:static lg:block shadow-2xl ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="h-full flex flex-col">
           <div className="h-24 hidden lg:flex items-center justify-center border-b border-white/5 bg-black/20">
-             <Link href="/lobby"><Logo size={50} variant="default" showText={false} /></Link>
+             <Link href="/lobby"><Logo size={50} variant="default" showText={true} /></Link>
           </div>
 
           <div className="p-6 mt-16 lg:mt-0 bg-gradient-to-br from-zinc-900 via-black to-black border-b border-white/5 relative group cursor-pointer" onClick={() => router.push('/profile')}>
@@ -84,14 +84,6 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                 </Link>
               );
             })}
-            <div className="my-6 border-t border-white/5 mx-4" />
-            <button className="w-full flex items-center gap-4 px-4 py-3 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-all group">
-               <MessageCircleHeart size={20} className="group-hover:text-chido-cyan transition-colors" />
-               <div className="flex flex-col items-start leading-none gap-1">
-                 <span className="font-semibold text-sm">NOVA Assist</span>
-                 <span className="text-[9px] text-zinc-600 group-hover:text-zinc-400">En línea</span>
-               </div>
-            </button>
           </nav>
 
           <div className="p-6 border-t border-white/5 bg-black/40">
@@ -127,7 +119,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </div>
       </main>
 
-      {/* BARRA INFERIOR MÓVIL (TACO POP) */}
+      {/* BARRA INFERIOR MÓVIL (Taco Pop Corregido) */}
       <nav className="lg:hidden fixed bottom-0 w-full bg-[#050510]/95 backdrop-blur-2xl border-t border-white/10 pb-safe z-50">
         <div className="flex justify-around items-end h-[85px] pb-4 px-2 relative">
           
@@ -144,9 +136,10 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           {/* BOTÓN CENTRAL FLOTANTE */}
           <div className="relative -top-5">
              <Link href="/wallet?deposit=1">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-b from-[#050510] to-zinc-900 border-4 border-[#050510] flex items-center justify-center shadow-[0_-5px_20px_rgba(0,240,255,0.3)] transform transition-transform active:scale-95 group">
-                   <div className="absolute inset-0 rounded-full bg-chido-cyan/20 animate-pulse-slow blur-xl" />
-                   <Logo variant="iso-color" size={75} className="drop-shadow-2xl relative z-10 group-hover:scale-110 transition-transform" />
+                {/* Fondo oscuro solido para que no se mezcle con la barra */}
+                <div className="w-20 h-20 rounded-full bg-zinc-900 border-4 border-[#050510] flex items-center justify-center shadow-[0_-5px_20px_rgba(0,240,255,0.4)] transform transition-transform active:scale-95 group overflow-hidden relative">
+                   <div className="absolute inset-0 bg-chido-cyan/20 animate-pulse-slow blur-xl" />
+                   <Logo variant="iso-color" size={70} className="relative z-10 group-hover:scale-110 transition-transform" />
                 </div>
              </Link>
           </div>
