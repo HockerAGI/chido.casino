@@ -16,6 +16,7 @@ export default function CrashGamePage() {
       if (betAmount === "" || Number(betAmount) <= 0) return;
       setMultiplier(1.00);
       setGameStatus('running');
+      // Simulación de crash (Backend en prod)
       crashPointRef.current = 1 + Math.random() * 5; 
       
       intervalRef.current = setInterval(() => {
@@ -36,10 +37,12 @@ export default function CrashGamePage() {
       setHistory(prev => [crashPointRef.current, ...prev].slice(0, 8));
   };
 
+  // LOGICA CASHOUT (RETIRAR)
   const cashOut = () => {
       if (gameStatus !== 'running') return;
       if (intervalRef.current) clearInterval(intervalRef.current);
       setGameStatus('cashed_out');
+      // Aquí se enviaría la señal al backend
   };
 
   useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current); }, []);
@@ -55,6 +58,7 @@ export default function CrashGamePage() {
       <div className="grid lg:grid-cols-[1fr_350px] gap-6 h-[calc(100vh-140px)] min-h-[600px] animate-fade-in px-4 pb-4">
         <div className="flex flex-col gap-4">
           <div className="flex-1 bg-zinc-900 rounded-3xl border border-white/5 relative overflow-hidden flex flex-col items-center justify-center group shadow-2xl">
+            {/* Fondo Grid */}
             <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px]" />
             
             <div className={`relative z-10 text-center transition-transform duration-100 ${gameStatus === 'crashed' ? 'shake' : ''}`}>
@@ -63,12 +67,13 @@ export default function CrashGamePage() {
               </div>
               <div className="flex justify-center mt-4">
                   {gameStatus === 'running' && <span className="bg-chido-pink/20 text-chido-pink px-4 py-1 rounded-full text-xs font-black animate-pulse uppercase tracking-widest">🚀 Volando...</span>}
-                  {gameStatus === 'crashed' && <span className="bg-chido-red/20 text-chido-red px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest">💥 Se estrelló</span>}
+                  {gameStatus === 'crashed' && <span className="bg-chido-red/20 text-chido-red px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest">💥 Crash</span>}
                   {gameStatus === 'cashed_out' && <span className="bg-chido-green/20 text-chido-green px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest">💰 Cobrado</span>}
                   {gameStatus === 'idle' && <span className="bg-white/10 text-zinc-400 px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest">Listo</span>}
               </div>
             </div>
 
+            {/* GRÁFICA SVG */}
             {gameStatus === 'running' && (
                 <svg className="absolute bottom-0 left-0 w-full h-1/2 opacity-20 pointer-events-none">
                     <path d="M0,500 Q 200,400 1000,0" stroke="url(#gradient)" strokeWidth="4" fill="none" className="animate-dash"/>
@@ -103,6 +108,7 @@ export default function CrashGamePage() {
           </div>
         </div>
         
+        {/* Historial */}
         <div className="hidden lg:flex flex-col bg-zinc-900 rounded-3xl border border-white/5 overflow-hidden">
           <div className="p-5 border-b border-white/5 flex items-center justify-between">
               <span className="font-black text-sm text-zinc-400 uppercase tracking-wider flex items-center gap-2"><TrendingUp size={16}/> Historial</span>
