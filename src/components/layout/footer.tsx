@@ -1,51 +1,66 @@
 import { Logo } from "@/components/ui/logo";
-import { ShieldCheck, Zap, Users } from "lucide-react";
+import { ShieldCheck, Zap, Users, Instagram, Twitter, Facebook } from "lucide-react";
+import Link from "next/link";
 
 export function Footer() {
   return (
-    <footer className="border-t border-white/10 pt-16 pb-8 bg-[#08080a] mt-auto">
-      <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-4 gap-12 mb-12">
-        <div className="space-y-4">
-          <Logo variant="iso-bw" size={50} showText={true} />
-          <p className="text-zinc-500 text-sm leading-relaxed">
-            El primer casino operado por Conciencia Digital. <br/>
-            Seguridad Vertx. Finanzas Numia. <br/>
-            Hecho en México 🇲🇽.
+    <footer className="border-t border-white/5 pt-20 pb-32 lg:pb-8 bg-[#030305] mt-auto relative overflow-hidden">
+      {/* Línea Neón Superior */}
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-chido-cyan via-chido-pink to-chido-gold opacity-30" />
+      
+      <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-4 gap-12 mb-16 relative z-10">
+        
+        {/* Columna Marca */}
+        <div className="space-y-6">
+          <Link href="/lobby">
+             <Logo variant="iso-bw" size={80} showText={true} />
+          </Link>
+          <p className="text-zinc-500 text-sm leading-relaxed max-w-xs">
+            La experiencia de casino definitiva. Pagos rápidos, juegos justos y la comunidad más chida de Latinoamérica.
           </p>
+          <div className="flex gap-4">
+             {[Twitter, Instagram, Facebook].map((Icon, i) => (
+                 <div key={i} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-zinc-400 hover:bg-chido-cyan hover:text-black transition-all cursor-pointer">
+                     <Icon size={18} />
+                 </div>
+             ))}
+          </div>
         </div>
         
+        {/* Columna Juegos */}
         <div>
-          <h4 className="font-bold text-white mb-4 uppercase tracking-wider text-xs">Plataforma</h4>
-          <ul className="space-y-2 text-sm text-zinc-400">
-            <li className="hover:text-chido-cyan cursor-pointer">Juegos Crash</li>
-            <li className="hover:text-chido-cyan cursor-pointer">Slots Exclusivos</li>
-            <li className="hover:text-chido-cyan cursor-pointer">Niveles VIP</li>
+          <h4 className="font-black text-white mb-6 uppercase tracking-widest text-xs">Juegos</h4>
+          <ul className="space-y-3 text-sm text-zinc-400 font-medium">
+            <li className="hover:text-chido-pink cursor-pointer transition-colors flex items-center gap-2"><Zap size={12}/> Crash Original</li>
+            <li className="hover:text-chido-pink cursor-pointer transition-colors">Slots Habanero</li>
+            <li className="hover:text-chido-pink cursor-pointer transition-colors">Ruleta en Vivo</li>
+            <li className="hover:text-chido-pink cursor-pointer transition-colors">Blackjack VIP</li>
           </ul>
         </div>
 
+        {/* Columna Soporte */}
         <div>
-          <h4 className="font-bold text-white mb-4 uppercase tracking-wider text-xs">Legal & Ayuda</h4>
-          <ul className="space-y-2 text-sm text-zinc-400">
-            <li className="hover:text-chido-cyan cursor-pointer">Términos y Condiciones</li>
-            <li className="hover:text-chido-cyan cursor-pointer">Juego Responsable</li>
-            <li className="hover:text-chido-cyan cursor-pointer">Soporte Hocker</li>
+          <h4 className="font-black text-white mb-6 uppercase tracking-widest text-xs">Soporte</h4>
+          <ul className="space-y-3 text-sm text-zinc-400 font-medium">
+            <li className="hover:text-chido-cyan cursor-pointer transition-colors">Centro de Ayuda</li>
+            <li className="hover:text-chido-cyan cursor-pointer transition-colors">Juego Responsable</li>
+            <li className="hover:text-chido-cyan cursor-pointer transition-colors">Autoexclusión</li>
+            <li className="hover:text-chido-cyan cursor-pointer transition-colors">Contacto 24/7</li>
           </ul>
         </div>
 
-        <div className="space-y-4">
-           <div className="flex items-center gap-2 text-zinc-500 text-xs">
-              <ShieldCheck size={16} /> Licencia Operativa Vigente
+        {/* Columna Licencia */}
+        <div className="bg-zinc-900/50 p-6 rounded-3xl border border-white/5 text-center h-fit">
+           <div className="w-12 h-12 bg-chido-green/20 text-chido-green rounded-xl flex items-center justify-center mx-auto mb-4">
+              <ShieldCheck size={24} />
            </div>
-           <div className="flex items-center gap-2 text-zinc-500 text-xs">
-              <Zap size={16} /> Certificado RNG Hocker
-           </div>
-           <div className="flex items-center gap-2 text-zinc-500 text-xs">
-              <Users size={16} /> Solo Mayores de 18+
-           </div>
+           <div className="text-xs font-bold text-zinc-300 mb-1">Licencia Operativa</div>
+           <div className="text-[10px] text-zinc-600 leading-tight">Regulado por Curacao Gaming Authority bajo licencia GLH-OCCHKTW07022026.</div>
         </div>
       </div>
-      <div className="text-center pt-8 border-t border-white/5 text-zinc-600 text-xs">
-         © 2026 Chido Casino. Hocker AGI Technologies. Todos los derechos reservados.
+      
+      <div className="text-center pt-8 border-t border-white/5 text-zinc-700 text-xs font-bold uppercase tracking-widest">
+         © 2026 Hocker AGI Technologies inc.
       </div>
     </footer>
   );
