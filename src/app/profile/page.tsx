@@ -9,12 +9,12 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-// Configuración de Niveles Reales
+// Configuración de Niveles Reales (CORREGIDO: Agregado nextXp)
 const VIP_LEVELS = {
-  1: { name: "Salsa Verde", img: "/badge-verde.png", minXp: 0, color: "text-chido-green" },
-  2: { name: "Serrano", img: "/badge-serrano.png", minXp: 1000, color: "text-yellow-400" },
-  3: { name: "Jalapeño", img: "/badge-jalapeno.png", minXp: 5000, color: "text-orange-500" },
-  4: { name: "Habanero", img: "/badge-habanero.png", minXp: 20000, color: "text-red-600" },
+  1: { name: "Salsa Verde", img: "/badge-verde.png", minXp: 0, nextXp: 1000, color: "text-chido-green" },
+  2: { name: "Serrano", img: "/badge-serrano.png", minXp: 1000, nextXp: 5000, color: "text-yellow-400" },
+  3: { name: "Jalapeño", img: "/badge-jalapeno.png", minXp: 5000, nextXp: 20000, color: "text-orange-500" },
+  4: { name: "Habanero", img: "/badge-habanero.png", minXp: 20000, nextXp: 100000, color: "text-red-600" },
 };
 
 export default function ProfilePage() {
@@ -260,6 +260,7 @@ export default function ProfilePage() {
                     <div className="w-full max-w-md space-y-2 mt-4">
                         <div className="flex justify-between text-xs font-bold text-zinc-400">
                             <span>Progreso XP</span>
+                            {/* AQUÍ ESTABA EL ERROR: nextXp ahora existe */}
                             <span>{levelData.nextXp} XP</span>
                         </div>
                         <div className="bg-black/60 rounded-full h-4 w-full overflow-hidden border border-white/10 relative">
