@@ -1,8 +1,6 @@
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
-// IMPORTANTE: No uses 'process.env' directo aquí si usas esta librería, 
-// ella lo detecta sola, pero pasarlo explícitamente asegura que no falle.
-export const supabase = createClientComponentClient({
-  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-  supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-});
+// Cliente de Supabase para componentes Client.
+// - Las credenciales se toman de NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY
+// - No pases keys aquí: auth-helpers las resuelve automáticamente.
+export const supabase = createClientComponentClient();
