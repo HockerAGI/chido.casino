@@ -1,74 +1,104 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
+import {
+  astroPayCreatePayment,
+  pickProviderReference,
+  type AstroPayMethod,
+  isAstroPayConfigured,
+} from "@/lib/astropay";
+
+function siteUrl(req: Request) {
+  const env = process.env.NEXT_PUBLIC_SITE_URL;
+  if (env) return env.replace(/\/$/, "");
+  const u = new URL(req.url);
+  return `${u.protocol}//${u.host}`;
+}
 
 export async function POST(req: Request) {
   try {
-    // 1. Validar Usuario
     const supabase = createRouteHandlerClient({ cookies });
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-    if (!session) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+    const body = await req.json();
+    const amount = Number(body?.amount);
+    const method = (body?.method as AstroPayMethod) || "spei";
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return NextResponse.json({ error: "Monto inválido" }, { status: 400 });
+    }
+    if (!["spei", "oxxo", "card"].includes(method)) {
+      return NextResponse.json({ error: "Método inválido" }, { status: 400 });
     }
 
-    const { amount } = await req.json();
-    const userId = session.user.id;
-    const depositId = `dep-${Date.now()}`;
-
-    // 2. Configuración AstroPay (Sandbox para pruebas)
-    // Cuando tengas credenciales reales, cámbialas en tus variables de entorno (.env)
-    const ASTROPAY_LOGIN = process.env.ASTROPAY_LOGIN || "tu_login_sandbox";
-    const ASTROPAY_KEY = process.env.ASTROPAY_KEY || "tu_key_sandbox";
-    const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-    
-    const apiUrl = IS_PRODUCTION 
-        ? "https://api.astropay.com/merchant/v1/create_payment" // URL Real
-        : "https://sandbox-api.astropay.com/merchant/v1/create_payment"; // URL Pruebas
-
-    // 3. Payload para AstroPay
-    const payload = {
-      "amount": amount,
-      "currency": "MXN",
-      "country": "MX",
-      "merchant_reference": depositId,
-      "payment_methods": ["SPEI", "OXXO", "CREDIT_CARD"], 
-      "return_url": `${process.env.NEXT_PUBLIC_SITE_URL}/wallet?deposit=ok`,
-      "callback_url": `${process.env.NEXT_PUBLIC_SITE_URL}/api/webhooks/astropay`,
-      "user": {
-          "id": userId,
-          "email": session.user.email
-      }
-    };
-
-    // 4. Si no hay llaves configuradas, simulamos para no romper el demo
-    if (ASTROPAY_LOGIN === "tu_login_sandbox") {
-        console.warn("⚠️ MODO SIMULACIÓN: Configura ASTROPAY_LOGIN en .env");
-        // Devolvemos URL ficticia de éxito inmediato
-        return NextResponse.json({ url: `/wallet?deposit=ok&simulated=true` });
+    // CERO SIMULACIÓN
+    if (!isAstroPayConfigured()) {
+      return NextResponse.json(
+        {
+          error: "CONFIG_MISSING:ASTROPAY",
+          hint: "Configura ASTROPAY_BASE_URL + ASTROPAY_LOGIN/KEY (o ADT) en Vercel.",
+        },
+        { status: 501 }
+      );
     }
 
-    // 5. Llamada Real a AstroPay
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "ADT-Login": ASTROPAY_LOGIN,
-        "ADT-Key": ASTROPAY_KEY
-      },
-      body: JSON.stringify(payload)
+    const base = siteUrl(req);
+    const externalId = `dep_${session.user.id}_${Date.now()}`;
+
+    const payload = await astroPayCreatePayment({
+      amount,
+      currency: "MXN",
+      method,
+      externalId,
+      userId: session.user.id,
+      userEmail: session.user.email || "",
+      returnUrl: `${base}/wallet?deposit=return`,
+      webhookUrl: `${base}/api/webhooks/astropay`,
+      description: `Depósito ${method.toUpperCase()} - Chido Casino`,
     });
 
-    const data = await response.json();
+    const providerReference = pickProviderReference(payload, externalId);
 
-    if (data.url) {
-        return NextResponse.json({ url: data.url });
-    } else {
-        throw new Error(data.message || "Error contactando AstroPay");
-    }
+    const instructions =
+      payload?.instructions ||
+      payload?.payment_instructions ||
+      payload?.spei ||
+      payload?.oxxo ||
+      payload?.bank_transfer ||
+      payload?.cash ||
+      null;
 
-  } catch (error: any) {
-    console.error(error);
-    return NextResponse.json({ error: error.message || 'Error interno' }, { status: 500 });
+    await supabase.from("deposit_intents").insert({
+      user_id: session.user.id,
+      provider: "astropay",
+      method,
+      amount,
+      currency: "MXN",
+      status: "pending",
+      external_id: externalId,
+      provider_reference: providerReference,
+      provider_payload: payload,
+      instructions: instructions,
+    });
+
+    const redirectUrl = payload?.url || payload?.redirect_url || payload?.payment_url || null;
+
+    return NextResponse.json({
+      ok: true,
+      provider: "astropay",
+      method,
+      externalId,
+      providerReference,
+      redirectUrl,
+      instructions,
+      raw: payload,
+    });
+  } catch (e: any) {
+    console.error(e);
+    return NextResponse.json({ error: e?.message || "Error interno" }, { status: 500 });
   }
 }
