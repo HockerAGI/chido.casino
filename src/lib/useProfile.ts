@@ -1,105 +1,100 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 export type Profile = {
   user_id: string;
   username: string | null;
   full_name: string | null;
-  gender: "male" | "female" | "unknown";
+  gender: string | null;
   avatar_url: string | null;
-  vip_level: string;
-  kyc_status: "unverified" | "pending" | "approved" | "rejected";
-  withdraw_clabe: string | null;
-  withdraw_name: string | null;
+  is_verified: boolean | null;
+  kyc_status: string | null;
+  cashback_rate: number;
 };
 
-const DEFAULT_VIP = "Salsa Verde";
-
-function normalizeProfile(row: any): Profile {
-  return {
-    user_id: row.user_id,
-    username: row.username ?? null,
-    full_name: row.full_name ?? null,
-    gender: (row.gender === "male" || row.gender === "female") ? row.gender : "unknown",
-    avatar_url: row.avatar_url ?? null,
-    vip_level: row.vip_level ?? DEFAULT_VIP,
-    kyc_status: (row.kyc_status in { unverified: 1, pending: 1, approved: 1, rejected: 1 }) ? row.kyc_status : "unverified",
-    withdraw_clabe: row.withdraw_clabe ?? null,
-    withdraw_name: row.withdraw_name ?? null
-  };
-}
+type State = {
+  loading: boolean;
+  userId: string | null;
+  profile: Profile | null;
+  error: string | null;
+};
 
 export function useProfile() {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const avatarUrl = useMemo(() => {
-    if (!profile?.user_id) return null;
-    if (profile.avatar_url) return profile.avatar_url;
-    const seed = profile.username || profile.user_id;
-    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(seed)}`;
-  }, [profile]);
-
-  const refresh = async () => {
-    setLoading(true);
-
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      setProfile(null);
-      setLoading(false);
-      return;
-    }
-
-    // Bootstrap server-side (service role): crea profile si falta, crea notificación bienvenida, etc.
-    await fetch("/api/profile/bootstrap", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${session.access_token}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({})
-    }).catch(() => {});
-
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("user_id, username, full_name, gender, avatar_url, vip_level, kyc_status, withdraw_clabe, withdraw_name")
-      .eq("user_id", session.user.id)
-      .single();
-
-    if (error || !data) {
-      setProfile({
-        user_id: session.user.id,
-        username: session.user.user_metadata?.username ?? null,
-        full_name: session.user.user_metadata?.full_name ?? null,
-        gender: "unknown",
-        avatar_url: null,
-        vip_level: DEFAULT_VIP,
-        kyc_status: "unverified",
-        withdraw_clabe: null,
-        withdraw_name: null
-      });
-      setLoading(false);
-      return;
-    }
-
-    setProfile(normalizeProfile(data));
-    setLoading(false);
-  };
+  const [state, setState] = useState<State>({
+    loading: true,
+    userId: null,
+    profile: null,
+    error: null,
+  });
 
   useEffect(() => {
-    refresh();
-    const { data: sub } = supabase.auth.onAuthStateChange(() => refresh());
-    return () => sub.subscription.unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let mounted = true;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    async function boot() {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const userId = data.session?.user?.id ?? null;
+
+        if (!mounted) return;
+
+        if (!userId) {
+          setState({ loading: false, userId: null, profile: null, error: null });
+          return;
+        }
+
+        const { data: p, error } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (!mounted) return;
+
+        setState({
+          loading: false,
+          userId,
+          profile: p as Profile,
+          error: error ? error.message : null,
+        });
+
+        channel = supabase
+          .channel(`profiles:${userId}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "profiles",
+              filter: `user_id=eq.${userId}`,
+            },
+            (payload) => {
+              setState((s) => ({
+                ...s,
+                profile: payload.new as Profile,
+              }));
+            }
+          )
+          .subscribe();
+      } catch (e: any) {
+        if (!mounted) return;
+        setState((s) => ({
+          ...s,
+          loading: false,
+          error: e?.message || "Error perfil",
+        }));
+      }
+    }
+
+    boot();
+
+    return () => {
+      mounted = false;
+      if (channel) supabase.removeChannel(channel);
+    };
   }, []);
 
-  return {
-    profile,
-    loading,
-    avatarUrl,
-    refresh,
-    kycApproved: profile?.kyc_status === "approved"
-  };
+  return state;
 }
