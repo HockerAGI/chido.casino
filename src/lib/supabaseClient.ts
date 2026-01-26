@@ -1,7 +1,9 @@
-"use client";
-
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
-// Supabase client para el navegador.
-// Lee NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY automáticamente.
+/**
+ * Cliente Supabase para Client Components.
+ * Requiere:
+ * - NEXT_PUBLIC_SUPABASE_URL
+ * - NEXT_PUBLIC_SUPABASE_ANON_KEY
+ */
 export const supabase = createClientComponentClient();
