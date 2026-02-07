@@ -22,7 +22,9 @@ function siteUrl(req: Request) {
 export async function POST(req: Request) {
   try {
     const supabase = createRouteHandlerClient({ cookies });
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
@@ -38,10 +40,7 @@ export async function POST(req: Request) {
     }
 
     if (!isAstroPayConfigured()) {
-      return NextResponse.json(
-        { error: "CONFIG_MISSING:ASTROPAY" },
-        { status: 501 }
-      );
+      return NextResponse.json({ error: "CONFIG_MISSING:ASTROPAY" }, { status: 501 });
     }
 
     const base = siteUrl(req);
@@ -69,7 +68,7 @@ export async function POST(req: Request) {
       payload?.cash ||
       null;
 
-    // INSERT CON SERVICE ROLE (más seguro; el usuario no debe escribir intents libremente)
+    // INSERT CON SERVICE ROLE (evita RLS)
     await supabaseAdmin.from("deposit_intents").insert({
       user_id: session.user.id,
       provider: "astropay",
