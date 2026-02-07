@@ -24,14 +24,17 @@ export default function WalletClient() {
   const [withdrawBeneficiary, setWithdrawBeneficiary] = useState("");
 
   const [msg, setMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
-
   const [instructions, setInstructions] = useState<any>(null);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const d = params.get("deposit");
-    if (d === "ok") setMsg({ type: "success", text: "Depósito: recibido. Si fue SPEI/OXXO puede tardar un poco en reflejar." });
-
+    if (d === "ok") {
+      setMsg({
+        type: "success",
+        text: "Depósito recibido. Si fue SPEI/OXXO puede tardar en reflejar.",
+      });
+    }
     if (params.get("action") === "withdraw") setActiveTab("withdraw");
   }, [params]);
 
@@ -44,7 +47,7 @@ export default function WalletClient() {
     try {
       await navigator.clipboard.writeText(txt);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopied(false), 1500);
     } catch {}
   };
 
@@ -55,7 +58,10 @@ export default function WalletClient() {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push("/login"); return; }
+      if (!session) {
+        router.push("/login");
+        return;
+      }
 
       const res = await fetch("/api/payments/create-deposit", {
         method: "POST",
@@ -73,9 +79,9 @@ export default function WalletClient() {
 
       if (data.instructions) {
         setInstructions(data.instructions);
-        setMsg({ type: "success", text: "Depósito creado. Usa las instrucciones abajo para pagar." });
+        setMsg({ type: "success", text: "Depósito creado. Usa las instrucciones abajo." });
       } else {
-        setMsg({ type: "success", text: "Depósito creado. Revisa la plataforma/proveedor para completar el pago." });
+        setMsg({ type: "success", text: "Depósito creado. Completa el pago con el proveedor." });
       }
     } catch (e: any) {
       setMsg({ type: "error", text: e?.message || "Error" });
@@ -101,10 +107,12 @@ export default function WalletClient() {
     }
 
     setCreating(true);
-
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push("/login"); return; }
+      if (!session) {
+        router.push("/login");
+        return;
+      }
 
       const res = await fetch("/api/payments/withdraw", {
         method: "POST",
@@ -117,7 +125,6 @@ export default function WalletClient() {
       });
 
       const data = await res.json().catch(() => ({}));
-
       if (!res.ok) {
         if (data.error === "KYC_REQUIRED") throw new Error("KYC requerido para retirar.");
         throw new Error(data.error || "Error en solicitud de retiro.");
@@ -148,9 +155,7 @@ export default function WalletClient() {
         <div className="grid lg:grid-cols-[1.2fr_1fr] gap-8">
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0a0a0a] to-[#1a1a1a] border border-white/10 p-8 shadow-2xl h-fit">
             <div className="relative z-10 flex flex-col gap-8">
-              <div className="flex justify-between items-start">
-                <div className="text-zinc-400 font-bold text-xs uppercase tracking-[0.2em]">Saldo Total</div>
-              </div>
+              <div className="text-zinc-400 font-bold text-xs uppercase tracking-[0.2em]">Saldo Total</div>
               <div className="flex items-baseline gap-2">
                 <span className="text-6xl font-black text-white tracking-tighter drop-shadow-lg">
                   ${loading ? "..." : formatted}
@@ -241,7 +246,9 @@ export default function WalletClient() {
                       {typeof instructions === "string" ? instructions : JSON.stringify(instructions, null, 2)}
                     </pre>
                     <button
-                      onClick={() => handleCopy(typeof instructions === "string" ? instructions : JSON.stringify(instructions))}
+                      onClick={() =>
+                        handleCopy(typeof instructions === "string" ? instructions : JSON.stringify(instructions))
+                      }
                       className="px-3 py-2 rounded-lg bg-white text-black font-bold inline-flex items-center gap-2"
                     >
                       {copied ? <Check size={14} /> : <Copy size={14} />} Copiar
