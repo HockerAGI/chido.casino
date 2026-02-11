@@ -1,9 +1,12 @@
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 /**
- * Cliente Supabase para Client Components.
- * Requiere:
- * - NEXT_PUBLIC_SUPABASE_URL
- * - NEXT_PUBLIC_SUPABASE_ANON_KEY
+ * Cliente Supabase (browser).
+ * - `createClient()` para componentes que necesitan instanciar el client.
+ * - `supabase` para uso rápido (compat con tu repo actual).
  */
-export const supabase = createClientComponentClient();
+export function createClient() {
+  return createClientComponentClient();
+}
+
+export const supabase = createClient();
