@@ -1,325 +1,529 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
-import { useWalletBalance } from "@/lib/useWalletBalance";
-import { MainLayout } from "@/components/layout/main-layout";
-import { Footer } from "@/components/layout/footer";
-import { AlertCircle, Coins, Copy, Check, Loader2, ShieldCheck } from "lucide-react";
+import { createClient } from "@/lib/supabaseClient";
+import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Copy,
+  CreditCard,
+  Landmark,
+  Loader2,
+  MessageCircle,
+  Wallet,
+} from "lucide-react";
 
-type PaymentMethod = "card" | "spei" | "oxxo";
+type TxRow = {
+  id: string;
+  type: string;
+  amount: number;
+  created_at: string;
+  metadata?: any;
+};
+
+type ManualInstructions = {
+  clabe: string;
+  beneficiary: string;
+  institution?: string;
+  amount: number;
+  folio: string;
+  concept: string;
+  phone?: string;
+  generated_at?: string;
+};
+
+type ManualRequest = {
+  id: string;
+  folio: string;
+  amount: number;
+  currency?: string;
+  status?: string;
+  created_at?: string;
+};
+
+type DepositProvider = {
+  redirect_url: string;
+  provider?: string;
+  intent_id?: string;
+};
+
+type CreateDepositResponse =
+  | {
+      ok: true;
+      mode: "provider";
+      message: string;
+      deposit: DepositProvider;
+    }
+  | {
+      ok: true;
+      mode: "manual";
+      message: string;
+      instructions: ManualInstructions;
+      request: ManualRequest;
+      whatsapp_url?: string;
+      telegram_username?: string | null;
+    }
+  | { ok: false; error: string };
 
 export default function WalletClient() {
-  const router = useRouter();
-  const params = useSearchParams();
-  const { loading, formatted, balance } = useWalletBalance();
+  const supabase = useMemo(() => createClient(), []);
+  const [loading, setLoading] = useState(true);
+  const [selectedTab, setSelectedTab] = useState<"deposit" | "withdraw">("deposit");
 
-  const [activeTab, setActiveTab] = useState<"deposit" | "withdraw">("deposit");
-  const [method, setMethod] = useState<PaymentMethod>("spei");
-  const [amount, setAmount] = useState("100");
-  const [creating, setCreating] = useState(false);
+  const [balance, setBalance] = useState<number>(0);
+  const [bonusBalance, setBonusBalance] = useState<number>(0);
+  const [lockedBalance, setLockedBalance] = useState<number>(0);
 
-  const [withdrawClabe, setWithdrawClabe] = useState("");
-  const [withdrawBeneficiary, setWithdrawBeneficiary] = useState("");
+  const [txs, setTxs] = useState<TxRow[]>([]);
+  const [amount, setAmount] = useState<string>("");
 
-  const [msg, setMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [instructions, setInstructions] = useState<any>(null);
-  const [copied, setCopied] = useState(false);
+  // deposit
+  const [depositMethod, setDepositMethod] = useState<"card" | "spei" | "oxxo">("spei");
+  const [depositLoading, setDepositLoading] = useState(false);
+  const [deposit, setDeposit] = useState<DepositProvider | null>(null);
+
+  const [instructions, setInstructions] = useState<ManualInstructions | null>(null);
+  const [manualReq, setManualReq] = useState<ManualRequest | null>(null);
+  const [whatsUrl, setWhatsUrl] = useState<string | null>(null);
+  const [telegramUser, setTelegramUser] = useState<string | null>(null);
+
+  // withdraw
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
+  const [clabe, setClabe] = useState("");
+  const [beneficiary, setBeneficiary] = useState("");
+
+  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    const d = params.get("deposit");
-    if (d === "ok") {
-      setMsg({
-        type: "success",
-        text: "Depósito recibido. Si fue SPEI/OXXO puede tardar en reflejar.",
-      });
-    }
-    if (params.get("action") === "withdraw") setActiveTab("withdraw");
-  }, [params]);
+    const load = async () => {
+      setLoading(true);
 
-  const amountNumber = useMemo(() => {
-    const n = Number(amount);
-    return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
-  }, [amount]);
+      const { data: userRes } = await supabase.auth.getUser();
+      if (!userRes?.user) {
+        setMessage("Inicia sesión para ver tu wallet.");
+        setLoading(false);
+        return;
+      }
 
-  const handleCopy = async (txt: string) => {
+      const { data: bal } = await supabase
+        .from("balances")
+        .select("balance, bonus_balance, locked_balance")
+        .eq("user_id", userRes.user.id)
+        .maybeSingle();
+
+      setBalance(Number(bal?.balance ?? 0));
+      setBonusBalance(Number(bal?.bonus_balance ?? 0));
+      setLockedBalance(Number(bal?.locked_balance ?? 0));
+
+      const { data: tx } = await supabase
+        .from("transactions")
+        .select("id, type, amount, created_at, metadata")
+        .eq("user_id", userRes.user.id)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      setTxs((tx ?? []) as any);
+      setLoading(false);
+    };
+
+    load();
+  }, [supabase]);
+
+  const total = balance + bonusBalance;
+  const amt = Number(amount);
+
+  const copy = async (text: string) => {
     try {
-      await navigator.clipboard.writeText(txt);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {}
+      await navigator.clipboard.writeText(text);
+      setMessage("Copiado ✅");
+      setTimeout(() => setMessage(null), 1200);
+    } catch {
+      setMessage("No se pudo copiar.");
+      setTimeout(() => setMessage(null), 1200);
+    }
   };
 
-  async function createDeposit() {
-    setMsg(null);
+  const handleDeposit = async () => {
+    setMessage(null);
+    setDeposit(null);
     setInstructions(null);
-    setCreating(true);
+    setManualReq(null);
+    setWhatsUrl(null);
+    setTelegramUser(null);
 
+    if (!Number.isFinite(amt) || amt <= 0) {
+      setMessage("Monto inválido.");
+      return;
+    }
+
+    setDepositLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        router.push("/login");
-        return;
-      }
-
       const res = await fetch("/api/payments/create-deposit", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: amountNumber, method }),
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ amount: amt, method: depositMethod }),
       });
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Error iniciando depósito.");
+      const data = (await res.json()) as CreateDepositResponse;
 
-      if (data.redirectUrl) {
-        window.location.href = data.redirectUrl;
+      if (!data.ok) {
+        setMessage(data.error || "Error al crear depósito.");
         return;
       }
 
-      if (data.instructions) {
-        setInstructions(data.instructions);
-        setMsg({ type: "success", text: "Depósito creado. Usa las instrucciones abajo." });
+      setMessage(data.message || "Listo.");
+
+      if (data.mode === "provider") {
+        setDeposit(data.deposit);
       } else {
-        setMsg({ type: "success", text: "Depósito creado. Completa el pago con el proveedor." });
+        setInstructions(data.instructions);
+        setManualReq(data.request);
+        setWhatsUrl(data.whatsapp_url || null);
+        setTelegramUser((data.telegram_username as any) ?? null);
       }
     } catch (e: any) {
-      setMsg({ type: "error", text: e?.message || "Error" });
+      setMessage(e?.message || "Error al crear depósito.");
     } finally {
-      setCreating(false);
+      setDepositLoading(false);
     }
-  }
+  };
 
-  async function handleWithdraw() {
-    setMsg(null);
+  const handleWithdraw = async () => {
+    setMessage(null);
 
-    if (amountNumber < 200) {
-      setMsg({ type: "error", text: "El retiro mínimo es $200 MXN." });
+    if (!Number.isFinite(amt) || amt <= 0) {
+      setMessage("Monto inválido.");
       return;
     }
-    if (!/^[0-9]{18}$/.test(withdrawClabe.trim())) {
-      setMsg({ type: "error", text: "CLABE inválida (18 dígitos)." });
+    if (amt > balance) {
+      setMessage("Saldo insuficiente (solo cuenta balance, no bonus).");
       return;
     }
-    if (withdrawBeneficiary.trim().length < 3) {
-      setMsg({ type: "error", text: "Beneficiario inválido." });
+    if (!/^[0-9]{18}$/.test(clabe.trim())) {
+      setMessage("CLABE inválida (18 dígitos).");
+      return;
+    }
+    if (beneficiary.trim().length < 3) {
+      setMessage("Beneficiario inválido.");
       return;
     }
 
-    setCreating(true);
+    setWithdrawLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        router.push("/login");
-        return;
-      }
-
       const res = await fetch("/api/payments/withdraw", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          amount: amountNumber,
-          clabe: withdrawClabe.trim(),
-          beneficiary: withdrawBeneficiary.trim(),
+          amount: amt,
+          clabe: clabe.trim(),
+          beneficiary: beneficiary.trim(),
         }),
       });
 
-      const data = await res.json().catch(() => ({}));
+      const data = await res.json();
+
       if (!res.ok) {
-        if (data.error === "KYC_REQUIRED") throw new Error("KYC requerido para retirar.");
-        throw new Error(data.error || "Error en solicitud de retiro.");
+        if (data?.error === "KYC_REQUIRED") {
+          setMessage("Necesitas KYC aprobado para retirar.");
+          return;
+        }
+        setMessage(data?.error || "Error al solicitar retiro.");
+        return;
       }
 
-      setMsg({ type: "success", text: "Retiro solicitado. Estado: pending." });
+      setMessage("Retiro solicitado. Tu saldo quedó bloqueado mientras se procesa ✅");
       setAmount("");
+      setClabe("");
+      setBeneficiary("");
     } catch (e: any) {
-      setMsg({ type: "error", text: e?.message || "Error" });
+      setMessage(e?.message || "Error al solicitar retiro.");
     } finally {
-      setCreating(false);
+      setWithdrawLoading(false);
     }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-neutral-400">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Cargando wallet…
+      </div>
+    );
   }
 
   return (
-    <MainLayout>
-      <div className="max-w-5xl mx-auto animate-fade-in px-4">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="p-3 bg-chido-cyan/10 rounded-2xl border border-chido-cyan/20">
-            <Coins className="text-chido-cyan" size={32} />
-          </div>
-          <div>
-            <h1 className="text-3xl font-black text-white">Bóveda Numia</h1>
-            <p className="text-zinc-500 text-sm font-medium">Depósitos y retiros.</p>
-          </div>
-        </div>
-
-        <div className="grid lg:grid-cols-[1.2fr_1fr] gap-8">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0a0a0a] to-[#1a1a1a] border border-white/10 p-8 shadow-2xl h-fit">
-            <div className="relative z-10 flex flex-col gap-8">
-              <div className="text-zinc-400 font-bold text-xs uppercase tracking-[0.2em]">Saldo Total</div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-6xl font-black text-white tracking-tighter drop-shadow-lg">
-                  ${loading ? "..." : formatted}
-                </span>
-                <span className="text-xl font-bold text-zinc-500">MXN</span>
+    <div className="mx-auto w-full max-w-4xl space-y-6">
+      <div className="rounded-2xl border border-white/10 bg-black/30 p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-white/5 p-3">
+              <Wallet className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-sm text-neutral-400">Saldo disponible</div>
+              <div className="text-2xl font-semibold">${balance.toFixed(2)} MXN</div>
+              <div className="text-xs text-neutral-500">
+                Bonus: ${bonusBalance.toFixed(2)} · Bloqueado: ${lockedBalance.toFixed(2)}
               </div>
             </div>
           </div>
 
-          <div className="rounded-3xl bg-zinc-900/50 border border-white/5 p-6 backdrop-blur-sm">
-            <div className="flex p-1 bg-black/40 rounded-xl mb-6">
-              <button
-                onClick={() => setActiveTab("deposit")}
-                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${
-                  activeTab === "deposit" ? "bg-white text-black shadow" : "text-zinc-500 hover:text-white"
-                }`}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSelectedTab("deposit")}
+              className={`rounded-xl px-4 py-2 text-sm font-medium ${
+                selectedTab === "deposit" ? "bg-white/10" : "bg-white/5 hover:bg-white/10"
+              }`}
+            >
+              Depositar
+            </button>
+            <button
+              onClick={() => setSelectedTab("withdraw")}
+              className={`rounded-xl px-4 py-2 text-sm font-medium ${
+                selectedTab === "withdraw" ? "bg-white/10" : "bg-white/5 hover:bg-white/10"
+              }`}
+            >
+              Retirar
+            </button>
+          </div>
+        </div>
+
+        {message && (
+          <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-neutral-200">
+            {message}
+          </div>
+        )}
+      </div>
+
+      {/* Deposit */}
+      {selectedTab === "deposit" && (
+        <div className="rounded-2xl border border-white/10 bg-black/30 p-5 space-y-4">
+          <div className="flex items-center gap-2">
+            <ArrowDownToLine className="h-4 w-4" />
+            <div className="text-lg font-semibold">Depósito</div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-3">
+            <button
+              onClick={() => setDepositMethod("card")}
+              className={`rounded-xl px-4 py-3 text-sm font-medium flex items-center justify-center gap-2 ${
+                depositMethod === "card" ? "bg-white/10" : "bg-white/5 hover:bg-white/10"
+              }`}
+            >
+              <CreditCard className="h-4 w-4" />
+              Tarjeta
+            </button>
+
+            <button
+              onClick={() => setDepositMethod("spei")}
+              className={`rounded-xl px-4 py-3 text-sm font-medium flex items-center justify-center gap-2 ${
+                depositMethod === "spei" ? "bg-white/10" : "bg-white/5 hover:bg-white/10"
+              }`}
+            >
+              <Landmark className="h-4 w-4" />
+              SPEI (Manual)
+            </button>
+
+            <button
+              onClick={() => setDepositMethod("oxxo")}
+              className={`rounded-xl px-4 py-3 text-sm font-medium flex items-center justify-center gap-2 ${
+                depositMethod === "oxxo" ? "bg-white/10" : "bg-white/5 hover:bg-white/10"
+              }`}
+            >
+              <Landmark className="h-4 w-4" />
+              OXXO
+            </button>
+          </div>
+
+          <div className="flex gap-2">
+            <input
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="Monto (MXN)"
+              className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm outline-none"
+            />
+            <button
+              disabled={depositLoading}
+              onClick={handleDeposit}
+              className="rounded-xl bg-white/10 px-4 py-3 text-sm font-semibold hover:bg-white/15 disabled:opacity-60"
+            >
+              {depositLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Crear"}
+            </button>
+          </div>
+
+          {/* Provider redirect */}
+          {deposit?.redirect_url && (
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-2">
+              <div className="text-sm text-neutral-300">Pago generado ✅</div>
+              <a
+                href={deposit.redirect_url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center justify-center rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/15"
               >
-                Depositar
-              </button>
-              <button
-                onClick={() => setActiveTab("withdraw")}
-                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${
-                  activeTab === "withdraw" ? "bg-white text-black shadow" : "text-zinc-500 hover:text-white"
-                }`}
-              >
-                Retirar
-              </button>
+                Abrir pago
+              </a>
             </div>
+          )}
 
-            {activeTab === "deposit" ? (
-              <>
-                <div className="grid grid-cols-3 gap-2 mb-4">
-                  <button
-                    onClick={() => setMethod("spei")}
-                    className={`p-3 rounded-xl border flex flex-col items-center gap-2 transition-all ${
-                      method === "spei"
-                        ? "border-chido-cyan bg-chido-cyan/10 text-white"
-                        : "border-white/10 bg-black/20 text-zinc-500 hover:bg-white/5"
-                    }`}
-                  >
-                    <div className="font-black text-xs uppercase tracking-wider">SPEI</div>
-                  </button>
-                  <button
-                    onClick={() => setMethod("oxxo")}
-                    className={`p-3 rounded-xl border flex flex-col items-center gap-2 transition-all ${
-                      method === "oxxo"
-                        ? "border-chido-gold bg-chido-gold/10 text-white"
-                        : "border-white/10 bg-black/20 text-zinc-500 hover:bg-white/5"
-                    }`}
-                  >
-                    <div className="font-black text-xs uppercase tracking-wider text-chido-gold">OXXO</div>
-                  </button>
-                  <button
-                    onClick={() => setMethod("card")}
-                    className={`p-3 rounded-xl border flex flex-col items-center gap-2 transition-all ${
-                      method === "card"
-                        ? "border-chido-pink bg-chido-pink/10 text-white"
-                        : "border-white/10 bg-black/20 text-zinc-500 hover:bg-white/5"
-                    }`}
-                  >
-                    <div className="font-black text-xs uppercase tracking-wider">CARD</div>
+          {/* Manual instructions */}
+          {instructions && (
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+              <div className="text-sm text-neutral-200 font-semibold">Instrucciones SPEI</div>
+
+              <div className="grid gap-2 md:grid-cols-2 text-sm">
+                <div className="flex items-center justify-between gap-2 rounded-lg bg-black/30 px-3 py-2">
+                  <span className="text-neutral-400">CLABE</span>
+                  <span className="font-mono">{instructions.clabe}</span>
+                  <button onClick={() => copy(instructions.clabe)} className="opacity-80 hover:opacity-100">
+                    <Copy className="h-4 w-4" />
                   </button>
                 </div>
 
-                <label className="text-[10px] font-bold text-zinc-500 uppercase ml-2">Monto</label>
-                <div className="relative mt-1 mb-4">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white font-black text-xl">$</span>
-                  <input
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    className="w-full bg-black border border-white/10 rounded-xl py-3 pl-8 pr-4 text-white font-black text-lg focus:border-white outline-none"
-                    inputMode="numeric"
-                  />
+                <div className="flex items-center justify-between gap-2 rounded-lg bg-black/30 px-3 py-2">
+                  <span className="text-neutral-400">Beneficiario</span>
+                  <span className="truncate max-w-[240px]">{instructions.beneficiary}</span>
+                  <button onClick={() => copy(instructions.beneficiary)} className="opacity-80 hover:opacity-100">
+                    <Copy className="h-4 w-4" />
+                  </button>
                 </div>
 
-                <button
-                  onClick={createDeposit}
-                  disabled={creating}
-                  className="w-full py-3 rounded-xl font-bold bg-white text-black hover:scale-[1.02] transition-transform shadow-lg flex items-center justify-center gap-2"
-                >
-                  {creating ? <Loader2 className="animate-spin" /> : "PROCEDER AL PAGO"}
-                </button>
+                <div className="flex items-center justify-between gap-2 rounded-lg bg-black/30 px-3 py-2">
+                  <span className="text-neutral-400">Monto</span>
+                  <span>${Number(instructions.amount).toFixed(2)} MXN</span>
+                  <button
+                    onClick={() => copy(String(instructions.amount))}
+                    className="opacity-80 hover:opacity-100"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </button>
+                </div>
 
-                {instructions && (
-                  <div className="mt-4 p-4 rounded-xl border border-white/10 bg-black/30 text-xs text-zinc-300 space-y-2">
-                    <div className="font-black text-white">INSTRUCCIONES DE PAGO</div>
-                    <pre className="whitespace-pre-wrap break-words opacity-90">
-                      {typeof instructions === "string" ? instructions : JSON.stringify(instructions, null, 2)}
-                    </pre>
-                    <button
-                      onClick={() =>
-                        handleCopy(typeof instructions === "string" ? instructions : JSON.stringify(instructions))
-                      }
-                      className="px-3 py-2 rounded-lg bg-white text-black font-bold inline-flex items-center gap-2"
-                    >
-                      {copied ? <Check size={14} /> : <Copy size={14} />} Copiar
-                    </button>
+                <div className="flex items-center justify-between gap-2 rounded-lg bg-black/30 px-3 py-2">
+                  <span className="text-neutral-400">Concepto</span>
+                  <span className="font-mono">{instructions.concept}</span>
+                  <button onClick={() => copy(instructions.concept)} className="opacity-80 hover:opacity-100">
+                    <Copy className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              {manualReq?.folio && (
+                <div className="text-xs text-neutral-400">
+                  Folio: <span className="font-mono text-neutral-200">{manualReq.folio}</span>
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                {whatsUrl && (
+                  <a
+                    href={whatsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/15"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    Mandar captura por Whats
+                  </a>
+                )}
+
+                {telegramUser ? (
+                  <a
+                    href={`https://t.me/${telegramUser.replace("@", "")}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/15"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    Telegram
+                  </a>
+                ) : (
+                  <div className="inline-flex items-center gap-2 rounded-xl bg-white/5 px-4 py-2 text-sm text-neutral-400">
+                    <MessageCircle className="h-4 w-4" />
+                    Telegram (pronto)
                   </div>
                 )}
-              </>
-            ) : (
-              <>
-                <div className="p-4 bg-chido-green/10 border border-chido-green/20 rounded-xl mb-4 flex items-center gap-3">
-                  <ShieldCheck className="text-chido-green" size={24} />
-                  <div className="text-xs text-chido-green/80">
-                    <span className="font-bold block text-chido-green">Retiros SPEI</span>
-                    <span className="text-zinc-400">KYC puede ser requerido.</span>
-                  </div>
-                </div>
-
-                <label className="text-[10px] font-bold text-zinc-500 uppercase ml-2">CLABE (18 dígitos)</label>
-                <input
-                  value={withdrawClabe}
-                  onChange={(e) => setWithdrawClabe(e.target.value)}
-                  className="w-full bg-black border border-white/10 rounded-xl py-3 px-4 text-white font-bold mb-3 outline-none"
-                  inputMode="numeric"
-                  placeholder="012345678901234567"
-                />
-
-                <label className="text-[10px] font-bold text-zinc-500 uppercase ml-2">Beneficiario</label>
-                <input
-                  value={withdrawBeneficiary}
-                  onChange={(e) => setWithdrawBeneficiary(e.target.value)}
-                  className="w-full bg-black border border-white/10 rounded-xl py-3 px-4 text-white font-bold mb-3 outline-none"
-                  placeholder="Nombre completo"
-                />
-
-                <label className="text-[10px] font-bold text-zinc-500 uppercase ml-2">Monto</label>
-                <div className="relative mb-4">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white font-black text-xl">$</span>
-                  <input
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    className="w-full bg-black border border-white/10 rounded-xl py-4 pl-8 pr-4 text-white font-black text-2xl focus:border-white outline-none transition-colors"
-                    inputMode="numeric"
-                  />
-                </div>
-
-                <button
-                  onClick={handleWithdraw}
-                  disabled={creating || amountNumber > balance}
-                  className="w-full py-4 rounded-xl font-black text-lg shadow-lg transition-all mt-2 bg-white text-black hover:scale-[1.02] flex items-center justify-center gap-2"
-                >
-                  {creating ? <Loader2 className="animate-spin" /> : "RETIRAR"}
-                </button>
-              </>
-            )}
-
-            {msg && (
-              <div
-                className={`p-3 rounded-xl text-xs font-bold flex items-center gap-2 mt-4 ${
-                  msg.type === "success" ? "bg-chido-green/20 text-chido-green" : "bg-chido-red/20 text-chido-red"
-                }`}
-              >
-                <AlertCircle size={14} /> {msg.text}
               </div>
+
+              <div className="text-xs text-neutral-500">
+                Nota: el abono es manual. Si ya transferiste, manda la captura y tu folio para que se procese rápido.
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Withdraw */}
+      {selectedTab === "withdraw" && (
+        <div className="rounded-2xl border border-white/10 bg-black/30 p-5 space-y-4">
+          <div className="flex items-center gap-2">
+            <ArrowUpFromLine className="h-4 w-4" />
+            <div className="text-lg font-semibold">Retiro (SPEI)</div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <input
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="Monto (MXN) — solo saldo disponible"
+              className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm outline-none"
+            />
+            <input
+              value={beneficiary}
+              onChange={(e) => setBeneficiary(e.target.value)}
+              placeholder="Beneficiario"
+              className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm outline-none"
+            />
+            <input
+              value={clabe}
+              onChange={(e) => setClabe(e.target.value)}
+              placeholder="CLABE (18 dígitos)"
+              className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm outline-none md:col-span-2"
+            />
+          </div>
+
+          <button
+            disabled={withdrawLoading}
+            onClick={handleWithdraw}
+            className="rounded-xl bg-white/10 px-4 py-3 text-sm font-semibold hover:bg-white/15 disabled:opacity-60"
+          >
+            {withdrawLoading ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Enviando…
+              </span>
+            ) : (
+              "Solicitar retiro"
             )}
+          </button>
+
+          <div className="text-xs text-neutral-500">
+            Al solicitar retiro: el monto se mueve a <b>bloqueado</b> mientras se procesa (no se pierde, solo se “congela”).
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="mt-20">
-        <Footer />
+      {/* Transactions */}
+      <div className="rounded-2xl border border-white/10 bg-black/30 p-5 space-y-3">
+        <div className="text-lg font-semibold">Movimientos</div>
+        <div className="space-y-2">
+          {txs.length === 0 && <div className="text-sm text-neutral-500">Sin movimientos todavía.</div>}
+          {txs.map((t) => (
+            <div key={t.id} className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3">
+              <div>
+                <div className="text-sm font-medium">{t.type}</div>
+                <div className="text-xs text-neutral-500">
+                  {new Date(t.created_at).toLocaleString()}
+                </div>
+              </div>
+              <div className={`text-sm font-semibold ${t.amount >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                {t.amount >= 0 ? "+" : ""}
+                {Number(t.amount).toFixed(2)}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
-    </MainLayout>
+    </div>
   );
 }
