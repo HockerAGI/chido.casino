@@ -3,42 +3,41 @@ import { createClient } from "@/lib/supabase/client";
 export async function uploadAvatar(file: File) {
   const supabase = createClient();
 
-  // 0) usuario logueado
-  const { data: authData, error: authErr } = await supabase.auth.getUser();
-  if (authErr || !authData?.user) throw new Error("No hay sesión. Inicia sesión otra vez.");
+  const {
+    data: { user },
+    error: authErr,
+  } = await supabase.auth.getUser();
 
-  const user = authData.user;
+  if (authErr || !user) throw new Error("No autorizado");
 
-  // 1) path OBLIGATORIO por tus policies:
-  //    <user.id>/avatar.ext
-  const ext =
-    file.type === "image/png" ? "png" :
-    file.type === "image/webp" ? "webp" : "jpg";
+  const ext = file.name.split(".").pop() || "png";
+  const path = `${user.id}/avatar.${ext}`;
 
-  const filePath = `${user.id}/avatar.${ext}`;
-
-  // 2) subir a bucket avatars (con upsert para reemplazar)
   const { error: upErr } = await supabase.storage
     .from("avatars")
-    .upload(filePath, file, {
-      upsert: true,
-      contentType: file.type,
-      cacheControl: "3600",
-    });
+    .upload(path, file, { upsert: true, contentType: file.type });
 
-  if (upErr) throw upErr;
+  if (upErr) throw new Error(upErr.message);
 
-  // 3) obtener URL pública
-  const { data: pub } = supabase.storage.from("avatars").getPublicUrl(filePath);
-  const avatarUrl = pub.publicUrl;
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("avatars").getPublicUrl(path);
 
-  // 4) guardar en profiles.avatar_url
-  const { error: dbErr } = await supabase
-    .from("profiles")
-    .update({ avatar_url: avatarUrl })
-    .eq("id", user.id);
+  // cache-bust para que el avatar no se quede pegado en CDN
+  const avatarUrl = `${publicUrl}?v=${Date.now()}`;
 
-  if (dbErr) throw dbErr;
+  // ✅ TU SCHEMA: profiles.user_id = auth.users.id
+  const first = await supabase.from("profiles").update({ avatar_url: avatarUrl }).eq("user_id", user.id);
 
-  return avatarUrl;
+  if (!first.error) return avatarUrl;
+
+  // fallback por si alguien tiene profiles.id (no debería en tu caso, pero no estorba)
+  const msg = String(first.error?.message || "");
+  if (msg.toLowerCase().includes("column") && msg.toLowerCase().includes("user_id")) {
+    const second = await supabase.from("profiles").update({ avatar_url: avatarUrl }).eq("id", user.id);
+    if (second.error) throw new Error(second.error.message);
+    return avatarUrl;
+  }
+
+  throw new Error(first.error.message);
 }
