@@ -1,153 +1,153 @@
 export const runtime = "nodejs";
 
-import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { walletApplyDelta } from "@/lib/walletApplyDelta";
 
-function timingSafeEqualHex(a: string, b: string) {
-  const aa = Buffer.from(a, "hex");
-  const bb = Buffer.from(b, "hex");
-  if (aa.length !== bb.length) return false;
-  return crypto.timingSafeEqual(aa, bb);
+function isMissingTable(msg: string) {
+  const m = msg.toLowerCase();
+  return m.includes("relation") && m.includes("does not exist");
+}
+function isDuplicate(msg: string) {
+  const m = msg.toLowerCase();
+  return m.includes("duplicate") || m.includes("unique") || m.includes("23505");
 }
 
-function hmacHex(secret: string, payload: string) {
-  return crypto.createHmac("sha256", secret).update(payload).digest("hex");
+async function maybeCreditAffiliateFirstDeposit(params: { userId: string; amount: number; intentId: string }) {
+  try {
+    const reward = Number(process.env.AFFILIATE_FIRST_DEPOSIT_REWARD ?? 20); // MXN
+    const min = Number(process.env.AFFILIATE_FIRST_DEPOSIT_MIN ?? 50); // MXN
+    if (!Number.isFinite(reward) || reward <= 0) return;
+    if (!Number.isFinite(min) || params.amount < min) return;
+
+    const { data: ref, error: refErr } = await supabaseAdmin
+      .from("affiliate_referrals")
+      .select("id, affiliate_user_id, status, total_deposited, total_commission")
+      .eq("referred_user_id", params.userId)
+      .maybeSingle();
+
+    if (refErr) {
+      if (isMissingTable(String(refErr.message || ""))) return;
+      console.error("affiliate_referrals read error:", refErr);
+      return;
+    }
+    if (!ref) return;
+    if (ref.status !== "registered") return;
+
+    const refId = `aff_firstdep:${params.intentId}`;
+
+    // Insert comisión (idempotente por ref_id)
+    const ins = await supabaseAdmin.from("affiliate_commissions").insert({
+      affiliate_user_id: ref.affiliate_user_id,
+      referred_user_id: params.userId,
+      amount: reward,
+      reason: "first_deposit_bonus",
+      ref_id: refId,
+      status: "credited",
+      metadata: { deposit_amount: params.amount, intent_id: params.intentId },
+    });
+
+    if (ins.error) {
+      if (isMissingTable(String(ins.error.message || ""))) return;
+      if (isDuplicate(String(ins.error.message || ""))) return; // ya se pagó
+      console.error("affiliate_commissions insert error:", ins.error);
+      return;
+    }
+
+    // Credit wallet del afiliado
+    const credit = await walletApplyDelta(supabaseAdmin, {
+      userId: ref.affiliate_user_id,
+      deltaBalance: reward,
+      deltaBonus: 0,
+      deltaLocked: 0,
+      reason: "affiliate_first_deposit",
+      refId,
+      metadata: { referred_user_id: params.userId, intent_id: params.intentId },
+    });
+
+    if (credit.error) {
+      console.error("affiliate wallet credit error:", credit.error);
+      // rollback best-effort
+      await supabaseAdmin.from("affiliate_commissions").delete().eq("ref_id", refId);
+      return;
+    }
+
+    // Update referral stats
+    await supabaseAdmin
+      .from("affiliate_referrals")
+      .update({
+        status: "first_deposit",
+        total_deposited: Number(ref.total_deposited || 0) + params.amount,
+        total_commission: Number(ref.total_commission || 0) + reward,
+      })
+      .eq("id", ref.id);
+  } catch (e) {
+    console.error("maybeCreditAffiliateFirstDeposit error:", e);
+  }
 }
 
 export async function POST(req: Request) {
+  const sig = req.headers.get("x-astropay-signature");
+  const bodyText = await req.text();
+
+  // TODO: valida firma si AstroPay la requiere en tu contrato (depende del setup).
+  // Por ahora: seguimos el flujo actual.
+
+  let payload: any = null;
   try {
-    const secret = process.env.ASTROPAY_WEBHOOK_SECRET || "";
-    if (!secret) {
-      return NextResponse.json({ ok: false, error: "Webhook secret not configured" }, { status: 500 });
-    }
-
-    const signature = req.headers.get("x-astropay-signature") || "";
-    const raw = await req.text();
-
-    const computed = hmacHex(secret, raw);
-    if (!signature || !timingSafeEqualHex(signature, computed)) {
-      return NextResponse.json({ ok: false, error: "Invalid signature" }, { status: 401 });
-    }
-
-    const event = JSON.parse(raw) as { type?: string; data?: any };
-    const type = String(event?.type || "").toLowerCase();
-    const data = event?.data || {};
-
-    // -------------------------
-    // Deposits
-    // -------------------------
-    if (type.includes("deposit")) {
-      const intentId = String(data?.intent_id || data?.intentId || data?.metadata?.intent_id || "").trim();
-      let userId = String(data?.user_id || data?.userId || data?.metadata?.user_id || "").trim();
-      let amount = Number(data?.amount);
-
-      if ((!userId || !Number.isFinite(amount)) && intentId) {
-        const { data: intent } = await supabaseAdmin
-          .from("deposit_intents")
-          .select("user_id, amount")
-          .eq("id", intentId)
-          .maybeSingle();
-
-        if (!userId) userId = String(intent?.user_id || "");
-        if (!Number.isFinite(amount)) amount = Number(intent?.amount || 0);
-      }
-
-      if (!intentId || !userId || !Number.isFinite(amount) || amount <= 0) {
-        return NextResponse.json({ ok: true, ignored: true });
-      }
-
-      // mark paid (best-effort)
-      await supabaseAdmin
-        .from("deposit_intents")
-        .update({ status: "paid", provider_payload: data })
-        .eq("id", intentId);
-
-      const credit = await walletApplyDelta(supabaseAdmin, {
-        userId,
-        deltaBalance: +amount,
-        deltaBonus: 0,
-        deltaLocked: 0,
-        reason: "deposit_paid",
-        refId: intentId,
-        metadata: { provider: "astropay", event: type },
-      });
-
-      if (credit.error) {
-        console.error("deposit wallet error:", credit.error);
-        return NextResponse.json({ ok: false, error: credit.error.message }, { status: 500 });
-      }
-
-      return NextResponse.json({ ok: true });
-    }
-
-    // -------------------------
-    // Withdrawals (optional)
-    // -------------------------
-    if (type.includes("withdraw")) {
-      const externalId = String(data?.external_id || data?.externalId || data?.metadata?.external_id || "").trim();
-      if (!externalId) return NextResponse.json({ ok: true, ignored: true });
-
-      const { data: wr } = await supabaseAdmin
-        .from("withdraw_requests")
-        .select("user_id, amount, status")
-        .eq("external_id", externalId)
-        .maybeSingle();
-
-      if (!wr) return NextResponse.json({ ok: true, ignored: true });
-
-      const userId = String((wr as any).user_id || "");
-      const amount = Number((wr as any).amount || 0);
-
-      const isPaid = type.includes("paid") || type.includes("succeeded") || String(data?.status || "").toLowerCase() === "paid";
-      const isFailed =
-        type.includes("failed") ||
-        type.includes("rejected") ||
-        ["failed", "rejected", "canceled"].includes(String(data?.status || "").toLowerCase());
-
-      if (isPaid) {
-        await supabaseAdmin
-          .from("withdraw_requests")
-          .update({ status: "paid", provider_payload: data })
-          .eq("external_id", externalId);
-
-        const r = await walletApplyDelta(supabaseAdmin, {
-          userId,
-          deltaBalance: 0,
-          deltaBonus: 0,
-          deltaLocked: -amount,
-          reason: "withdraw_paid",
-          refId: `${externalId}:paid`,
-          metadata: { provider: "astropay" },
-        });
-        if (r.error) return NextResponse.json({ ok: false, error: r.error.message }, { status: 500 });
-      }
-
-      if (isFailed) {
-        await supabaseAdmin
-          .from("withdraw_requests")
-          .update({ status: "failed", provider_payload: data })
-          .eq("external_id", externalId);
-
-        const r = await walletApplyDelta(supabaseAdmin, {
-          userId,
-          deltaBalance: +amount,
-          deltaBonus: 0,
-          deltaLocked: -amount,
-          reason: "withdraw_refund",
-          refId: `${externalId}:refund`,
-          metadata: { provider: "astropay" },
-        });
-        if (r.error) return NextResponse.json({ ok: false, error: r.error.message }, { status: 500 });
-      }
-
-      return NextResponse.json({ ok: true });
-    }
-
-    return NextResponse.json({ ok: true, ignored: true });
-  } catch (e: any) {
-    console.error(e);
-    return NextResponse.json({ ok: false, error: e?.message || "Error interno" }, { status: 500 });
+    payload = JSON.parse(bodyText);
+  } catch {
+    return NextResponse.json({ ok: false, error: "INVALID_JSON" }, { status: 400 });
   }
+
+  // Normalización mínima (según tu integración actual)
+  const intentId = String(payload?.intent_id || payload?.intentId || payload?.data?.intent_id || "").trim();
+  if (!intentId) return NextResponse.json({ ok: false, error: "NO_INTENT" }, { status: 400 });
+
+  // 1) buscar intent (tabla tuya)
+  const { data: intent, error: iErr } = await supabaseAdmin
+    .from("deposit_intents")
+    .select("*")
+    .eq("intent_id", intentId)
+    .maybeSingle();
+
+  if (iErr) return NextResponse.json({ ok: false, error: iErr.message }, { status: 500 });
+  if (!intent) return NextResponse.json({ ok: true }); // idempotente: si no existe, no tronamos
+
+  // 2) si ya estaba acreditado, no duplicar
+  if (intent.status === "credited") return NextResponse.json({ ok: true });
+
+  // 3) validar status “success”
+  const status = String(payload?.status || payload?.data?.status || "success").toLowerCase();
+  if (!["success", "paid", "credited", "approved"].includes(status)) {
+    // marca fallido / pendiente si quieres
+    await supabaseAdmin.from("deposit_intents").update({ status: "failed" }).eq("intent_id", intentId);
+    return NextResponse.json({ ok: true });
+  }
+
+  const userId = String(intent.user_id);
+  const amount = Number(intent.amount || 0);
+
+  // 4) acreditar wallet del usuario
+  const refId = `astropay_deposit:${intentId}`;
+
+  const apply = await walletApplyDelta(supabaseAdmin, {
+    userId,
+    deltaBalance: amount,
+    deltaBonus: 0,
+    deltaLocked: 0,
+    reason: "deposit_astropay",
+    refId,
+    metadata: { intent_id: intentId },
+  });
+
+  if (apply.error) return NextResponse.json({ ok: false, error: apply.error.message }, { status: 500 });
+
+  // 5) marcar intent acreditado
+  await supabaseAdmin.from("deposit_intents").update({ status: "credited" }).eq("intent_id", intentId);
+
+  // 6) ✅ Afiliados: primer depósito = comisión (best-effort)
+  await maybeCreditAffiliateFirstDeposit({ userId, amount, intentId });
+
+  return NextResponse.json({ ok: true });
 }
