@@ -1,76 +1,85 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import { Logo } from "@/components/ui/logo"; // Logo component
-import { Lock, Mail, AlertCircle, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { useToast } from "@/components/ui/use-toast";
+import Image from "next/image";
 
 export default function LoginPage() {
+  const supabase = createClientComponentClient();
+  const router = useRouter();
+  const { toast } = useToast();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
-  const supabase = createClientComponentClient();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setError(null);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setError("Credenciales incorrectas. Intenta de nuevo.");
-      setLoading(false);
-    } else {
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+
+      // 🔥 Afiliados: si venía con cookie chido_ref, aquí se atribuye al usuario logueado
+      await fetch("/api/affiliates/attribution", { method: "POST" }).catch(() => {});
+
+      toast({ title: "Bienvenido", description: "Acceso concedido." });
       router.push("/lobby");
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "No se pudo iniciar sesión.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-  };
+  }
 
   return (
-    <div className="w-full max-w-md animate-fade-in flex flex-col items-center">
-      
-      {/* LOGO OFICIAL COMPLETO (Sin texto HTML duplicado) */}
-      <div className="mb-10 animate-float">
-         <Logo variant="full" size={180} /> 
-      </div>
-      
-      {error && (
-        <div className="w-full bg-red-500/10 border border-red-500/50 text-red-500 p-3 rounded-xl mb-4 text-xs font-bold flex items-center gap-2">
-           <AlertCircle size={14} /> {error}
+    <div className="flex min-h-[calc(100vh-64px)] items-center justify-center bg-black px-4">
+      <Card className="w-full max-w-md rounded-3xl border-white/10 bg-white/5 p-6 text-white">
+        <div className="mb-6 flex items-center justify-center">
+          <Image src="/chido-logo.png" alt="CHIDO" width={160} height={48} priority />
         </div>
-      )}
 
-      <form onSubmit={handleLogin} className="space-y-4 w-full">
-        <div className="relative group">
-          <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-chido-cyan transition-colors" size={18} />
-          <input 
-            type="email" 
-            placeholder="Correo electrónico" 
+        <h1 className="text-2xl font-bold">Iniciar sesión</h1>
+        <p className="mt-1 text-sm text-white/60">Accede a tu cuenta.</p>
+
+        <form onSubmit={handleLogin} className="mt-6 space-y-3">
+          <Input
+            type="email"
+            placeholder="correo@ejemplo.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full bg-zinc-900/50 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white text-sm focus:border-chido-cyan outline-none transition-all placeholder:text-zinc-600"
+            className="rounded-2xl border-white/10 bg-black/40 text-white"
+            required
           />
-        </div>
-        <div className="relative group">
-          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-chido-cyan transition-colors" size={18} />
-          <input 
-            type="password" 
-            placeholder="Contraseña" 
+
+          <Input
+            type="password"
+            placeholder="Contraseña"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full bg-zinc-900/50 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white text-sm focus:border-chido-cyan outline-none transition-all placeholder:text-zinc-600"
+            className="rounded-2xl border-white/10 bg-black/40 text-white"
+            required
           />
-        </div>
-        <button type="submit" disabled={loading} className="w-full bg-white text-black font-black py-4 rounded-xl hover:bg-chido-cyan hover:scale-[1.02] transition-all shadow-lg mt-4 flex items-center justify-center gap-2">
-          {loading ? <Loader2 className="animate-spin" /> : "ENTRAR"}
-        </button>
-      </form>
 
-      <p className="text-center text-zinc-500 text-xs mt-8">
-        ¿Aún no tienes cuenta? <Link href="/signup" className="text-white font-bold hover:underline">Regístrate</Link>
-      </p>
+          <Button
+            type="submit"
+            disabled={loading}
+            className="h-12 w-full rounded-2xl bg-white text-black hover:bg-white/90"
+          >
+            {loading ? "Entrando..." : "Entrar"}
+          </Button>
+        </form>
+      </Card>
     </div>
   );
 }
