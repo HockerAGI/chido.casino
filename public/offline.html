@@ -2,21 +2,23 @@
 <html lang="es">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-    <meta name="theme-color" content="#00F0FF" />
-    <title>Chido Casino — Offline</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>CHIDO — Sin conexión</title>
     <style>
-      body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#06070b;color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial}
-      .card{max-width:520px;padding:24px;border:1px solid rgba(255,255,255,.12);border-radius:24px;background:rgba(255,255,255,.04);backdrop-filter:blur(16px)}
-      .muted{opacity:.7}
-      a{color:#00F0FF;text-decoration:none;font-weight:800}
+      body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto; background:#0b0d10;color:#fff}
+      .wrap{min-height:100vh;display:grid;place-items:center;padding:24px}
+      .card{max-width:520px;width:100%;border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:18px;background:rgba(255,255,255,.05)}
+      .muted{color:rgba(255,255,255,.7);font-size:14px;line-height:1.4}
+      a{color:#fff}
     </style>
   </head>
   <body>
-    <div class="card">
-      <h1>Sin conexión</h1>
-      <p class="muted">No hay internet. Vuelve a intentar cuando tengas señal.</p>
-      <p><a href="/">Reintentar</a></p>
+    <div class="wrap">
+      <div class="card">
+        <h2>Estás offline</h2>
+        <p class="muted">No hay conexión. Revisa tu red y vuelve a intentar.</p>
+        <p class="muted"><a href="/">Volver a CHIDO</a></p>
+      </div>
     </div>
   </body>
 </html>
