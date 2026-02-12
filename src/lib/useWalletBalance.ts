@@ -1,128 +1,112 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { useEffect, useState, useCallback } from "react";
+import { supabaseBrowser } from "@/lib/supabase/browser";
 
-type State = {
-  loading: boolean;
+type WalletState = {
   userId: string | null;
+  loading: boolean;
+  error: string | null;
   balance: number;
   bonusBalance: number;
   lockedBalance: number;
   currency: "MXN";
-  error: string | null;
+  formatted: string;
+  formattedBonus: string;
+  formattedLocked: string;
 };
 
-function fmt(n: number) {
-  const v = Number.isFinite(n) ? n : 0;
-  return v.toLocaleString("es-MX", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+function formatMXN(n: number) {
+  try {
+    return new Intl.NumberFormat("es-MX", {
+      style: "currency",
+      currency: "MXN",
+      maximumFractionDigits: 2,
+    }).format(n);
+  } catch {
+    return `$${(n ?? 0).toFixed(2)} MXN`;
+  }
 }
 
 export function useWalletBalance() {
-  const [state, setState] = useState<State>({
-    loading: true,
+  const [state, setState] = useState<WalletState>({
     userId: null,
+    loading: true,
+    error: null,
     balance: 0,
     bonusBalance: 0,
     lockedBalance: 0,
     currency: "MXN",
-    error: null,
+    formatted: formatMXN(0),
+    formattedBonus: formatMXN(0),
+    formattedLocked: formatMXN(0),
   });
 
-  const formatted = useMemo(() => fmt(state.balance), [state.balance]);
-  const formattedBonus = useMemo(() => fmt(state.bonusBalance), [state.bonusBalance]);
-  const formattedLocked = useMemo(() => fmt(state.lockedBalance), [state.lockedBalance]);
+  const load = useCallback(async () => {
+    setState((s) => ({ ...s, loading: true, error: null }));
+    try {
+      const supabase = supabaseBrowser();
+      const {
+        data: { session },
+        error: sessionErr,
+      } = await supabase.auth.getSession();
 
-  useEffect(() => {
-    let mounted = true;
-    let channel: ReturnType<typeof supabase.channel> | null = null;
+      if (sessionErr) throw sessionErr;
 
-    async function boot() {
-      try {
-        const { data, error } = await supabase.auth.getSession();
-        if (error) throw error;
-
-        const userId = data.session?.user?.id ?? null;
-
-        if (!mounted) return;
-
-        if (!userId) {
-          setState((s) => ({
-            ...s,
-            loading: false,
-            userId: null,
-            balance: 0,
-            bonusBalance: 0,
-            lockedBalance: 0,
-            error: null,
-          }));
-          return;
-        }
-
-        const { data: bal, error: bErr } = await supabase
-          .from("balances")
-          .select("balance, bonus_balance, locked_balance, currency")
-          .eq("user_id", userId)
-          .maybeSingle();
-
-        if (!mounted) return;
-
-        setState({
-          loading: false,
-          userId,
-          balance: Number(bal?.balance ?? 0),
-          bonusBalance: Number(bal?.bonus_balance ?? 0),
-          lockedBalance: Number(bal?.locked_balance ?? 0),
-          currency: "MXN",
-          error: bErr ? bErr.message : null,
-        });
-
-        channel = supabase
-          .channel(`balances:${userId}`)
-          .on(
-            "postgres_changes",
-            {
-              event: "*",
-              schema: "public",
-              table: "balances",
-              filter: `user_id=eq.${userId}`,
-            },
-            (payload) => {
-              const next = payload.new as any;
-              setState((s) => ({
-                ...s,
-                balance: Number(next?.balance ?? s.balance),
-                bonusBalance: Number(next?.bonus_balance ?? s.bonusBalance),
-                lockedBalance: Number(next?.locked_balance ?? s.lockedBalance),
-              }));
-            }
-          )
-          .subscribe();
-      } catch (e: any) {
-        if (!mounted) return;
+      const userId = session?.user?.id ?? null;
+      if (!userId) {
         setState((s) => ({
           ...s,
+          userId: null,
           loading: false,
-          error: e?.message || "Error wallet",
+          balance: 0,
+          bonusBalance: 0,
+          lockedBalance: 0,
+          formatted: formatMXN(0),
+          formattedBonus: formatMXN(0),
+          formattedLocked: formatMXN(0),
         }));
+        return;
       }
+
+      const { data, error } = await supabase
+        .from("balances")
+        .select("balance,bonus_balance,locked_balance")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      const balance = Number(data?.balance ?? 0);
+      const bonusBalance = Number(data?.bonus_balance ?? 0);
+      const lockedBalance = Number(data?.locked_balance ?? 0);
+
+      setState((s) => ({
+        ...s,
+        userId,
+        loading: false,
+        balance,
+        bonusBalance,
+        lockedBalance,
+        formatted: formatMXN(balance),
+        formattedBonus: formatMXN(bonusBalance),
+        formattedLocked: formatMXN(lockedBalance),
+      }));
+    } catch (e: any) {
+      setState((s) => ({
+        ...s,
+        loading: false,
+        error: e?.message ?? "Error al cargar balance",
+      }));
     }
-
-    boot();
-
-    return () => {
-      mounted = false;
-      if (channel) supabase.removeChannel(channel);
-    };
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   return {
     ...state,
-    formatted,
-    formattedBonus,
-    formattedLocked,
+    refresh: load, // 👈 esto desbloquea taco-slot y cualquier “refetch”
   };
 }
