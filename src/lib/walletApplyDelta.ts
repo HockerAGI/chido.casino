@@ -1,6 +1,6 @@
-type SupabaseRpcClient = {
-  rpc: (fn: string, args?: Record<string, any>) => Promise<{ data: any; error: any }>;
-};
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+type SupabaseRpcClient = Pick<SupabaseClient, "rpc">;
 
 export type WalletApplyDeltaInput = {
   userId: string;
@@ -8,49 +8,61 @@ export type WalletApplyDeltaInput = {
   deltaBonus?: number;
   deltaLocked?: number;
   reason: string;
-  refId: string; // external id / folio / intent id
-  metadata?: Record<string, any> | null;
+  refId?: string | null;
+  method?: string | null;
+  metadata?: Record<string, any> | null; // se acepta, pero (por ahora) NO se manda al RPC
 };
 
-function isParamMismatch(msg: string) {
-  const m = msg.toLowerCase();
-  return (
-    m.includes("p_ref_id") ||
-    m.includes("p_method") ||
-    m.includes("named argument") ||
-    m.includes("function wallet_apply_delta") ||
-    m.includes("does not exist") ||
-    m.includes("unknown")
-  );
-}
+const num = (v: unknown, fallback = 0) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+};
 
-/**
- * Llama wallet_apply_delta con compat automática:
- * - intenta con p_ref_id
- * - si falla por mismatch, reintenta con p_method
- */
-export async function walletApplyDelta(supabase: SupabaseRpcClient, input: WalletApplyDeltaInput) {
-  const payloadBase = {
+const looksLikeNamedArgMismatch = (msg: string, arg: string) => {
+  const m = (msg || "").toLowerCase();
+  const a = arg.toLowerCase();
+  return (
+    m.includes(a) &&
+    (m.includes("named argument") ||
+      m.includes("does not exist") ||
+      m.includes("function") ||
+      m.includes("unknown"))
+  );
+};
+
+export async function walletApplyDelta(
+  supabase: SupabaseRpcClient,
+  input: WalletApplyDeltaInput
+) {
+  const payload: Record<string, any> = {
     p_user_id: input.userId,
-    p_delta_balance: Number(input.deltaBalance),
-    p_delta_bonus: Number(input.deltaBonus ?? 0),
-    p_delta_locked: Number(input.deltaLocked ?? 0),
+    p_delta_balance: num(input.deltaBalance, 0),
+    p_delta_bonus: num(input.deltaBonus ?? 0, 0),
+    p_delta_locked: num(input.deltaLocked ?? 0, 0),
     p_reason: input.reason,
-    p_metadata: input.metadata ?? {},
   };
 
-  // 1) intento moderno: p_ref_id
-  const a = await supabase.rpc("wallet_apply_delta", { ...payloadBase, p_ref_id: input.refId });
-  if (!a.error) return a;
+  const refId = input.refId ? String(input.refId) : null;
+  const method = input.method ? String(input.method) : null;
 
-  const msgA = String(a.error?.message || "");
-  if (!isParamMismatch(msgA)) return a;
+  if (refId) payload.p_ref_id = refId;
+  if (method) payload.p_method = method;
 
-  // 2) fallback legacy: p_method
-  const b = await supabase.rpc("wallet_apply_delta", { ...payloadBase, p_method: input.refId });
-  if (!b.error) return b;
+  // ✅ NOTA: aunque input.metadata exista, NO lo mandamos al RPC
+  // porque depende de la firma exacta de tu función en Postgres y no quiero romper runtime.
 
-  // si ambos fallan, regresa el error más útil
-  const msgB = String(b.error?.message || "");
-  return msgB.length >= msgA.length ? b : a;
+  // Intento normal (firma nueva)
+  let res = await supabase.rpc("wallet_apply_delta", payload);
+  if (!res.error) return res;
+
+  // Fallback legacy: bases viejas que no tenían p_ref_id y usaban p_method para idempotency/ref
+  const msg = String((res as any).error?.message ?? "");
+  if (refId && looksLikeNamedArgMismatch(msg, "p_ref_id")) {
+    const legacyPayload: Record<string, any> = { ...payload };
+    delete legacyPayload.p_ref_id;
+    legacyPayload.p_method = refId; // legacy: refId iba en p_method
+    res = await supabase.rpc("wallet_apply_delta", legacyPayload);
+  }
+
+  return res;
 }
