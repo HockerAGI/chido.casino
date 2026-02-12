@@ -11,15 +11,40 @@ export async function GET() {
     data: { session },
   } = await supabase.auth.getSession();
 
-  if (!session) return NextResponse.json({ ok: false, error: "NO_AUTH" }, { status: 401 });
+  if (!session) {
+    return NextResponse.json({ ok: false, error: "NO_AUTH" }, { status: 401 });
+  }
 
-  const { data, error } = await supabaseAdmin
+  const now = new Date().toISOString();
+
+  const { data: promos, error } = await supabaseAdmin
     .from("promos")
-    .select("code, title, description, bonus_amount, min_deposit, starts_at, ends_at, is_active")
-    .eq("is_active", true)
-    .order("starts_at", { ascending: false });
+    .select("id, code, title, description, reward_type, reward_amount, expires_at, active, per_user_limit, max_redemptions")
+    .eq("active", true)
+    .or(`expires_at.is.null,expires_at.gt.${now}`)
+    .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) {
+    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
 
-  return NextResponse.json({ ok: true, promos: data || [] });
+  const { data: redemptions } = await supabaseAdmin
+    .from("promo_redemptions")
+    .select("promo_id")
+    .eq("user_id", session.user.id);
+
+  const redeemedSet = new Set((redemptions || []).map((r) => r.promo_id));
+
+  return NextResponse.json({
+    ok: true,
+    promos: (promos || []).map((p: any) => ({
+      code: p.code,
+      title: p.title,
+      description: p.description,
+      rewardType: p.reward_type,
+      rewardAmount: Number(p.reward_amount || 0),
+      expiresAt: p.expires_at,
+      redeemed: redeemedSet.has(p.id),
+    })),
+  });
 }
