@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { MainLayout } from "@/components/layout/main-layout";
+import { Toaster } from "@/components/ui/toaster"; // ✅ agrega esto
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,12 +32,7 @@ export const metadata: Metadata = {
     url: "https://chido.casino",
     siteName: "CHIDO",
     images: [
-      {
-        url: "/opengraph-image.jpg",
-        width: 1200,
-        height: 630,
-        alt: "CHIDO",
-      },
+      { url: "/opengraph-image.jpg", width: 1200, height: 630, alt: "CHIDO" },
     ],
     locale: "es_MX",
     type: "website",
@@ -54,6 +50,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es" className="dark">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <MainLayout>{children}</MainLayout>
+
+        {/* ✅ Toaster global (overlay) */}
+        <Toaster />
       </body>
     </html>
   );
