@@ -1,52 +1,77 @@
+export type WalletApplyDeltaInput = {
+  userId: string;
+  deltaBalance: number;
+  deltaBonus?: number;
+  deltaLocked?: number;
+  reason?: string;
+  refId?: string;
+  method?: string;
+};
+
+export type WalletApplyDeltaResult = {
+  ok: boolean;
+  idempotent?: boolean;
+  balance?: number;
+  bonus_balance?: number;
+  locked_balance?: number;
+  error?: string;
+};
+
+/**
+ * Minimal RPC client shape:
+ * Supabase `.rpc()` returns a thenable builder, so we type it as `any` on purpose.
+ */
 export type SupabaseRpcClient = {
   rpc: (fn: string, args?: Record<string, any>) => any;
 };
 
-type Args = {
-  userId: string;
-  deltaBalance: number;
-  deltaBonus: number;
-  deltaLocked?: number;
-  currency?: "MXN";
-  refId: string;
-  reason: string;
-};
+function normalizeError(err: unknown): string {
+  if (!err) return "";
+  if (typeof err === "string") return err;
 
-export async function walletApplyDelta(supabase: SupabaseRpcClient, args: Args) {
-  const payload = {
-    p_user_id: args.userId,
-    p_delta_balance: args.deltaBalance,
-    p_delta_bonus: args.deltaBonus,
-    p_delta_locked: args.deltaLocked ?? 0,
-    p_currency: args.currency ?? "MXN",
-    p_ref_id: args.refId,
-    p_reason: args.reason,
-  };
-
-  let lastErr: any = null;
-
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    const res = await supabase.rpc("wallet_apply_delta", payload);
-    const error = res?.error ?? null;
-
-    if (!error) return { ok: true as const };
-
-    lastErr = error;
-
-    const msg = String(error?.message ?? error ?? "");
-    const isSerialization =
-      msg.toLowerCase().includes("serialization") ||
-      msg.toLowerCase().includes("could not serialize access") ||
-      msg.toLowerCase().includes("40001");
-
-    if (!isSerialization || attempt === 2) break;
-    await new Promise((r) => setTimeout(r, 80));
+  if (typeof err === "object") {
+    const e = err as any;
+    return String(
+      e.message ??
+        e.error_description ??
+        e.details ??
+        e.hint ??
+        (typeof e === "object" ? JSON.stringify(e) : "")
+    );
   }
 
-  const msg =
-    typeof lastErr === "string"
-      ? lastErr
-      : String((lastErr as any)?.message ?? (lastErr as any) ?? "wallet_apply_delta failed");
+  return String(err);
+}
 
-  return { ok: false as const, error: msg };
+export async function walletApplyDelta(
+  supabase: SupabaseRpcClient,
+  input: WalletApplyDeltaInput
+): Promise<WalletApplyDeltaResult> {
+  const {
+    userId,
+    deltaBalance,
+    deltaBonus = 0,
+    deltaLocked = 0,
+    reason = "wallet_delta",
+    refId,
+    method,
+  } = input;
+
+  const args: Record<string, any> = {
+    p_user_id: userId,
+    p_delta_balance: deltaBalance,
+    p_delta_bonus: deltaBonus,
+    p_delta_locked: deltaLocked,
+    p_reason: reason,
+    p_ref_id: refId ?? null,
+    p_method: method ?? null,
+  };
+
+  const res: any = await supabase.rpc("wallet_apply_delta", args);
+  const { data, error } = res ?? {};
+
+  if (error) return { ok: false, error: normalizeError(error) };
+  if (!data) return { ok: false, error: "RPC_EMPTY_RESPONSE" };
+
+  return { ok: true, ...data };
 }
