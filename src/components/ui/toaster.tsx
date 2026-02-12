@@ -1,9 +1,9 @@
 "use client";
 
-import { ToastProvider, useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/cn";
 
-function ToastStack() {
+export function Toaster() {
   const { toasts, dismiss } = useToast();
 
   return (
@@ -22,7 +22,9 @@ function ToastStack() {
             <div className="flex-1">
               {t.title && <div className="text-sm font-bold">{t.title}</div>}
               {t.description && (
-                <div className="mt-1 text-sm text-white/75">{t.description}</div>
+                <div className="mt-1 text-sm text-white/75">
+                  {t.description}
+                </div>
               )}
             </div>
             <button
@@ -35,13 +37,5 @@ function ToastStack() {
         </div>
       ))}
     </div>
-  );
-}
-
-export function Toaster() {
-  return (
-    <ToastProvider>
-      <ToastStack />
-    </ToastProvider>
   );
 }
