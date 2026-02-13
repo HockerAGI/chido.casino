@@ -62,10 +62,6 @@ function isMissingTable(msg: string) {
   return m.includes("relation") && m.includes("does not exist");
 }
 
-/**
- * POST /api/games/taco-slot/spin
- * Body: { bet:number, clientSeed?:string }
- */
 export async function POST(req: Request) {
   try {
     const supabase = createRouteHandlerClient({ cookies });
@@ -113,7 +109,7 @@ export async function POST(req: Request) {
     });
 
     if (deb.error) {
-      // CORRECCIÓN: Usamos deb.error directo (es string)
+      // FIX: deb.error es string directo
       const msg = String(deb.error || "");
       if (isInsufficient(msg)) return NextResponse.json({ ok: false, error: "Saldo insuficiente" }, { status: 400 });
       console.error("wallet_apply_delta bet error:", deb.error);
