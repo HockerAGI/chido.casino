@@ -66,6 +66,7 @@ async function maybeCreditAffiliateFirstDeposit(params: { userId: string; amount
     });
 
     if (credit.error) {
+      // AQUÍ ESTÁ BIEN (usar credit.error directo en logs)
       console.error("affiliate wallet credit error:", credit.error);
       // rollback best-effort
       await supabaseAdmin.from("affiliate_commissions").delete().eq("ref_id", refId);
@@ -141,7 +142,8 @@ export async function POST(req: Request) {
     metadata: { intent_id: intentId },
   });
 
-  if (apply.error) return NextResponse.json({ ok: false, error: apply.error.message }, { status: 500 });
+  // CORRECCIÓN AQUÍ: Usamos apply.error directo (es string)
+  if (apply.error) return NextResponse.json({ ok: false, error: apply.error }, { status: 500 });
 
   // 5) marcar intent acreditado
   await supabaseAdmin.from("deposit_intents").update({ status: "credited" }).eq("intent_id", intentId);
