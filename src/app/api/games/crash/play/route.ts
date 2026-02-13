@@ -37,11 +37,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Cashout inválido" }, { status: 400 });
   }
 
-  // 2) Debitar apuesta (balance -> locked)
+  // 2) Debitar apuesta
   const refId = `cr_${session.user.id}_${Date.now()}`;
   
-  // NOTA: Si walletApplyDelta da error de tipos en 'currency' o 'metadata',
-  // asegúrate de haber actualizado src/lib/walletApplyDelta.ts como vimos antes.
   const deb = await walletApplyDelta(supabaseAdmin, {
     userId: session.user.id,
     deltaBalance: -betAmount,
@@ -60,16 +58,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "WALLET_ERROR" }, { status: 500 });
   }
 
-  // 3) Provably fair (seed por jugada)
+  // 3) Provably fair
   const serverSeed = generateServerSeed();
   const seedHash = serverSeedHash(serverSeed);
 
-  // CORRECCIÓN AQUÍ: Agregamos el '0' como tercer argumento (nonce)
   const r = fairFloat(serverSeed, `client:${refId}`, 0);
 
-  // Crash multiplier
   let crashMultiplier = Math.max(1, Math.floor(100 / (1 - r)) / 100);
-  // Cap técnico para evitar infinitos raros, aunque la fórmula es segura.
   if (crashMultiplier > 1000000) crashMultiplier = 1000000;
 
   const didCashout = targetMultiplier <= crashMultiplier;
@@ -93,7 +88,6 @@ export async function POST(req: Request) {
     .single();
 
   if (betErr) {
-    // Refund si falla la DB
     await walletApplyDelta(supabaseAdmin, {
       userId: session.user.id,
       deltaBalance: betAmount,
@@ -110,9 +104,9 @@ export async function POST(req: Request) {
   // 5) Resolver resultado en wallet
   const settle = await walletApplyDelta(supabaseAdmin, {
     userId: session.user.id,
-    deltaBalance: payout, // Si ganó paga esto, si perdió es 0
+    deltaBalance: payout, 
     deltaBonus: 0,
-    deltaLocked: -betAmount, // Siempre liberamos lo que se apostó (locked)
+    deltaLocked: -betAmount,
     currency: "MXN",
     refId: `cr_settle_${refId}`,
     reason: didCashout ? "crash_cashout" : "crash_bust",
@@ -120,8 +114,6 @@ export async function POST(req: Request) {
   });
 
   if (settle.error) {
-    // Esto es crítico (dinero atorado), pero en crash simple el usuario 
-    // ya vio el resultado. Lo logueamos como error 500.
     return NextResponse.json({ error: "WALLET_SETTLE_ERROR" }, { status: 500 });
   }
 
