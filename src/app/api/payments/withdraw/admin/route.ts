@@ -36,7 +36,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "action inválida" }, { status: 400 });
     }
 
-    // fetch request (new schema)
+    // fetch request
     let reqRow = await supabaseAdmin
       .from("withdraw_requests")
       .select("user_id, amount, status, external_id")
@@ -44,7 +44,6 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     if (reqRow.error && isSchemaMismatch(String(reqRow.error.message || ""))) {
-      // legacy fallback: try id match
       reqRow = await supabaseAdmin
         .from("withdraw_requests")
         .select("user_id, amount, status, id")
@@ -67,7 +66,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Registro inválido" }, { status: 500 });
     }
 
-    // idempotencia simple
+    // idempotencia
     if (["paid", "rejected", "failed", "refunded"].includes(status)) {
       return NextResponse.json({ ok: true, status, alreadyFinal: true });
     }
@@ -81,7 +80,7 @@ export async function POST(req: Request) {
             ? "failed"
             : "refunded";
 
-    // update row (new schema first)
+    // update
     let up = await supabaseAdmin
       .from("withdraw_requests")
       .update({
@@ -91,7 +90,6 @@ export async function POST(req: Request) {
       .eq("external_id", externalId);
 
     if (up.error && isSchemaMismatch(String(up.error.message || ""))) {
-      // legacy fallback
       up = await supabaseAdmin
         .from("withdraw_requests")
         .update({
@@ -105,7 +103,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: up.error.message }, { status: 500 });
     }
 
-    // wallet: release lock
+    // wallet
     if (action === "paid") {
       const r = await walletApplyDelta(supabaseAdmin, {
         userId,
@@ -116,10 +114,10 @@ export async function POST(req: Request) {
         refId: `${externalId}:paid`,
         metadata: { note: body.note ?? null },
       });
-      // CORRECCIÓN: r.error ya es string
+      // FIX: r.error es string
       if (r.error) return NextResponse.json({ ok: false, error: r.error }, { status: 500 });
     } else {
-      // refund: locked ↓, balance ↑
+      // refund
       const r = await walletApplyDelta(supabaseAdmin, {
         userId,
         deltaBalance: +amount,
@@ -129,7 +127,7 @@ export async function POST(req: Request) {
         refId: `${externalId}:${finalStatus}`,
         metadata: { note: body.note ?? null },
       });
-      // CORRECCIÓN: r.error ya es string
+      // FIX: r.error es string
       if (r.error) return NextResponse.json({ ok: false, error: r.error }, { status: 500 });
     }
 
