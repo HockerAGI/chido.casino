@@ -56,7 +56,8 @@ export async function POST(req: Request) {
     metadata: { promo: code },
   });
 
-  if (apply.error) return NextResponse.json({ ok: false, error: apply.error.message }, { status: 500 });
+  // CORRECCIÓN: Usamos apply.error directo
+  if (apply.error) return NextResponse.json({ ok: false, error: apply.error }, { status: 500 });
 
   // 4) registrar redención
   const { error: insErr } = await supabaseAdmin.from("promo_redemptions").insert({
