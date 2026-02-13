@@ -1,10 +1,12 @@
-// src/lib/session.ts
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
-import type { Session, User } from "@supabase/supabase-js";
+import type { Session } from "@supabase/supabase-js";
 
 export type ServerSession = {
-  user: Pick<User, "id" | "email"> & { email: string | null };
+  user: {
+    id: string;
+    email: string | null | undefined;
+  };
   access_token: string | null;
   session: Session;
 };
@@ -26,7 +28,10 @@ export async function getServerSession(_req?: Request): Promise<ServerSession | 
   if (!session || !session.user) return null;
 
   return {
-    user: { id: session.user.id, email: session.user.email ?? null },
+    user: { 
+      id: session.user.id, 
+      email: session.user.email ?? null 
+    },
     access_token: session.access_token ?? null,
     session,
   };
