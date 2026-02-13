@@ -39,6 +39,9 @@ export async function POST(req: Request) {
 
   // 2) Debitar apuesta (balance -> locked)
   const refId = `cr_${session.user.id}_${Date.now()}`;
+  
+  // NOTA: Si walletApplyDelta da error de tipos en 'currency' o 'metadata',
+  // asegúrate de haber actualizado src/lib/walletApplyDelta.ts como vimos antes.
   const deb = await walletApplyDelta(supabaseAdmin, {
     userId: session.user.id,
     deltaBalance: -betAmount,
@@ -61,12 +64,13 @@ export async function POST(req: Request) {
   const serverSeed = generateServerSeed();
   const seedHash = serverSeedHash(serverSeed);
 
-  // Derivamos un random determinístico (serverSeed + refId)
-  const r = fairFloat(serverSeed, `client:${refId}`);
+  // CORRECCIÓN AQUÍ: Agregamos el '0' como tercer argumento (nonce)
+  const r = fairFloat(serverSeed, `client:${refId}`, 0);
 
-  // Crash multiplier (misma lógica que traías)
+  // Crash multiplier
   let crashMultiplier = Math.max(1, Math.floor(100 / (1 - r)) / 100);
-  if (crashMultiplier === 100) crashMultiplier = 1;
+  // Cap técnico para evitar infinitos raros, aunque la fórmula es segura.
+  if (crashMultiplier > 1000000) crashMultiplier = 1000000;
 
   const didCashout = targetMultiplier <= crashMultiplier;
   const payout = didCashout ? Math.floor(betAmount * targetMultiplier) : 0;
@@ -83,13 +87,13 @@ export async function POST(req: Request) {
       payout,
       ref_id: refId,
       server_seed_hash: seedHash,
-      server_seed: serverSeed, // si luego quieres ocultarlo y revelarlo después, lo ajustamos
+      server_seed: serverSeed, 
     })
     .select("*")
     .single();
 
   if (betErr) {
-    // si falló DB, al menos desbloquea saldo para no dejar “locked” colgado
+    // Refund si falla la DB
     await walletApplyDelta(supabaseAdmin, {
       userId: session.user.id,
       deltaBalance: betAmount,
@@ -103,14 +107,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "DB_ERROR" }, { status: 500 });
   }
 
-  // 5) Resolver resultado en wallet:
-  // - siempre liberar locked (-betAmount)
-  // - si ganó: pagar payout (+payout)
+  // 5) Resolver resultado en wallet
   const settle = await walletApplyDelta(supabaseAdmin, {
     userId: session.user.id,
-    deltaBalance: payout,
+    deltaBalance: payout, // Si ganó paga esto, si perdió es 0
     deltaBonus: 0,
-    deltaLocked: -betAmount,
+    deltaLocked: -betAmount, // Siempre liberamos lo que se apostó (locked)
     currency: "MXN",
     refId: `cr_settle_${refId}`,
     reason: didCashout ? "crash_cashout" : "crash_bust",
@@ -118,6 +120,8 @@ export async function POST(req: Request) {
   });
 
   if (settle.error) {
+    // Esto es crítico (dinero atorado), pero en crash simple el usuario 
+    // ya vio el resultado. Lo logueamos como error 500.
     return NextResponse.json({ error: "WALLET_SETTLE_ERROR" }, { status: 500 });
   }
 
