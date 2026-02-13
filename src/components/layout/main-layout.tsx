@@ -52,10 +52,18 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* === SIDEBAR (Escritorio y Menú Lateral Móvil) === */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-[#08080a] border-r border-white/5 transform transition-transform duration-300 ease-out lg:translate-x-0 lg:static lg:block shadow-2xl ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
-        <div className="h-full flex flex-col">
+      {/* FIX: z-[100] para sobreponerse a todo en móvil */}
+      <aside className={`fixed inset-y-0 left-0 z-[100] w-72 bg-[#08080a] border-r border-white/5 transform transition-transform duration-300 ease-out lg:translate-x-0 lg:static lg:block shadow-2xl ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        <div className="h-full flex flex-col relative">
           
-          {/* LOGO DE MARCA (Sidebar) - Usamos "full" (Oficial: Isotipo + Texto Imagen) con Padding mejorado */}
+          {/* FIX: Botón Cerrar explícito en Móvil */}
+          <div className="lg:hidden absolute top-4 right-4 z-50">
+             <button onClick={() => setSidebarOpen(false)} className="p-2 text-zinc-400 hover:text-white bg-black/50 rounded-full backdrop-blur-sm">
+                <X size={24} />
+             </button>
+          </div>
+          
+          {/* LOGO DE MARCA (Sidebar) */}
           <div className="h-28 hidden lg:flex items-center justify-center border-b border-white/5 bg-black/20 py-6">
              <Link href="/lobby">
                 <Logo size={60} variant="full" />
@@ -171,7 +179,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
              <Link href="/wallet?deposit=1">
                 <div className="w-20 h-20 rounded-full bg-zinc-900 border-4 border-[#050510] flex items-center justify-center shadow-[0_-5px_20px_rgba(0,240,255,0.3)] transform transition-transform active:scale-95 overflow-hidden">
                    <div className="absolute inset-0 rounded-full bg-chido-cyan/20 animate-pulse-slow blur-xl" />
-                   {/* Isotipo Color para el botón central (Sin showText) */}
+                   {/* Isotipo Color para el botón central */}
                    <Logo variant="iso-color" size={75} className="drop-shadow-2xl relative z-10" />
                 </div>
              </Link>
