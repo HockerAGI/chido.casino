@@ -12,26 +12,27 @@ export async function middleware(req: NextRequest) {
 
   const url = req.nextUrl.clone();
 
+  // Rutas que REQUIEREN estar logueado
   const protectedPaths = [
     "/lobby",
     "/wallet",
-    "/games",
     "/profile",
     "/promos",
     "/affiliates",
     "/tournaments",
-    "/support",
-    "/legal",
+    "/games", // Protege todos los juegos
   ];
 
   const isProtected = protectedPaths.some((p) => url.pathname.startsWith(p));
 
+  // Si intenta entrar a ruta protegida sin sesión -> Login
   if (!session && isProtected) {
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  if (session && (url.pathname === "/login" || url.pathname === "/signup")) {
+  // Si ya tiene sesión e intenta ir a login/signup -> Lobby
+  if (session && (url.pathname === "/login" || url.pathname === "/signup" || url.pathname === "/")) {
     url.pathname = "/lobby";
     return NextResponse.redirect(url);
   }
@@ -41,16 +42,14 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    "/lobby/:path*",
-    "/wallet/:path*",
-    "/games/:path*",
-    "/profile/:path*",
-    "/promos/:path*",
-    "/affiliates/:path*",
-    "/tournaments/:path*",
-    "/support/:path*",
-    "/legal/:path*",
-    "/login",
-    "/signup",
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public assets like images (.png, .jpg)
+     */
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|gif|webp)$).*)",
   ],
 };
