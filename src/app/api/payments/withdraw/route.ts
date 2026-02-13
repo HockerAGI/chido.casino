@@ -67,7 +67,7 @@ export async function POST(req: Request) {
 
     const externalId = `wd_${session.user.id}_${Date.now()}`;
 
-    // 1) Lock funds (balance ↓, locked ↑)
+    // 1) Lock funds
     const lock = await walletApplyDelta(supabaseAdmin, {
       userId: session.user.id,
       deltaBalance: -Number(amount),
@@ -79,7 +79,8 @@ export async function POST(req: Request) {
     });
 
     if (lock.error) {
-      const msg = String(lock.error?.message || "");
+      // FIX: lock.error es string
+      const msg = String(lock.error || "");
       if (isInsufficient(msg)) {
         return NextResponse.json({ error: "Saldo insuficiente" }, { status: 400 });
       }
@@ -87,7 +88,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "WALLET_ERROR" }, { status: 500 });
     }
 
-    // 2) Insert withdraw request (new schema first, fallback legacy)
+    // 2) Insert withdraw request
     const payloadNew = {
       user_id: session.user.id,
       amount: Number(amount),
@@ -119,7 +120,7 @@ export async function POST(req: Request) {
     if (ins.error) {
       console.error("withdraw_requests insert error:", ins.error);
 
-      // rollback best-effort (unlock funds back)
+      // rollback best-effort
       const rb = await walletApplyDelta(supabaseAdmin, {
         userId: session.user.id,
         deltaBalance: Number(amount),
