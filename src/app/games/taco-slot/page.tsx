@@ -1,360 +1,188 @@
 "use client";
 
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Slider } from "@/components/ui/slider";
-import { useToast } from "@/components/ui/use-toast";
 import { useWalletBalance } from "@/lib/useWalletBalance";
-import { Loader2, Flame, ShieldCheck, Sparkles, ArrowLeft } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
+import { Loader2, Info, Volume2, VolumeX } from "lucide-react";
 
-type ReelSymbol = {
-  key: string;
-  img: string;
+// Configuración de Assets (Asegúrate de que existan en /public)
+const SYMBOLS: Record<string, string> = {
+  verde: "/badge-verde.png",
+  jalapeno: "/badge-jalapeno.png",
+  serrano: "/badge-serrano.png",
+  habanero: "/badge-habanero.png",
 };
 
-type Fair = {
-  serverSeedHash: string;
-  serverSeed: string;
-  clientSeed: string;
-  nonce: number;
-};
-
-export default function TacoSlotPage() {
-  const router = useRouter();
+export default function TacoSlotPro() {
+  const { balance, refresh } = useWalletBalance();
   const { toast } = useToast();
-  const { balance, refresh, loading: walletLoading } = useWalletBalance();
-
-  const [bet, setBet] = useState<number>(20);
+  
+  // Estados de Juego
+  const [bet, setBet] = useState(10);
   const [spinning, setSpinning] = useState(false);
+  const [reels, setReels] = useState(["verde", "verde", "verde"]);
+  const [winData, setWinData] = useState<{ amount: number; multiplier: number } | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState(true);
 
-  const [reels, setReels] = useState<ReelSymbol[]>([
-    { key: "verde", img: "/badge-verde.png" },
-    { key: "jalapeno", img: "/badge-jalapeno.png" },
-    { key: "serrano", img: "/badge-serrano.png" },
-  ]);
+  // Referencias para efectos de sonido (si tienes los archivos .mp3 en public/sounds/)
+  // const spinAudio = useRef(new Audio('/sounds/spin.mp3'));
+  // const winAudio = useRef(new Audio('/sounds/win.mp3'));
 
-  const [lastPayout, setLastPayout] = useState<number | null>(null);
-  const [lastMultiplier, setLastMultiplier] = useState<number | null>(null);
-  const [fair, setFair] = useState<Fair | null>(null);
-  const [level, setLevel] = useState<{ label: string; badge: string } | null>(null);
+  const handleSpin = async () => {
+    if (spinning) return;
+    if ((balance || 0) < bet) {
+      toast({ title: "Saldo Insuficiente", variant: "destructive" });
+      return;
+    }
 
-  const betPreset = useMemo(() => [10, 20, 50, 120, 250], []);
-
-  const canSpin = useMemo(() => {
-    if (walletLoading) return false;
-    if (spinning) return false;
-    if (balance == null) return true;
-    return balance >= bet;
-  }, [walletLoading, spinning, balance, bet]);
-
-  function levelFromBetLocal(v: number) {
-    if (v <= 20) return { label: "Nivel Verde", badge: "/badge-verde.png" };
-    if (v <= 50) return { label: "Nivel Jalapeño", badge: "/badge-jalapeno.png" };
-    if (v <= 120) return { label: "Nivel Serrano", badge: "/badge-serrano.png" };
-    return { label: "Nivel Habanero", badge: "/badge-habanero.png" };
-  }
-
-  useEffect(() => {
-    setLevel(levelFromBetLocal(bet));
-  }, [bet]);
-
-  async function spin() {
     setSpinning(true);
-    setLastPayout(null);
-    setLastMultiplier(null);
+    setWinData(null);
+    // if (soundEnabled) spinAudio.current.play();
 
     try {
+      // Simulación visual de giro antes de recibir respuesta
+      const interval = setInterval(() => {
+        setReels([
+          randomSymbol(), randomSymbol(), randomSymbol()
+        ]);
+      }, 100);
+
       const res = await fetch("/api/games/taco-slot/spin", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ bet }),
       });
-
       const data = await res.json();
 
-      if (!res.ok || !data?.ok) {
-        toast({
-          title: "No se pudo girar",
-          description: data?.error || "Error desconocido",
-          variant: "destructive",
-        });
-        return;
+      clearInterval(interval);
+
+      if (!data.ok) throw new Error(data.error);
+
+      // Set final reels
+      setReels(data.reels.map((r: any) => r.key));
+      
+      if (data.payout > 0) {
+        setWinData({ amount: data.payout, multiplier: data.multiplier });
+        // if (soundEnabled) winAudio.current.play();
       }
 
-      if (Array.isArray(data.reels)) {
-        setReels(data.reels);
-      }
-
-      setLastPayout(Number(data.payout || 0));
-      setLastMultiplier(Number(data.multiplier || 0));
-
-      if (data.fair) setFair(data.fair);
-      if (data.level?.label && data.level?.badge) setLevel(data.level);
-
-      toast({
-        title: data.payout > 0 ? "¡Pegó!" : "Otra 🔁",
-        description: data.message || (data.payout > 0 ? "Ganaste" : "No pegó"),
-      });
-
-      await refresh();
-    } catch (e: any) {
-      toast({
-        title: "Error",
-        description: e?.message || "No se pudo girar",
-        variant: "destructive",
-      });
+      refresh();
+    } catch (e) {
+      console.error(e);
     } finally {
       setSpinning(false);
     }
-  }
+  };
+
+  const randomSymbol = () => {
+    const keys = Object.keys(SYMBOLS);
+    return keys[Math.floor(Math.random() * keys.length)];
+  };
 
   return (
-    <div className="min-h-[calc(100vh-64px)] w-full bg-[#070a0f] text-white">
-      {/* Hero */}
-      <div className="relative w-full overflow-hidden border-b border-white/10">
-        <div className="absolute inset-0">
-          <Image
-            src="/hero-bg.jpg"
-            alt="CHIDO Background"
-            fill
-            className="object-cover opacity-30"
-            priority
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/90" />
+    <div className="flex flex-col items-center justify-center min-h-[80vh] w-full">
+      
+      {/* GAME CONTAINER (Estilo Máquina Física) */}
+      <div className="relative bg-[#1A1A1D] border border-white/10 rounded-3xl p-8 shadow-2xl max-w-4xl w-full">
+        
+        {/* Header del Juego */}
+        <div className="flex justify-between items-center mb-6">
+           <div className="flex items-center gap-3">
+             <div className="bg-[#FF0099] w-2 h-8 rounded-full shadow-[0_0_15px_#FF0099]" />
+             <h1 className="text-2xl font-black italic tracking-tighter text-white">TACO SLOT <span className="text-[#00F0FF]">DELUXE</span></h1>
+           </div>
+           <button onClick={() => setSoundEnabled(!soundEnabled)} className="text-zinc-500 hover:text-white transition-colors">
+             {soundEnabled ? <Volume2 /> : <VolumeX />}
+           </button>
         </div>
 
-        <div className="relative mx-auto max-w-6xl px-4 py-10">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.push("/lobby")}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm hover:bg-white/10"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Lobby
-            </button>
-
-            <div className="ml-auto flex items-center gap-2">
-              <Badge className="bg-white/10 text-white hover:bg-white/10">
-                <ShieldCheck className="mr-1 h-4 w-4" /> Provably Fair
-              </Badge>
-              <Badge className="bg-white/10 text-white hover:bg-white/10">
-                <Sparkles className="mr-1 h-4 w-4" /> Taco-Slot
-              </Badge>
-            </div>
-          </div>
-
-          <div className="mt-8 grid gap-6 md:grid-cols-2 md:items-center">
-            <div>
-              <div className="flex items-center gap-4">
-                <Image
-                  src="/chido-logo.png"
-                  alt="CHIDO"
-                  width={180}
-                  height={60}
-                  className="h-auto w-[160px]"
-                  priority
-                />
-                {level && (
-                  <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2">
-                    <Image src={level.badge} alt={level.label} width={28} height={28} />
-                    <div className="text-sm">
-                      <div className="font-semibold">{level.label}</div>
-                      <div className="text-white/60">Apuesta: ${bet} MXN</div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <h1 className="mt-6 text-4xl font-black tracking-tight md:text-5xl">
-                Taco-Slot 🔥
-              </h1>
-              <p className="mt-3 text-white/70">
-                3 chiles. 1 tirada. Si pegas, cobras. Si no, vuelves con más hambre.
-              </p>
-
-              <div className="mt-5 flex flex-wrap items-center gap-3">
-                <Badge className="bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/20">
-                  Verde = x3
-                </Badge>
-                <Badge className="bg-lime-500/20 text-lime-200 hover:bg-lime-500/20">
-                  Jalapeño = x5
-                </Badge>
-                <Badge className="bg-orange-500/20 text-orange-200 hover:bg-orange-500/20">
-                  Serrano = x10
-                </Badge>
-                <Badge className="bg-red-500/20 text-red-200 hover:bg-red-500/20">
-                  Habanero = x20
-                </Badge>
-                <Badge className="bg-white/10 text-white hover:bg-white/10">
-                  Par = x1.5
-                </Badge>
-              </div>
-
-              <div className="mt-6 flex items-center gap-4">
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                  <div className="text-xs text-white/60">Saldo</div>
-                  <div className="text-lg font-bold">
-                    {walletLoading ? "…" : `$${(balance ?? 0).toFixed(2)} MXN`}
-                  </div>
-                </div>
-
-                <Button
-                  onClick={spin}
-                  disabled={!canSpin}
-                  className="h-12 rounded-2xl bg-white text-black hover:bg-white/90"
-                >
-                  {spinning ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Girando…
-                    </>
-                  ) : (
-                    <>
-                      <Flame className="mr-2 h-4 w-4" />
-                      GIRAR
-                    </>
-                  )}
-                </Button>
-              </div>
-
-              {!canSpin && !walletLoading && (
-                <p className="mt-2 text-sm text-red-300/90">
-                  Saldo insuficiente para apostar ${bet}.
-                </p>
-              )}
-            </div>
-
-            {/* Slot */}
-            <div className="mx-auto w-full max-w-lg">
-              <Card className="rounded-3xl border-white/10 bg-white/5 p-4 md:p-6 backdrop-blur">
-                {/* FIX: Grid responsivo que evita desborde en móviles */}
-                <div className="grid grid-cols-3 gap-2 md:gap-4">
-                  {reels.map((r, idx) => (
-                    <div
-                      key={`${r.key}-${idx}`}
-                      className="flex aspect-square items-center justify-center rounded-2xl md:rounded-3xl border border-white/10 bg-black/40 p-2 overflow-hidden relative"
-                    >
+        {/* ÁREA DE RIELES (THE STAGE) */}
+        <div className="relative bg-black rounded-xl border-4 border-[#2A2A2E] overflow-hidden p-4 shadow-inner">
+           {/* Fondo decorativo interno */}
+           <div className="absolute inset-0 bg-[url('/hero-bg.jpg')] opacity-20 bg-cover mix-blend-overlay" />
+           
+           <div className="grid grid-cols-3 gap-4 relative z-10">
+              {reels.map((symbol, i) => (
+                <div key={i} className="aspect-[3/4] bg-[#121214] rounded-lg border border-white/5 flex items-center justify-center overflow-hidden relative shadow-lg">
+                   {/* Columna gradiente efecto metálico */}
+                   <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/60 pointer-events-none z-20" />
+                   
+                   <div className={`w-3/4 h-3/4 relative ${spinning ? 'animate-slot-spin blur-sm' : ''}`}>
                       <Image 
-                        src={r.img} 
-                        alt={r.key} 
-                        width={120} 
-                        height={120} 
-                        className="object-contain w-full h-full drop-shadow-lg" 
+                        src={SYMBOLS[symbol]} 
+                        alt={symbol} 
+                        fill 
+                        className="object-contain drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]"
                       />
-                    </div>
-                  ))}
+                   </div>
                 </div>
+              ))}
+           </div>
 
-                <div className="mt-6 rounded-2xl border border-white/10 bg-black/30 p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-semibold">Apuesta</div>
-                    <div className="text-sm text-white/70">${bet} MXN</div>
+           {/* OVERLAY DE VICTORIA */}
+           {winData && (
+             <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in zoom-in duration-300">
+                <div className="text-center animate-win">
+                  <div className="text-6xl font-black text-[#00F0FF] drop-shadow-[0_0_20px_rgba(0,240,255,0.5)]">
+                    x{winData.multiplier}
                   </div>
-
-                  <div className="mt-3">
-                    <Slider
-                      value={[bet]}
-                      min={10}
-                      max={300}
-                      step={10}
-                      onValueChange={(v) => setBet(v[0])}
-                    />
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {betPreset.map((p) => (
-                        <button
-                          key={p}
-                          onClick={() => setBet(p)}
-                          className={`rounded-xl border px-3 py-1 text-sm ${
-                            bet === p
-                              ? "border-white/30 bg-white/15"
-                              : "border-white/10 bg-white/5 hover:bg-white/10"
-                          }`}
-                        >
-                          ${p}
-                        </button>
-                      ))}
-                    </div>
+                  <div className="text-3xl font-bold text-white mt-2">
+                    ¡GANASTE ${winData.amount}!
                   </div>
-
-                  {lastPayout != null && (
-                    <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm text-white/70">Resultado</div>
-                        <div className="text-sm font-semibold">
-                          {lastPayout > 0 ? "GANASTE" : "NO PEGÓ"}
-                        </div>
-                      </div>
-                      <div className="mt-1 text-2xl font-black">
-                        ${lastPayout.toFixed(2)}{" "}
-                        <span className="text-base text-white/60">MXN</span>
-                      </div>
-                      {lastMultiplier != null && (
-                        <div className="mt-1 text-sm text-white/70">
-                          Multiplicador: <span className="font-semibold">x{lastMultiplier}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
-
-                {/* Provably Fair details */}
-                {fair && (
-                  <div className="mt-6 rounded-2xl border border-white/10 bg-black/30 p-4">
-                    <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
-                      <ShieldCheck className="h-4 w-4" /> Provably Fair
-                    </div>
-
-                    <div className="space-y-2 text-xs text-white/70">
-                      <div>
-                        <span className="text-white/60">serverSeedHash:</span>{" "}
-                        <span className="break-all">{fair.serverSeedHash}</span>
-                      </div>
-                      <div>
-                        <span className="text-white/60">serverSeed:</span>{" "}
-                        <span className="break-all">{fair.serverSeed}</span>
-                      </div>
-                      <div>
-                        <span className="text-white/60">clientSeed:</span>{" "}
-                        <span className="break-all">{fair.clientSeed}</span>
-                      </div>
-                      <div>
-                        <span className="text-white/60">nonce:</span> {fair.nonce}
-                      </div>
-                    </div>
-
-                    <p className="mt-3 text-xs text-white/60">
-                      Puedes verificar: SHA256(serverSeed) == serverSeedHash.
-                    </p>
-                  </div>
-                )}
-
-                <div className="mt-6 flex items-center justify-between">
-                  <Link
-                    href="/promos"
-                    className="text-sm text-white/70 underline underline-offset-4 hover:text-white"
-                  >
-                    Promos
-                  </Link>
-                  <Link
-                    href="/wallet"
-                    className="text-sm text-white/70 underline underline-offset-4 hover:text-white"
-                  >
-                    Wallet
-                  </Link>
-                </div>
-              </Card>
-            </div>
-          </div>
-
-          <p className="mt-8 text-xs text-white/50">
-            CHIDO • Juego experimental. Juega responsable.
-          </p>
+             </div>
+           )}
         </div>
+
+        {/* PANEL DE CONTROL (BOTTOM UI) */}
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6 items-center bg-[#121214] p-4 rounded-2xl border border-white/5">
+           
+           {/* Balance Info */}
+           <div className="text-center md:text-left">
+             <div className="text-xs text-zinc-500 uppercase font-bold tracking-wider">Tu Saldo</div>
+             <div className="text-xl font-mono text-white">${formatted}</div>
+           </div>
+
+           {/* Bet Controls */}
+           <div className="flex items-center justify-center gap-4 bg-black/30 p-2 rounded-xl border border-white/5">
+              <button 
+                onClick={() => setBet(Math.max(10, bet - 10))}
+                className="w-10 h-10 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white font-bold transition-colors"
+              >-</button>
+              <div className="w-24 text-center">
+                 <div className="text-[10px] text-zinc-500 uppercase font-bold">Apuesta</div>
+                 <div className="text-lg font-bold text-white">${bet}</div>
+              </div>
+              <button 
+                onClick={() => setBet(bet + 10)}
+                className="w-10 h-10 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white font-bold transition-colors"
+              >+</button>
+           </div>
+
+           {/* Spin Button */}
+           <div>
+             <Button 
+               onClick={handleSpin} 
+               disabled={spinning}
+               className={`w-full h-16 text-xl font-black uppercase tracking-widest rounded-xl transition-all
+                 ${spinning 
+                   ? 'bg-zinc-700 cursor-not-allowed' 
+                   : 'bg-gradient-to-b from-[#00F0FF] to-[#0099FF] hover:scale-[1.02] shadow-[0_0_20px_rgba(0,240,255,0.3)] text-black border-none'}
+               `}
+             >
+               {spinning ? <Loader2 className="animate-spin" /> : "GIRAR"}
+             </Button>
+           </div>
+        </div>
+
+        {/* Footer Info */}
+        <div className="mt-4 flex justify-center gap-6 text-xs text-zinc-600 font-medium">
+           <span className="flex items-center gap-1"><Info size={12}/> Provably Fair</span>
+           <span>RTP: 98.5%</span>
+           <span>ID: {Math.random().toString(36).substr(2, 9).toUpperCase()}</span>
+        </div>
+
       </div>
     </div>
   );
