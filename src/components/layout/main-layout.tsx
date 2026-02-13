@@ -2,200 +2,121 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { Logo } from "@/components/ui/logo";
+import { usePathname } from "next/navigation";
+import { Logo } from "@/components/ui/logo"; // Asegúrate de que este componente use tus assets limpios
 import { useWalletBalance } from "@/lib/useWalletBalance";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { 
-  Home, Wallet, Menu, X, LogOut, Search, 
-  Zap, Gift, User, ShieldCheck, ChevronRight, MessageCircleHeart, Users
+  LayoutGrid, Gamepad2, Gift, Users, UserCircle, 
+  Wallet, Menu, X, LogOut, ChevronRight, Headphones 
 } from "lucide-react";
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
-  const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
-  const router = useRouter();
-  const supabase = createClientComponentClient();
   const { formatted, loading } = useWalletBalance();
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push("/login");
-  };
-
-  const navLinks = [
-    { href: "/lobby", label: "Lobby", icon: Home },
-    { href: "/games/crash", label: "Crash", icon: Zap },
-    { href: "/promos", label: "Bonos", icon: Gift },
-    { href: "/affiliates", label: "Socios", icon: Users },
-    { href: "/profile", label: "Perfil", icon: User },
+  const menuItems = [
+    { href: "/lobby", label: "Casino", icon: LayoutGrid },
+    { href: "/games/crash", label: "Originals", icon: Gamepad2 },
+    { href: "/promos", label: "Promociones", icon: Gift },
+    { href: "/affiliates", label: "Afiliados", icon: Users },
+    { href: "/profile", label: "Mi Cuenta", icon: UserCircle },
   ];
 
   return (
-    <div className="min-h-screen bg-[#050510] bg-mexican-pattern bg-fixed text-white font-sans flex flex-col lg:flex-row overflow-x-hidden selection:bg-chido-pink/30">
+    <div className="flex min-h-screen bg-[#0a0a0b] text-white">
       
-      {/* === HEADER MÓVIL (Superior) === */}
-      <header className="lg:hidden fixed top-0 w-full z-50 bg-[#050510]/95 backdrop-blur-xl border-b border-white/5 px-4 h-16 flex items-center justify-between shadow-2xl">
-        <Link href="/lobby">
-            {/* Móvil: Usamos Isotipo Color (Icono) para ahorrar espacio */}
-            <Logo size={45} variant="iso-color" />
-        </Link>
-        <div className="flex items-center gap-3">
-            <Link href="/wallet" className="bg-zinc-900/80 border border-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 active:scale-95 transition-transform">
-               <span className="text-[10px] text-zinc-400 font-bold uppercase">Saldo</span>
-               <span className="text-xs font-black text-chido-green tabular-nums">${loading ? "..." : formatted}</span>
-            </Link>
-            <button onClick={() => setSidebarOpen(!isSidebarOpen)} className="p-2 text-white active:scale-90 transition-transform">
-              {isSidebarOpen ? <X size={28} /> : <Menu size={28} />}
-            </button>
+      {/* SIDEBAR DESKTOP & MOBILE */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-64 bg-[#121214] border-r border-white/5 transition-transform duration-300
+        ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 lg:static flex flex-col
+      `}>
+        {/* Logo Area */}
+        <div className="h-20 flex items-center px-6 border-b border-white/5">
+           <Link href="/lobby" className="flex items-center gap-2">
+             {/* Ajusta el tamaño según tu asset real */}
+             <Logo variant="full" size={120} className="object-contain" /> 
+           </Link>
+           <button onClick={() => setSidebarOpen(false)} className="lg:hidden ml-auto text-zinc-400">
+             <X size={24} />
+           </button>
         </div>
-      </header>
 
-      {/* === SIDEBAR (Escritorio y Menú Lateral Móvil) === */}
-      {/* FIX: z-[100] para sobreponerse a todo en móvil */}
-      <aside className={`fixed inset-y-0 left-0 z-[100] w-72 bg-[#08080a] border-r border-white/5 transform transition-transform duration-300 ease-out lg:translate-x-0 lg:static lg:block shadow-2xl ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
-        <div className="h-full flex flex-col relative">
-          
-          {/* FIX: Botón Cerrar explícito en Móvil */}
-          <div className="lg:hidden absolute top-4 right-4 z-50">
-             <button onClick={() => setSidebarOpen(false)} className="p-2 text-zinc-400 hover:text-white bg-black/50 rounded-full backdrop-blur-sm">
-                <X size={24} />
-             </button>
-          </div>
-          
-          {/* LOGO DE MARCA (Sidebar) */}
-          <div className="h-28 hidden lg:flex items-center justify-center border-b border-white/5 bg-black/20 py-6">
-             <Link href="/lobby">
-                <Logo size={60} variant="full" />
-             </Link>
-          </div>
+        {/* Navigation */}
+        <nav className="flex-1 py-6 px-3 space-y-1">
+          {menuItems.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setSidebarOpen(false)}
+                className={`
+                  flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all
+                  ${isActive 
+                    ? "bg-white/10 text-white shadow-[0_0_15px_rgba(255,255,255,0.05)]" 
+                    : "text-zinc-400 hover:bg-white/5 hover:text-white"}
+                `}
+              >
+                <item.icon size={18} className={isActive ? "text-[#00F0FF]" : ""} />
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
 
-          {/* Tarjeta de Perfil Mini */}
-          <div className="p-6 mt-16 lg:mt-0 bg-gradient-to-br from-zinc-900 via-black to-black border-b border-white/5 relative group cursor-pointer" onClick={() => router.push('/profile')}>
-            <div className="absolute top-0 right-0 w-20 h-20 bg-chido-pink/10 blur-2xl rounded-full group-hover:bg-chido-pink/20 transition-colors" />
-            <div className="relative z-10 flex items-center gap-4 mb-2">
-               <div className="w-10 h-10 rounded-full border-2 border-chido-cyan p-[2px]">
-                 <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${formatted}`} className="w-full h-full rounded-full bg-zinc-800" alt="Avatar"/>
-               </div>
-               <div>
-                 <div className="text-[10px] font-bold text-zinc-400 uppercase">Nivel</div>
-                 <div className="text-sm font-black text-white flex items-center gap-1">
-                    Salsa Verde <ShieldCheck size={12} className="text-chido-green"/>
-                 </div>
-               </div>
-               <ChevronRight className="ml-auto text-zinc-600" size={16} />
-            </div>
-            {/* Barra de Progreso XP */}
-            <div className="h-1 w-full bg-zinc-800 rounded-full overflow-hidden">
-               <div className="h-full w-[25%] bg-gradient-to-r from-chido-cyan to-chido-pink" />
-            </div>
-          </div>
-
-          {/* Links de Navegación */}
-          <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto scrollbar-hide">
-            {navLinks.map((route) => {
-              const Icon = route.icon;
-              const isActive = pathname === route.href;
-              return (
-                <Link 
-                    key={route.href} 
-                    href={route.href} 
-                    onClick={() => setSidebarOpen(false)} 
-                    className={`flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-200 group relative ${isActive ? "bg-white/10 text-white shadow-lg" : "text-zinc-400 hover:bg-white/5 hover:text-white"}`}
-                >
-                  {isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-chido-cyan shadow-[0_0_15px_#00F0FF]" />}
-                  <Icon size={20} className={isActive ? "text-chido-cyan" : "text-zinc-500 group-hover:text-white transition-colors"} />
-                  <span className="font-bold tracking-tight">{route.label}</span>
-                </Link>
-              );
-            })}
-            
-            <div className="my-6 border-t border-white/5 mx-4" />
-            
-            {/* Botón Soporte */}
-            <button className="w-full flex items-center gap-4 px-4 py-3 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-all group">
-               <MessageCircleHeart size={20} className="group-hover:text-chido-cyan transition-colors" />
-               <div className="flex flex-col items-start leading-none gap-1">
-                 <span className="font-semibold text-sm">NOVA Assist</span>
-                 <span className="text-[9px] text-zinc-600 group-hover:text-zinc-400">En línea</span>
-               </div>
-            </button>
-          </nav>
-
-          {/* Botón Logout */}
-          <div className="p-6 border-t border-white/5 bg-black/40">
-            <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-chido-red/80 hover:bg-chido-red/10 hover:text-chido-red transition-all font-bold text-sm bg-chido-red/5">
-              <LogOut size={18} /> Salir
-            </button>
-          </div>
+        {/* Footer Sidebar */}
+        <div className="p-4 border-t border-white/5 space-y-2">
+           <Link href="/support" className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-zinc-400 hover:text-white transition-colors">
+              <Headphones size={18} /> Soporte 24/7
+           </Link>
+           <div className="text-[10px] text-zinc-600 px-4 pt-2">
+             v1.0.0 • Chido Casino
+           </div>
         </div>
       </aside>
 
-      {/* === CONTENIDO PRINCIPAL === */}
-      <main className="flex-1 overflow-y-auto relative scrollbar-hide pt-16 lg:pt-0 flex flex-col">
-        {/* Header Escritorio */}
-        <div className="hidden lg:flex items-center justify-between px-8 py-5 sticky top-0 z-30 bg-[#050510]/80 backdrop-blur-xl border-b border-white/5">
-           <div className="relative group w-80">
-             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600" size={18} />
-             <input type="text" placeholder="Buscar juego..." className="w-full bg-zinc-900/50 border border-white/5 rounded-full pl-12 pr-4 py-2.5 text-sm text-white focus:border-chido-cyan/50 focus:bg-zinc-900 outline-none transition-all" />
-           </div>
-           
-           <div className="flex items-center gap-6">
-             <Link href="/wallet?deposit=1" className="bg-gradient-to-r from-chido-green to-emerald-600 text-black px-6 py-2.5 rounded-full font-black text-sm hover:scale-105 transition-transform shadow-[0_0_20px_rgba(50,205,50,0.4)] flex items-center gap-2">
-               <Wallet size={18} /> DEPOSITAR
-             </Link>
-             <div className="flex flex-col items-end leading-none">
-                <span className="text-[10px] text-zinc-500 font-bold uppercase">Saldo Real</span>
-                <span className="text-xl font-black text-white tabular-nums">${loading ? "..." : formatted}</span>
-             </div>
-             <div onClick={() => router.push('/profile')} className="w-10 h-10 rounded-full border border-white/10 p-1 cursor-pointer hover:border-chido-pink transition-colors">
-                <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${formatted}`} alt="Avatar" className="rounded-full bg-zinc-800" />
-             </div>
-           </div>
-        </div>
-
-        {/* Renderizado de Páginas Hijas */}
-        <div className="flex-1">
-          {children}
-        </div>
-      </main>
-
-      {/* === BARRA INFERIOR MÓVIL (Taco Pop) === */}
-      <nav className="lg:hidden fixed bottom-0 w-full bg-[#050510]/90 backdrop-blur-xl border-t border-white/10 pb-safe z-50">
-        <div className="flex justify-around items-end h-[85px] pb-4 px-2 relative">
-          
-          <Link href="/lobby" className={`flex flex-col items-center gap-1.5 transition-colors ${pathname === '/lobby' ? 'text-chido-cyan' : 'text-zinc-500'}`}>
-            <Home size={24} strokeWidth={pathname === '/lobby' ? 2.5 : 2}/>
-            <span className="text-[10px] font-bold">Lobby</span>
-          </Link>
-          
-          <Link href="/games/crash" className={`flex flex-col items-center gap-1.5 transition-colors ${pathname.includes('crash') ? 'text-chido-pink' : 'text-zinc-500'}`}>
-            <Zap size={24} />
-            <span className="text-[10px] font-bold">Crash</span>
-          </Link>
-          
-          {/* BOTÓN CENTRAL "TACO POP" */}
-          <div className="relative -top-5">
-             <Link href="/wallet?deposit=1">
-                <div className="w-20 h-20 rounded-full bg-zinc-900 border-4 border-[#050510] flex items-center justify-center shadow-[0_-5px_20px_rgba(0,240,255,0.3)] transform transition-transform active:scale-95 overflow-hidden">
-                   <div className="absolute inset-0 rounded-full bg-chido-cyan/20 animate-pulse-slow blur-xl" />
-                   {/* Isotipo Color para el botón central */}
-                   <Logo variant="iso-color" size={75} className="drop-shadow-2xl relative z-10" />
-                </div>
-             </Link>
+      {/* MAIN CONTENT WRAPPER */}
+      <div className="flex-1 flex flex-col min-w-0 bg-[#0a0a0b]">
+        
+        {/* HEADER */}
+        <header className="h-16 sticky top-0 z-40 glass-panel border-b-0 border-white/5 px-4 lg:px-8 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-white">
+              <Menu size={24} />
+            </button>
+            {/* Breadcrumb o Título Dinámico opcional */}
           </div>
 
-          <Link href="/promos" className={`flex flex-col items-center gap-1.5 transition-colors ${pathname === '/promos' ? 'text-chido-gold' : 'text-zinc-500'}`}>
-            <Gift size={24} />
-            <span className="text-[10px] font-bold">Bonos</span>
-          </Link>
-          
-          <Link href="/profile" className={`flex flex-col items-center gap-1.5 transition-colors ${pathname === '/profile' ? 'text-white' : 'text-zinc-500'}`}>
-            <User size={24} />
-            <span className="text-[10px] font-bold">Perfil</span>
-          </Link>
-        </div>
-      </nav>
+          <div className="flex items-center gap-4">
+            <Link href="/wallet" className="group flex items-center gap-3 bg-[#1A1A1D] hover:bg-[#222] border border-white/10 rounded-full px-1 pl-4 py-1 transition-all cursor-pointer">
+               <div className="flex flex-col items-end leading-none mr-1">
+                 <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Saldo</span>
+                 <span className="text-sm font-bold tabular-nums text-white">
+                   ${loading ? "..." : formatted}
+                 </span>
+               </div>
+               <div className="h-8 w-8 rounded-full bg-[#00F0FF] text-black flex items-center justify-center font-bold">
+                 <Wallet size={16} />
+               </div>
+            </Link>
+            
+            <Link href="/profile" className="hidden sm:block">
+              <div className="h-9 w-9 rounded-full bg-zinc-800 border border-white/10 overflow-hidden">
+                 {/* Avatar placeholder profesional */}
+                 <div className="w-full h-full bg-gradient-to-tr from-purple-500 to-blue-500" />
+              </div>
+            </Link>
+          </div>
+        </header>
+
+        {/* PAGE CONTENT */}
+        <main className="flex-1 overflow-y-auto p-4 lg:p-8">
+           <div className="max-w-7xl mx-auto">
+             {children}
+           </div>
+        </main>
+      </div>
     </div>
   );
 }
