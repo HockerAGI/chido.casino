@@ -1,5 +1,5 @@
 import { Logo } from "@/components/ui/logo";
-import { ShieldCheck, Instagram, Twitter, Facebook } from "lucide-react";
+import { Twitter, Instagram, Facebook } from "lucide-react"; // ShieldCheck removido si no se usa
 import Link from "next/link";
 
 export function Footer() {
@@ -15,7 +15,7 @@ export function Footer() {
           </Link>
           <div className="text-zinc-500 text-xs leading-relaxed space-y-2">
             <p><strong>Licencia 8048/JAZ</strong> emitida a Antillephone, autorizada y regulada por el Gobierno de Curazao.</p>
-            <p>Hocker AGI Technologies opera este sitio web bajo las leyes aplicables.</p>
+            <p>Hocker AGI Technologies opera este sitio web.</p>
           </div>
         </div>
         
@@ -23,22 +23,22 @@ export function Footer() {
         <div>
           <h4 className="font-bold text-white mb-6 uppercase tracking-widest text-[10px]">Plataforma</h4>
           <ul className="space-y-3 text-xs text-zinc-500 font-medium">
-            <li className="hover:text-white cursor-pointer transition-colors">Juegos VIP</li>
-            <li className="hover:text-white cursor-pointer transition-colors">Torneos</li>
-            <li className="hover:text-white cursor-pointer transition-colors">Promociones</li>
-            <li className="hover:text-white cursor-pointer transition-colors">Programa de Lealtad</li>
+            <li><Link href="/games/taco-slot" className="hover:text-white transition-colors">Taco Slot</Link></li>
+            <li><Link href="/games/crash" className="hover:text-white transition-colors">Crash</Link></li>
+            <li><Link href="/promos" className="hover:text-white transition-colors">Promociones</Link></li>
+            <li><Link href="/affiliates" className="hover:text-white transition-colors">Afiliados</Link></li>
           </ul>
         </div>
 
-        {/* Legal (Requerido por Compliance) */}
+        {/* Legal */}
         <div>
           <h4 className="font-bold text-white mb-6 uppercase tracking-widest text-[10px]">Legal & Compliance</h4>
           <ul className="space-y-3 text-xs text-zinc-500 font-medium">
-            <li className="hover:text-white cursor-pointer transition-colors">Términos y Condiciones</li>
-            <li className="hover:text-white cursor-pointer transition-colors">Política de Privacidad</li>
-            <li className="hover:text-white cursor-pointer transition-colors">Política AML / KYC</li>
-            <li className="hover:text-white cursor-pointer transition-colors">Autoexclusión</li>
-            <li className="hover:text-white cursor-pointer transition-colors">Resolución de Disputas</li>
+            {/* Todos apuntan a /legal por ahora, mejor que no hacer nada */}
+            <li><Link href="/legal" className="hover:text-white transition-colors">Términos y Condiciones</Link></li>
+            <li><Link href="/legal" className="hover:text-white transition-colors">Política de Privacidad</Link></li>
+            <li><Link href="/legal" className="hover:text-white transition-colors">Juego Responsable</Link></li>
+            <li><Link href="/support" className="hover:text-white transition-colors">Centro de Ayuda</Link></li>
           </ul>
         </div>
 
@@ -52,16 +52,19 @@ export function Footer() {
            </div>
            
            <div className="flex gap-4 mt-2">
-             {[Twitter, Instagram, Facebook].map((Icon, i) => (
-                 <div key={i} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-zinc-500 hover:bg-white hover:text-black transition-all cursor-pointer">
-                     <Icon size={14} />
-                 </div>
-             ))}
+             <Link href="https://twitter.com" target="_blank" className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-zinc-500 hover:bg-white hover:text-black transition-all">
+                 <Twitter size={14} />
+             </Link>
+             <Link href="https://instagram.com" target="_blank" className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-zinc-500 hover:bg-white hover:text-black transition-all">
+                 <Instagram size={14} />
+             </Link>
+             <Link href="https://facebook.com" target="_blank" className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-zinc-500 hover:bg-white hover:text-black transition-all">
+                 <Facebook size={14} />
+             </Link>
            </div>
         </div>
       </div>
       
-      {/* Barra Final de Copyright y Métodos de Pago */}
       <div className="max-w-7xl mx-auto px-6 border-t border-white/5 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
          <div className="text-zinc-600 text-[10px] font-bold uppercase tracking-widest">
             © 2026 Chido Casino. Todos los derechos reservados.
@@ -69,7 +72,7 @@ export function Footer() {
          <div className="flex items-center gap-2 opacity-40 grayscale">
             <span className="text-[10px] font-black">VISA</span>
             <span className="text-[10px] font-black">MASTERCARD</span>
-            <span className="text-[10px] font-black">BITCOIN</span>
+            <span className="text-[10px] font-black">SPEI</span>
          </div>
       </div>
     </footer>
