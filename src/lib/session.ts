@@ -1,29 +1,50 @@
-import { requireUser, type AuthedUser } from "@/lib/requireUser";
+// src/lib/session.ts
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
+import type { Session, User } from "@supabase/supabase-js";
+
+export type ServerSession = {
+  user: Pick<User, "id" | "email"> & { email: string | null };
+  access_token: string | null;
+  session: Session;
+};
 
 /**
- * Compat layer: algunos endpoints o ramas del repo importan `@/lib/session`.
- * Este archivo evita que el build truene y centraliza el auth actual.
+ * getServerSession()
+ * Compat layer: algunos endpoints esperan este helper.
+ *
+ * Nota: el parámetro `req` es opcional y se ignora a propósito,
+ * para ser compatible con implementaciones que lo pasan.
  */
+export async function getServerSession(_req?: Request): Promise<ServerSession | null> {
+  const supabase = createRouteHandlerClient({ cookies });
 
-export type SessionUser = AuthedUser;
+  const { data, error } = await supabase.auth.getSession();
+  if (error) return null;
 
-export async function getSessionUser(req: Request): Promise<SessionUser> {
-  return requireUser(req);
+  const session = data.session;
+  if (!session || !session.user) return null;
+
+  return {
+    user: { id: session.user.id, email: session.user.email ?? null },
+    access_token: session.access_token ?? null,
+    session,
+  };
 }
 
-/**
- * Alias clásico.
- * Si algún archivo hace `import { requireSession } from "@/lib/session"`
- * esto sigue funcionando.
- */
-export async function requireSession(req: Request): Promise<SessionUser> {
-  return requireUser(req);
+export async function requireServerSession(req?: Request): Promise<ServerSession> {
+  const s = await getServerSession(req);
+  if (!s) throw new Error("UNAUTHORIZED");
+  return s;
 }
 
-/**
- * Alias minimalista por compat.
- * Si algún endpoint hace `const session = await getSession(req)`
- */
-export async function getSession(req: Request): Promise<SessionUser> {
-  return requireUser(req);
+export async function getSessionUser(req?: Request): Promise<ServerSession["user"] | null> {
+  const s = await getServerSession(req);
+  return s?.user ?? null;
+}
+
+export async function requireSessionUser(req?: Request): Promise<ServerSession["user"]> {
+  const u = await getSessionUser(req);
+  if (!u) throw new Error("UNAUTHORIZED");
+  return u;
 }
