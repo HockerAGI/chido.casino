@@ -231,14 +231,21 @@ export default function TacoSlotPage() {
 
             {/* Slot */}
             <div className="mx-auto w-full max-w-lg">
-              <Card className="rounded-3xl border-white/10 bg-white/5 p-6 backdrop-blur">
-                <div className="grid grid-cols-3 gap-4">
+              <Card className="rounded-3xl border-white/10 bg-white/5 p-4 md:p-6 backdrop-blur">
+                {/* FIX: Grid responsivo que evita desborde en móviles */}
+                <div className="grid grid-cols-3 gap-2 md:gap-4">
                   {reels.map((r, idx) => (
                     <div
                       key={`${r.key}-${idx}`}
-                      className="flex aspect-square items-center justify-center rounded-3xl border border-white/10 bg-black/40"
+                      className="flex aspect-square items-center justify-center rounded-2xl md:rounded-3xl border border-white/10 bg-black/40 p-2 overflow-hidden relative"
                     >
-                      <Image src={r.img} alt={r.key} width={120} height={120} />
+                      <Image 
+                        src={r.img} 
+                        alt={r.key} 
+                        width={120} 
+                        height={120} 
+                        className="object-contain w-full h-full drop-shadow-lg" 
+                      />
                     </div>
                   ))}
                 </div>
