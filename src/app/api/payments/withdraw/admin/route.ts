@@ -116,7 +116,8 @@ export async function POST(req: Request) {
         refId: `${externalId}:paid`,
         metadata: { note: body.note ?? null },
       });
-      if (r.error) return NextResponse.json({ ok: false, error: r.error.message }, { status: 500 });
+      // CORRECCIÓN AQUÍ: r.error ya es string, no r.error.message
+      if (r.error) return NextResponse.json({ ok: false, error: r.error }, { status: 500 });
     } else {
       // refund: locked ↓, balance ↑
       const r = await walletApplyDelta(supabaseAdmin, {
@@ -128,7 +129,8 @@ export async function POST(req: Request) {
         refId: `${externalId}:${finalStatus}`,
         metadata: { note: body.note ?? null },
       });
-      if (r.error) return NextResponse.json({ ok: false, error: r.error.message }, { status: 500 });
+      // CORRECCIÓN AQUÍ: r.error ya es string
+      if (r.error) return NextResponse.json({ ok: false, error: r.error }, { status: 500 });
     }
 
     return NextResponse.json({ ok: true, status: finalStatus });
