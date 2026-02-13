@@ -56,7 +56,7 @@ export async function POST(req: Request) {
     metadata: { promo: code },
   });
 
-  // CORRECCIÓN: Usamos apply.error directo
+  // FIX: apply.error es string
   if (apply.error) return NextResponse.json({ ok: false, error: apply.error }, { status: 500 });
 
   // 4) registrar redención
