@@ -113,7 +113,8 @@ export async function POST(req: Request) {
     });
 
     if (deb.error) {
-      const msg = String((deb.error as any)?.message || "");
+      // CORRECCIÓN: Usamos deb.error directo (es string)
+      const msg = String(deb.error || "");
       if (isInsufficient(msg)) return NextResponse.json({ ok: false, error: "Saldo insuficiente" }, { status: 400 });
       console.error("wallet_apply_delta bet error:", deb.error);
       return NextResponse.json({ ok: false, error: "WALLET_ERROR" }, { status: 500 });
