@@ -6,6 +6,9 @@ export type WalletApplyDeltaInput = {
   reason?: string;
   refId?: string;
   method?: string;
+  // Agregamos estos campos opcionales para evitar el error de build:
+  currency?: string; 
+  metadata?: any;
 };
 
 export type WalletApplyDeltaResult = {
