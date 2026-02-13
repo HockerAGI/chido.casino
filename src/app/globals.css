@@ -3,61 +3,53 @@
 @tailwind utilities;
 
 :root {
-  --bg-main: #050510;
-  --text-main: #fff;
+  --bg-main: #0a0a0b;
+  --bg-card: #121214;
+  --primary: #00F0FF;
+  --accent: #FF0099;
+  --text-primary: #ffffff;
+  --text-secondary: #a1a1aa;
 }
 
 body {
-  background: var(--bg-main);
-  color: var(--text-main);
-  -webkit-font-smoothing: antialiased;
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, sans-serif; /* Asegúrate de tener una fuente limpia */
   overflow-x: hidden;
 }
 
-.scrollbar-hide::-webkit-scrollbar { display: none; }
-.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+/* Scrollbar minimalista */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #555; }
 
-.bg-mexican-pattern {
-  background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
-  background-size: 20px 20px;
-}
-
-/* FIX: Hero Pixelado - Filtros para suavizar */
-.hero-overlay {
-  position: absolute;
-  inset: 0;
-  background-image: url('/hero-bg.jpg');
-  background-size: cover;
-  background-position: center;
-  filter: brightness(0.5) contrast(1.1) blur(0px); 
-  z-index: 0;
+/* UTILIDADES PRO */
+.glass-panel {
+  background: rgba(18, 18, 20, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* ANIMACIONES PRO */
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-}
-.animate-float { animation: float 6s ease-in-out infinite; }
-
-@keyframes dash {
-  to { stroke-dashoffset: 0; }
-}
-.animate-dash {
-  stroke-dasharray: 1000;
-  stroke-dashoffset: 1000;
-  animation: dash 5s linear forwards;
+.neon-shadow {
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.15);
 }
 
-@keyframes pulse-slow {
-  0%, 100% { opacity: 0.3; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(1.1); }
+/* ANIMACIONES SLOT */
+@keyframes slot-spin {
+  0% { transform: translateY(0); filter: blur(0); }
+  50% { transform: translateY(-50px); filter: blur(10px); }
+  100% { transform: translateY(0); filter: blur(0); }
 }
-.animate-pulse-slow { animation: pulse-slow 3s infinite; }
+.animate-slot-spin {
+  animation: slot-spin 0.1s linear infinite;
+}
 
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-5px); }
-  75% { transform: translateX(5px); }
+@keyframes win-pulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 rgba(255,0,153,0); }
+  50% { transform: scale(1.05); box-shadow: 0 0 30px rgba(255,0,153,0.4); }
+  100% { transform: scale(1); box-shadow: 0 0 0 rgba(255,0,153,0); }
 }
-.shake { animation: shake 0.2s ease-in-out 3; }
+.animate-win {
+  animation: win-pulse 0.5s ease-out;
+}
