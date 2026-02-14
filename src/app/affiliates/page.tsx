@@ -1,5 +1,8 @@
 "use client";
 
+// FIX: Asegura compatibilidad con el servidor
+export const dynamic = "force-dynamic";
+
 import { useState } from "react";
 import { Users, Link as LinkIcon, Copy, TrendingUp, CheckCircle2, AlertTriangle, Coins } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -20,8 +23,7 @@ export default function AffiliatesPage() {
     toast({
       title: "¡Link Copiado!",
       description: "Pégalo en tus redes y empieza a armar tu clica.",
-      // Eliminamos className para corregir el error de build.
-      // Si deseas color verde, debes agregar la variante 'success' en tu componente ui/toast.tsx
+      // FIX: Eliminamos className que causaba error de tipos en build
     });
   };
 
