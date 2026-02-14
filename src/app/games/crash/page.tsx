@@ -21,7 +21,7 @@ export default function CrashPro() {
 
   // Lógica REAL conectada al Backend
   const startGame = async () => {
-    if (bet > (balance || 0)) {
+    if ((balance || 0) < bet) {
       return toast({ title: "Saldo insuficiente", variant: "destructive" });
     }
     
@@ -72,10 +72,11 @@ export default function CrashPro() {
            
            if (userWon) {
              setGameState("WON");
+             // CORRECCIÓN AQUÍ: Quitamos className y usamos descripción simple
              toast({ 
                title: "¡GANASTE!", 
                description: `Cobraste a ${targetPoint}x ($${data.payout})`,
-               className: "bg-green-500 text-white border-none"
+               // variant: "default" (implícito)
              });
            } else {
              setGameState("CRASHED");
