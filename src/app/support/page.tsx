@@ -1,12 +1,10 @@
 "use client";
 
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { 
   HelpCircle, MessageCircle, Mail, FileText, 
   ShieldAlert, Smartphone, ChevronRight, Search 
 } from "lucide-react";
-import Link from "next/link";
 
 export default function SupportPage() {
   return (
