@@ -20,7 +20,8 @@ export default function AffiliatesPage() {
     toast({
       title: "¡Link Copiado!",
       description: "Pégalo en tus redes y empieza a armar tu clica.",
-      className: "bg-[#32CD32] text-black border-none font-bold",
+      // Eliminamos className para corregir el error de build.
+      // Si deseas color verde, debes agregar la variante 'success' en tu componente ui/toast.tsx
     });
   };
 
