@@ -26,8 +26,13 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
-      // 🔥 Afiliados: si venía con cookie chido_ref, aquí se atribuye al usuario logueado
-      await fetch("/api/affiliates/attribution", { method: "POST" }).catch(() => {});
+      // ✅ Afiliados: atribución best-effort
+      // Si existe cookie chido_ref, el server la lee (no necesitamos leerla en el cliente).
+      await fetch("/api/affiliates/attribution", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({}),
+      }).catch(() => {});
 
       toast({ title: "Bienvenido", description: "Acceso concedido." });
       router.push("/lobby");
@@ -43,7 +48,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-64px)] items-center justify-center bg-black px-4">
+    <div className="flex min-h-[100vh] items-center justify-center bg-black px-4">
       <Card className="w-full max-w-md rounded-3xl border-white/10 bg-white/5 p-6 text-white">
         <div className="mb-6 flex items-center justify-center">
           <Image src="/chido-logo.png" alt="CHIDO" width={160} height={48} priority />
