@@ -9,9 +9,9 @@ import { useWalletBalance } from "@/lib/useWalletBalance";
 
 export default function AffiliatesPage() {
   const { toast } = useToast();
-  const { balance } = useWalletBalance(); // Para UX realista
+  const { balance } = useWalletBalance(); 
   
-  // Dummy data para UI inicial (Luego lo conectas al endpoint)
+  // Dummy data (Conéctalo luego a tu API real)
   const affiliateCode = "CHIDO-VIP-99"; 
   const link = `https://chido.casino/r/${affiliateCode}`;
 
