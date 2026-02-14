@@ -16,7 +16,8 @@ const SYMBOLS: Record<string, string> = {
 };
 
 export default function TacoSlotPro() {
-  const { balance, refresh } = useWalletBalance();
+  // CORRECCIÓN AQUÍ: Agregamos 'formatted' al destructuring
+  const { balance, refresh, formatted } = useWalletBalance();
   const { toast } = useToast();
   
   // Estados de Juego
