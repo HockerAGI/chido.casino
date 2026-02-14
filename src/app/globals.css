@@ -3,26 +3,40 @@
 @tailwind utilities;
 
 :root {
-  --bg-main: #0a0a0b;
-  --bg-card: #121214;
+  --bg-main: #050510;
+  --text-main: #fff;
   --primary: #00F0FF;
   --accent: #FF0099;
-  --text-primary: #ffffff;
-  --text-secondary: #a1a1aa;
 }
 
 body {
-  background-color: var(--bg-main);
-  color: var(--text-primary);
-  font-family: 'Inter', system-ui, sans-serif; /* Asegúrate de tener una fuente limpia */
+  background: var(--bg-main);
+  color: var(--text-main);
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
 
-/* Scrollbar minimalista */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #555; }
+/* Scrollbar minimalista (Invisible pero funcional) */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Patrón de fondo sutil */
+.bg-mexican-pattern {
+  background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* FIX: Hero Pixelado - Filtros para suavizar y oscurecer imagen de fondo */
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  background-image: url('/hero-bg.jpg');
+  background-size: cover;
+  background-position: center;
+  filter: brightness(0.5) contrast(1.1) blur(0px); 
+  z-index: 0;
+}
 
 /* UTILIDADES PRO */
 .glass-panel {
@@ -35,7 +49,38 @@ body {
   box-shadow: 0 0 20px rgba(0, 240, 255, 0.15);
 }
 
-/* ANIMACIONES SLOT */
+/* --- ANIMACIONES GLOBALES --- */
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+.animate-float { animation: float 6s ease-in-out infinite; }
+
+@keyframes dash {
+  to { stroke-dashoffset: 0; }
+}
+.animate-dash {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: dash 5s linear forwards;
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.1); }
+}
+.animate-pulse-slow { animation: pulse-slow 3s infinite; }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+.shake { animation: shake 0.2s ease-in-out 3; }
+
+/* --- ANIMACIONES ESPECÍFICAS DE JUEGOS --- */
+
 @keyframes slot-spin {
   0% { transform: translateY(0); filter: blur(0); }
   50% { transform: translateY(-50px); filter: blur(10px); }
