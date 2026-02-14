@@ -3,7 +3,12 @@ import "./globals.css";
 import { MainLayout } from "@/components/layout/main-layout";
 import { ToastProvider } from "@/components/ui/use-toast";
 import { Toaster } from "@/components/ui/toaster";
-import PWARegister from "@/app/_components/PWARegister"; // ✅ IMPORTADO
+import PWARegister from "@/app/_components/PWARegister";
+
+// 🔥 ESTA LÍNEA SOLUCIONA EL ERROR DE COOKIES/BUILD
+// Fuerza a que toda la aplicación se renderice en el servidor (SSR)
+// evitando conflictos con la lectura de cookies de sesión durante el build.
+export const dynamic = "force-dynamic";
 
 export const viewport: Viewport = {
   themeColor: "#050510",
@@ -32,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es" className="dark">
       <body className="antialiased bg-[#050510] text-white overflow-x-hidden selection:bg-[#FF0099] selection:text-white">
         <ToastProvider>
-          <PWARegister /> {/* ✅ COMPONENTE AÑADIDO */}
+          <PWARegister />
           <MainLayout>{children}</MainLayout>
           <Toaster />
         </ToastProvider>
