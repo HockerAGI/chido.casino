@@ -1,100 +1,92 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createClient } from "@/lib/supabaseClient";
 
-export type Profile = {
+type ProfileRow = {
   user_id: string;
-  username: string | null;
-  full_name: string | null;
-  gender: string | null;
-  avatar_url: string | null;
-  is_verified: boolean | null;
-  kyc_status: string | null;
-  cashback_rate: number;
-};
-
-type State = {
-  loading: boolean;
-  userId: string | null;
-  profile: Profile | null;
-  error: string | null;
+  full_name?: string | null;
+  avatar_url?: string | null;
+  cashback_rate?: number | null;
+  kyc_status?: string | null;
+  is_verified?: boolean | null;
+  [key: string]: any;
 };
 
 export function useProfile() {
-  const [state, setState] = useState<State>({
-    loading: true,
-    userId: null,
-    profile: null,
-    error: null,
-  });
+  const supabaseRef = useRef(createClient());
+  const supabase = supabaseRef.current;
+
+  const [userId, setUserId] = useState<string | null>(null);
+  const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      setError(null);
+      setLoading(true);
+
+      const {
+        data: { session },
+        error: sErr,
+      } = await supabase.auth.getSession();
+
+      if (sErr) throw sErr;
+
+      const uid = session?.user?.id ?? null;
+      setUserId(uid);
+
+      if (!uid) {
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+
+      const { data, error: pErr } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", uid)
+        .maybeSingle();
+
+      if (pErr) throw pErr;
+
+      setProfile((data as any) ?? null);
+      setLoading(false);
+    } catch (e: any) {
+      setLoading(false);
+      setError(e?.message ?? "Error al cargar perfil");
+    }
+  }, [supabase]);
 
   useEffect(() => {
-    let mounted = true;
-    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let channel: any;
 
-    async function boot() {
-      try {
-        const { data } = await supabase.auth.getSession();
-        const userId = data.session?.user?.id ?? null;
+    (async () => {
+      await refresh();
 
-        if (!mounted) return;
+      if (!userId) return;
 
-        if (!userId) {
-          setState({ loading: false, userId: null, profile: null, error: null });
-          return;
-        }
-
-        const { data: p, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("user_id", userId)
-          .maybeSingle();
-
-        if (!mounted) return;
-
-        setState({
-          loading: false,
-          userId,
-          profile: p as Profile,
-          error: error ? error.message : null,
-        });
-
-        channel = supabase
-          .channel(`profiles:${userId}`)
-          .on(
-            "postgres_changes",
-            {
-              event: "*",
-              schema: "public",
-              table: "profiles",
-              filter: `user_id=eq.${userId}`,
-            },
-            (payload) => {
-              setState((s) => ({
-                ...s,
-                profile: payload.new as Profile,
-              }));
-            }
-          )
-          .subscribe();
-      } catch (e: any) {
-        if (!mounted) return;
-        setState((s) => ({
-          ...s,
-          loading: false,
-          error: e?.message || "Error perfil",
-        }));
-      }
-    }
-
-    boot();
+      channel = supabase
+        .channel(`profiles_${userId}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "profiles", filter: `user_id=eq.${userId}` },
+          (payload: any) => {
+            const next = payload?.new ?? null;
+            if (next) setProfile(next as ProfileRow);
+          }
+        )
+        .subscribe();
+    })();
 
     return () => {
-      mounted = false;
-      if (channel) supabase.removeChannel(channel);
+      try {
+        if (channel) supabase.removeChannel(channel);
+      } catch {}
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
-  return state;
+  return { userId, profile, loading, error, refresh };
 }
