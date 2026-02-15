@@ -1,12 +1,16 @@
+"use client";
+
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+let _client: SupabaseClient | null = null;
 
 /**
- * Cliente Supabase (browser).
- * - `createClient()` para componentes que necesitan instanciar el client.
- * - `supabase` para uso rápido (compat con tu repo actual).
+ * Cliente Supabase para Client Components.
+ * Importante: NO instanciar en module-scope para evitar `cookies()` en build.
  */
-export function createClient() {
-  return createClientComponentClient();
+export function createClient(): SupabaseClient {
+  if (_client) return _client;
+  _client = createClientComponentClient();
+  return _client;
 }
-
-export const supabase = createClient();
