@@ -1,57 +1,41 @@
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
 import "./globals.css";
-import { ToastProvider } from "@/components/ui/use-toast";
-import { Toaster } from "@/components/ui/toaster";
-import PWARegister from "@/app/_components/PWARegister";
-import AppShell from "@/app/_components/AppShell";
+import PWARegister from "./_components/PWARegister";
+import AppShell from "./_components/AppShell";
+
+function resolveMetadataBase() {
+  const explicit = process.env.NEXT_PUBLIC_SITE_URL; // ej: https://chido.casino
+  if (explicit) return new URL(explicit);
+
+  const vercel = process.env.VERCEL_URL; // ej: chidocasino-xxxxx.vercel.app (sin protocolo)
+  if (vercel) return new URL(`https://${vercel}`);
+
+  return new URL("https://chido.casino");
+}
 
 export const metadata: Metadata = {
-  title: {
-    default: "CHIDO CASINO",
-    template: "%s | CHIDO",
-  },
-  description: "CHIDO — plataforma de entretenimiento y juegos. Juega responsable.",
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "CHIDO",
-  },
-  icons: {
-    icon: [{ url: "/favicon.ico" }],
-    apple: [{ url: "/apple-touch-icon.png" }],
-  },
+  metadataBase: resolveMetadataBase(),
+  title: "Chido Casino",
+  description: "Casino online con juegos originales, bonos y retiros rápidos.",
   openGraph: {
-    title: "CHIDO CASINO",
-    description: "CHIDO — plataforma de entretenimiento y juegos. Juega responsable.",
+    title: "Chido Casino",
+    description: "Juega originals. Reclama tu bono. Retira rápido.",
     images: ["/opengraph-image.jpg"],
-    type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "CHIDO CASINO",
-    description: "CHIDO — plataforma de entretenimiento y juegos. Juega responsable.",
+    title: "Chido Casino",
+    description: "Juega originals. Reclama tu bono. Retira rápido.",
     images: ["/opengraph-image.jpg"],
   },
-};
-
-export const viewport: Viewport = {
-  themeColor: "#050510",
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className="dark">
-      <body className="antialiased bg-[#050510] text-white overflow-x-hidden selection:bg-[#FF0099] selection:text-white">
-        <ToastProvider>
-          <PWARegister />
-          <AppShell>{children}</AppShell>
-          <Toaster />
-        </ToastProvider>
+    <html lang="es">
+      <body className="bg-black text-white">
+        <PWARegister />
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );
