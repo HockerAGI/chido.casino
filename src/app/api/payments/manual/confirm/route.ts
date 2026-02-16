@@ -97,6 +97,25 @@ export async function POST(req: Request) {
     }
 
     const data = res.data ?? { ok: true };
+    // Si el RPC aprobó y nos dio user_id + amount, intentamos aplicar promo activa.
+// No bloquea el flujo de confirmación.
+try {
+  if (data?.ok && data?.user_id && data?.amount) {
+    const amount = Number(data.amount);
+    const depositRef = String(data.deposit_id || data.id || folio);
+
+    if (Number.isFinite(amount) && amount > 0) {
+      data.promo = await applyPromoForDeposit(supabaseAdmin, {
+        userId: data.user_id,
+        depositAmount: amount,
+        depositRef,
+      });
+    }
+  }
+} catch {
+  // ignore
+}
+
 
     if (data?.ok) {
       await notifyTelegram(
