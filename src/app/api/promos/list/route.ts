@@ -1,50 +1,42 @@
-export const runtime = "nodejs";
-
 import { NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function GET() {
   const supabase = createRouteHandlerClient({ cookies });
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
 
-  if (!session) {
-    return NextResponse.json({ ok: false, error: "NO_AUTH" }, { status: 401 });
-  }
-
-  const now = new Date().toISOString();
-
-  const { data: promos, error } = await supabaseAdmin
-    .from("promos")
-    .select("id, code, title, description, reward_type, reward_amount, expires_at, active, per_user_limit, max_redemptions")
-    .eq("active", true)
-    .or(`expires_at.is.null,expires_at.gt.${now}`)
+  // Ofertas visibles al público (RLS ya filtra por active/starts_at/ends_at)
+  const { data: offers, error: offersErr } = await supabase
+    .from("promo_offers")
+    .select(
+      "id, slug, title, description, active, starts_at, ends_at, min_deposit, bonus_percent, max_bonus, free_rounds, wagering_multiplier, created_at"
+    )
     .order("created_at", { ascending: false });
 
-  if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (offersErr) {
+    return NextResponse.json({ error: offersErr.message }, { status: 500 });
   }
 
-  const { data: redemptions } = await supabaseAdmin
-    .from("promo_redemptions")
-    .select("promo_id")
-    .eq("user_id", session.user.id);
+  // Claim activo (si hay sesión)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const redeemedSet = new Set((redemptions || []).map((r) => r.promo_id));
+  let activeClaim: any = null;
+  if (user) {
+    const { data: claim } = await supabase
+      .from("promo_claims")
+      .select(
+        "id, offer_id, status, claimed_at, expires_at, bonus_awarded, free_rounds_awarded, wagering_required, wagering_progress, metadata"
+      )
+      .eq("user_id", user.id)
+      .in("status", ["active", "applied"])
+      .order("claimed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-  return NextResponse.json({
-    ok: true,
-    promos: (promos || []).map((p: any) => ({
-      code: p.code,
-      title: p.title,
-      description: p.description,
-      rewardType: p.reward_type,
-      rewardAmount: Number(p.reward_amount || 0),
-      expiresAt: p.expires_at,
-      redeemed: redeemedSet.has(p.id),
-    })),
-  });
+    activeClaim = claim ?? null;
+  }
+
+  return NextResponse.json({ offers: offers ?? [], activeClaim });
 }
