@@ -1,92 +1,72 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabaseClient";
 
-type ProfileRow = {
+export type Profile = {
+  id: string;
   user_id: string;
-  full_name?: string | null;
-  avatar_url?: string | null;
-  cashback_rate?: number | null;
-  kyc_status?: string | null;
-  is_verified?: boolean | null;
-  [key: string]: any;
+  email: string | null;
+  username: string | null;
+  avatar_url: string | null;
+  role: "user" | "admin";
+  vip_level: string | null;
+  kyc_status: string | null;
+  xp: number;
+  referral_code: string | null;
+  free_spins?: number;
 };
 
 export function useProfile() {
-  const supabaseRef = useRef(createClient());
-  const supabase = supabaseRef.current;
+  const supabase = useMemo(() => createClient(), []);
 
-  const [userId, setUserId] = useState<string | null>(null);
-  const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
     try {
-      setError(null);
-      setLoading(true);
+      const { data: sessionData, error: sessionErr } =
+        await supabase.auth.getSession();
+      if (sessionErr) throw sessionErr;
 
-      const {
-        data: { session },
-        error: sErr,
-      } = await supabase.auth.getSession();
-
-      if (sErr) throw sErr;
-
-      const uid = session?.user?.id ?? null;
-      setUserId(uid);
-
+      const uid = sessionData.session?.user?.id;
       if (!uid) {
         setProfile(null);
         setLoading(false);
         return;
       }
 
-      const { data, error: pErr } = await supabase
+      const { data, error: qErr } = await supabase
         .from("profiles")
         .select("*")
         .eq("user_id", uid)
         .maybeSingle();
 
-      if (pErr) throw pErr;
-
-      setProfile((data as any) ?? null);
-      setLoading(false);
+      if (qErr) throw qErr;
+      setProfile((data as Profile) ?? null);
     } catch (e: any) {
+      setError(e?.message ?? "Error cargando perfil");
+      setProfile(null);
+    } finally {
       setLoading(false);
-      setError(e?.message ?? "Error al cargar perfil");
     }
   }, [supabase]);
 
   useEffect(() => {
-    let channel: any;
+    void refresh();
 
-    (async () => {
-      await refresh();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      void refresh();
+    });
 
-      if (!userId) return;
+    return () => subscription.unsubscribe();
+  }, [refresh, supabase]);
 
-      channel = supabase
-        .channel(`profiles_${userId}`)
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "profiles", filter: `user_id=eq.${userId}` },
-          (payload: any) => {
-            const next = payload?.new ?? null;
-            if (next) setProfile(next as ProfileRow);
-          }
-        )
-        .subscribe();
-    })();
-
-    return () => {
-      try {
-        if (channel) supabase.removeChannel(channel);
-      } catch {}
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
-
-  return { userId, profile, loading, error, refresh };
+  return { profile, loading, error, refresh };
 }
