@@ -1,249 +1,192 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
-import { Copy, Loader2, Tag } from "lucide-react";
 
-type Promo = {
+type PromoOffer = {
   id: string;
-  code: string;
+  slug: string;
   title: string;
-  description: string;
-  rewardType: "bonus" | "balance" | string;
-  rewardAmount: number;
-  expiresAt: string | null;
-  perUserLimit?: number;
-  maxRedemptions?: number | null;
-  redeemed: boolean;
-  redeemedAt?: string | null;
+  description: string | null;
+  min_deposit: string | number | null;
+  bonus_percent: string | number | null;
+  max_bonus: string | number | null;
+  free_rounds: number | null;
+  wagering_multiplier: string | number | null;
+  ends_at: string | null;
 };
 
-type ListResponse =
-  | { ok: true; promos: Promo[]; warning?: string }
-  | { ok: false; error: string };
-
-type RedeemResponse =
-  | { ok: true; message?: string; promo?: any }
-  | { ok: false; error: string };
-
-function fmtMoney(n: number) {
-  return `$${Number(n).toFixed(2)} MXN`;
-}
+type PromoClaim = {
+  id: string;
+  offer_id: string;
+  status: string;
+  claimed_at: string;
+  expires_at: string | null;
+};
 
 export default function PromosPage() {
-  const [loading, setLoading] = useState(true);
-  const [promos, setPromos] = useState<Promo[]>([]);
+  const [offers, setOffers] = useState<PromoOffer[]>([]);
+  const [activeClaim, setActiveClaim] = useState<PromoClaim | null>(null);
   const [code, setCode] = useState("");
-  const [redeeming, setRedeeming] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
+  const [busySlug, setBusySlug] = useState<string | null>(null);
 
-  const hasPromos = promos.length > 0;
+  const activeOfferId = useMemo(
+    () => (activeClaim?.status === "active" ? activeClaim.offer_id : null),
+    [activeClaim]
+  );
 
   const load = async () => {
     setLoading(true);
     setMsg(null);
     try {
       const res = await fetch("/api/promos/list", { cache: "no-store" });
-      const data = (await res.json()) as ListResponse;
-      if (!data.ok) {
-        setMsg(data.error || "Error al cargar promos.");
-        setPromos([]);
-      } else {
-        setPromos(data.promos || []);
-        if (data.warning === "PROMOS_TABLE_MISSING") {
-          setMsg("Falta tabla `promos` en DB. Corre el SQL del BLOQUE 4.");
-        }
-      }
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || "Error cargando promos");
+      setOffers(json.offers || []);
+      setActiveClaim(json.activeClaim || null);
     } catch (e: any) {
-      setMsg(e?.message || "Error al cargar promos.");
-      setPromos([]);
+      setMsg(e?.message ?? "Error");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    load();
+    void load();
   }, []);
 
-  const copy = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setMsg("Copiado ✅");
-      setTimeout(() => setMsg(null), 1100);
-    } catch {
-      setMsg("No se pudo copiar.");
-      setTimeout(() => setMsg(null), 1100);
-    }
-  };
-
-  const redeem = async (redeemCode?: string) => {
-    const finalCode = String(redeemCode ?? code).trim();
-    if (!finalCode) {
-      setMsg("Escribe un código.");
-      return;
-    }
-
-    setRedeeming(true);
+  const redeem = async (slug: string) => {
+    setBusySlug(slug);
     setMsg(null);
-
     try {
       const res = await fetch("/api/promos/redeem", {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ code: finalCode }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: slug }),
       });
-
-      const data = (await res.json()) as RedeemResponse;
-
-      if (!data.ok) {
-        if (data.error === "ALREADY_REDEEMED") setMsg("Ya canjeaste esta promo.");
-        else if (data.error === "PROMO_NOT_FOUND") setMsg("Código inválido.");
-        else if (data.error === "PROMO_EXPIRED") setMsg("Promo expirada.");
-        else if (data.error === "PROMO_SOLD_OUT") setMsg("Promo agotada.");
-        else setMsg(data.error || "Error al canjear.");
-        return;
-      }
-
-      setMsg(data.message || "Canjeado ✅");
-      setCode("");
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || "No se pudo activar");
+      setMsg(json?.message ?? "Listo");
       await load();
     } catch (e: any) {
-      setMsg(e?.message || "Error al canjear.");
+      setMsg(e?.message ?? "Error");
     } finally {
-      setRedeeming(false);
+      setBusySlug(null);
     }
   };
 
-  const sorted = useMemo(() => {
-    // no tocamos las redeemeds, solo orden visual
-    return [...promos].sort((a, b) => Number(a.redeemed) - Number(b.redeemed));
-  }, [promos]);
+  const n = (v: any) => {
+    const x = Number(v);
+    return Number.isFinite(x) ? x : 0;
+  };
 
   return (
-    <div className="relative min-h-[calc(100vh-80px)]">
-      {/* Fondo */}
-      <div className="absolute inset-0 -z-10">
-        <Image src="/hero-bg.jpg" alt="Fondo" fill className="object-cover opacity-30" priority />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/65 to-black/85" />
-      </div>
+    <div className="p-6 max-w-3xl">
+      <h1 className="text-2xl font-bold mb-2">Promos</h1>
+      <p className="text-white/70 mb-6">
+        Activa una promo y se aplicará cuando hagas tu próximo depósito que cumpla
+        el mínimo.
+      </p>
 
-      <div className="mx-auto w-full max-w-6xl px-4 py-10 space-y-8">
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
-              <Tag className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="text-3xl font-semibold tracking-tight">Promos</div>
-              <div className="text-sm text-white/65">Canjea códigos y recibe saldo o bonus.</div>
-            </div>
-          </div>
-
-          <div className="w-full max-w-xl rounded-3xl border border-white/10 bg-black/35 p-4">
-            <div className="flex gap-2">
-              <input
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="CÓDIGO (ej: CHIDO50)"
-                className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm outline-none uppercase"
-              />
-              <button
-                onClick={() => redeem()}
-                disabled={redeeming}
-                className="rounded-2xl bg-white/10 px-4 py-3 text-sm font-semibold hover:bg-white/15 disabled:opacity-60"
-              >
-                {redeeming ? <Loader2 className="h-4 w-4 animate-spin" /> : "Canjear"}
-              </button>
-            </div>
-            {msg && (
-              <div className="mt-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/85">
-                {msg}
-              </div>
-            )}
-          </div>
+      <div className="rounded-lg border border-white/10 bg-white/5 p-4 mb-6">
+        <div className="flex gap-2 flex-col sm:flex-row">
+          <input
+            className="flex-1 rounded bg-black/40 border border-white/10 px-3 py-2"
+            placeholder="Pega tu código (slug)…"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+          />
+          <button
+            className="px-4 py-2 rounded bg-emerald-500 text-black font-semibold disabled:opacity-60"
+            disabled={!code.trim()}
+            onClick={() => void redeem(code.trim())}
+          >
+            Activar
+          </button>
         </div>
 
-        <div className="rounded-3xl border border-white/10 bg-black/35 p-5">
-          <div className="flex items-center justify-between">
-            <div className="text-lg font-semibold">Promos activas</div>
-            <button
-              onClick={load}
-              className="rounded-2xl bg-white/5 px-4 py-2 text-sm font-semibold hover:bg-white/10"
-            >
-              Refrescar
-            </button>
+        {activeClaim?.status === "active" ? (
+          <div className="mt-3 text-amber-300">
+            Tienes una promo activa. Primero úsala con tu siguiente depósito.
           </div>
+        ) : null}
+      </div>
 
-          {loading ? (
-            <div className="mt-5 flex items-center gap-2 text-sm text-white/70">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Cargando…
-            </div>
-          ) : !hasPromos ? (
-            <div className="mt-5 text-sm text-white/60">No hay promos activas por ahora.</div>
-          ) : (
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              {sorted.map((p) => (
-                <div
-                  key={p.id}
-                  className="rounded-3xl border border-white/10 bg-black/40 p-5 flex flex-col gap-3"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-xl font-semibold">{p.title}</div>
-                      <div className="text-sm text-white/70">{p.description}</div>
+      {msg ? (
+        <div className="mb-6 rounded border border-white/10 bg-white/5 p-3 text-white/80">
+          {msg}
+        </div>
+      ) : null}
+
+      {loading ? (
+        <div className="text-white/70">Cargando…</div>
+      ) : offers.length === 0 ? (
+        <div className="text-white/70">No hay promos activas.</div>
+      ) : (
+        <div className="grid gap-3">
+          {offers.map((o) => {
+            const isActive = activeOfferId === o.id;
+            return (
+              <div
+                key={o.id}
+                className="rounded-lg border border-white/10 bg-white/5 p-4"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="font-semibold text-lg">{o.title}</div>
+                    {o.description ? (
+                      <div className="text-white/70 mt-1">{o.description}</div>
+                    ) : null}
+
+                    <div className="text-sm text-white/70 mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                      <span>
+                        Mín: <b>${n(o.min_deposit).toFixed(0)} MXN</b>
+                      </span>
+                      <span>
+                        Bono: <b>{n(o.bonus_percent).toFixed(0)}%</b> (tope{" "}
+                        <b>${n(o.max_bonus).toFixed(0)}</b>)
+                      </span>
+                      {n(o.free_rounds) > 0 ? (
+                        <span>
+                          Free rounds: <b>{n(o.free_rounds)}</b>
+                        </span>
+                      ) : null}
                     </div>
 
-                    <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-right">
-                      <div className="text-[11px] text-white/60">Reward</div>
-                      <div className="text-sm font-semibold">
-                        +{fmtMoney(p.rewardAmount)} {String(p.rewardType).toUpperCase()}
-                      </div>
+                    <div className="text-xs text-white/50 mt-2">
+                      Código: <span className="font-mono">{o.slug}</span>
+                      {o.ends_at ? (
+                        <>
+                          {" "}• vence: {new Date(o.ends_at).toLocaleString()}
+                        </>
+                      ) : null}
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="inline-flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs">
-                      <span className="text-white/60">Código:</span>
-                      <span className="font-mono text-white/85">{p.code}</span>
-                      <button onClick={() => copy(p.code)} className="opacity-80 hover:opacity-100">
-                        <Copy className="h-4 w-4" />
-                      </button>
-                    </div>
-
-                    {p.expiresAt && (
-                      <div className="rounded-xl bg-white/5 px-3 py-2 text-xs text-white/65">
-                        Expira: {new Date(p.expiresAt).toLocaleString()}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mt-2 flex items-center justify-between gap-3">
-                    <div className="text-xs text-white/55">
-                      {p.redeemed ? "Ya canjeada ✅" : "Disponible"}
-                    </div>
-
+                  <div className="shrink-0">
                     <button
-                      onClick={() => redeem(p.code)}
-                      disabled={redeeming || p.redeemed}
-                      className={`rounded-2xl px-4 py-2 text-sm font-semibold disabled:opacity-60 ${
-                        p.redeemed ? "bg-white/5" : "bg-white/10 hover:bg-white/15"
+                      className={`px-4 py-2 rounded font-semibold disabled:opacity-60 ${
+                        isActive
+                          ? "bg-amber-400 text-black"
+                          : "bg-white text-black"
                       }`}
+                      disabled={isActive || busySlug === o.slug}
+                      onClick={() => void redeem(o.slug)}
                     >
-                      {p.redeemed ? "Canjeada" : "Canjear"}
+                      {isActive
+                        ? "Activa"
+                        : busySlug === o.slug
+                          ? "Activando…"
+                          : "Activar"}
                     </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            );
+          })}
         </div>
-
-        <div className="text-center text-xs text-white/45">
-          * Las promos pueden ser saldo o bonus. Canje = una vez por usuario (según límite).
-        </div>
-      </div>
+      )}
     </div>
   );
 }
