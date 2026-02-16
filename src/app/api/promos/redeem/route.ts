@@ -1,72 +1,86 @@
-export const runtime = "nodejs";
-
 import { NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { walletApplyDelta } from "@/lib/walletApplyDelta";
 
 export async function POST(req: Request) {
   const supabase = createRouteHandlerClient({ cookies });
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
 
-  if (!session) return NextResponse.json({ ok: false, error: "NO_AUTH" }, { status: 401 });
+  const {
+    data: { user },
+    error: userErr,
+  } = await supabase.auth.getUser();
+
+  if (userErr) return NextResponse.json({ error: userErr.message }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
-  const code = String(body?.code || "").trim().toUpperCase();
-  if (!code) return NextResponse.json({ ok: false, error: "CODE_REQUIRED" }, { status: 400 });
+  const codeRaw = String(body?.code ?? body?.slug ?? "").trim();
+  const slug = codeRaw.toLowerCase();
 
-  // 1) promo activa
-  const { data: promo, error: promoErr } = await supabaseAdmin
-    .from("promos")
-    .select("*")
-    .eq("code", code)
-    .eq("is_active", true)
+  if (!slug) {
+    return NextResponse.json({ error: "Falta el código (slug)" }, { status: 400 });
+  }
+
+  // Validar oferta (RLS solo devuelve ofertas activas en ventana)
+  const { data: offer, error: offerErr } = await supabase
+    .from("promo_offers")
+    .select(
+      "id, slug, title, description, min_deposit, bonus_percent, max_bonus, free_rounds, wagering_multiplier, ends_at"
+    )
+    .eq("slug", slug)
     .maybeSingle();
 
-  if (promoErr) return NextResponse.json({ ok: false, error: promoErr.message }, { status: 500 });
-  if (!promo) return NextResponse.json({ ok: false, error: "INVALID_CODE" }, { status: 404 });
+  if (offerErr) return NextResponse.json({ error: offerErr.message }, { status: 500 });
+  if (!offer) {
+    return NextResponse.json({ error: "Código inválido o promo no disponible" }, { status: 404 });
+  }
 
-  // 2) no duplicar
-  const { data: used, error: usedErr } = await supabaseAdmin
-    .from("promo_redemptions")
-    .select("id")
-    .eq("user_id", session.user.id)
-    .eq("promo_code", code)
+  // Regla simple: 1 promo activa por usuario.
+  const { data: existingActive, error: existErr } = await supabaseAdmin
+    .from("promo_claims")
+    .select("id, offer_id, status")
+    .eq("user_id", user.id)
+    .in("status", ["active", "applied"])
+    .order("claimed_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
-  if (usedErr) return NextResponse.json({ ok: false, error: usedErr.message }, { status: 500 });
-  if (used) return NextResponse.json({ ok: false, error: "ALREADY_USED" }, { status: 409 });
+  if (existErr) return NextResponse.json({ error: existErr.message }, { status: 500 });
 
-  // 3) aplicar bonus
-  const bonus = Number(promo.bonus_amount || 0);
-  if (bonus <= 0) return NextResponse.json({ ok: false, error: "PROMO_NO_BONUS" }, { status: 400 });
+  if (existingActive?.status === "active") {
+    return NextResponse.json(
+      {
+        ok: true,
+        message:
+          "Ya tienes una promo activa. Úsala con tu próximo depósito y después activas otra.",
+      },
+      { status: 200 }
+    );
+  }
 
-  const refId = `promo:${code}:${session.user.id}`;
+  if (existingActive?.status === "applied" && existingActive.offer_id === offer.id) {
+    return NextResponse.json({ ok: true, message: "Ya usaste esta promo." }, { status: 200 });
+  }
 
-  const apply = await walletApplyDelta(supabaseAdmin, {
-    userId: session.user.id,
-    deltaBalance: 0,
-    deltaBonus: bonus,
-    deltaLocked: 0,
-    reason: "promo_redeem",
-    refId,
-    metadata: { promo: code },
+  const { data: claim, error: insErr } = await supabaseAdmin
+    .from("promo_claims")
+    .insert({
+      user_id: user.id,
+      offer_id: offer.id,
+      status: "active",
+      expires_at: offer.ends_at ?? null,
+      metadata: { slug: offer.slug },
+    })
+    .select("id, offer_id, status, claimed_at, expires_at")
+    .single();
+
+  if (insErr) return NextResponse.json({ error: insErr.message }, { status: 500 });
+
+  return NextResponse.json({
+    ok: true,
+    message: "Promo activada. Se aplicará en tu próximo depósito que cumpla el mínimo.",
+    offer,
+    claim,
   });
-
-  // FIX: apply.error es string
-  if (apply.error) return NextResponse.json({ ok: false, error: apply.error }, { status: 500 });
-
-  // 4) registrar redención
-  const { error: insErr } = await supabaseAdmin.from("promo_redemptions").insert({
-    user_id: session.user.id,
-    promo_code: code,
-    bonus_amount: bonus,
-  });
-
-  if (insErr) return NextResponse.json({ ok: false, error: insErr.message }, { status: 500 });
-
-  return NextResponse.json({ ok: true, bonus });
 }
