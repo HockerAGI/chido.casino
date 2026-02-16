@@ -2,6 +2,8 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { applyPromoForDeposit } from "@/lib/applyPromoForDeposit";
+
 
 function isArgMismatch(msg: string) {
   const m = msg.toLowerCase();
