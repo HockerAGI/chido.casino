@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import { ToastProvider } from "@/components/ui/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 
