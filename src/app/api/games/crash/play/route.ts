@@ -6,6 +6,7 @@ import { getServerSession } from "@/lib/session";
 import { walletApplyDelta } from "@/lib/walletApplyDelta";
 import { fairFloat, generateServerSeed, serverSeedHash } from "@/lib/provablyFair";
 import { promoWageringProgress } from "@/lib/promoWagering";
+import { getPromoLimitState } from "@/lib/promoLimits";
 
 function clamp(n: number, a: number, b: number) {
   return Math.max(a, Math.min(b, n));
@@ -28,7 +29,6 @@ async function spendAndLock(userId: string, betAmount: number, refId: string) {
     reason: "crash_bet_balance",
     refId,
   });
-
   if (!a.error) return { source: "balance" as const };
 
   if (!isInsufficient(String(a.error || ""))) {
@@ -77,6 +77,23 @@ export async function POST(req: Request) {
   }
   if (!Number.isFinite(targetMultiplier) || targetMultiplier < 1.01 || targetMultiplier > 1000) {
     return NextResponse.json({ error: "Auto-cashout inválido" }, { status: 400 });
+  }
+
+  // ✅ CAP si hay rollover activo
+  const promoState = await getPromoLimitState(supabaseAdmin as any, session.user.id);
+  if (promoState.ok && promoState.hasRollover) {
+    if (betAmount > promoState.maxBet) {
+      return NextResponse.json(
+        {
+          error: "PROMO_MAX_BET",
+          message: `Con bono activo (rollover), la apuesta máxima por jugada es ${promoState.maxBet} MXN.`,
+          maxBet: promoState.maxBet,
+          required: promoState.required,
+          progress: promoState.progress,
+        },
+        { status: 400 }
+      );
+    }
   }
 
   const refId = `cr_${session.user.id}_${Date.now()}`;
@@ -137,7 +154,6 @@ export async function POST(req: Request) {
   });
 
   if (settle.error) {
-    // si algo truena aquí, al menos desbloqueamos (best-effort)
     await walletApplyDelta(supabaseAdmin as any, {
       userId: session.user.id,
       deltaBalance: 0,
