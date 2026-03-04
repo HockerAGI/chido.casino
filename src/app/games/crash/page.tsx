@@ -1,11 +1,25 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+export const dynamic = "force-dynamic";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import { useWalletBalance } from "@/lib/useWalletBalance";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
-import { History, Zap, Loader2, ShieldAlert, Ban, Info } from "lucide-react";
+import {
+  History,
+  Zap,
+  Loader2,
+  ShieldAlert,
+  Ban,
+  Info,
+  Volume2,
+  VolumeX,
+  Sparkles,
+  Flame,
+} from "lucide-react";
 
 type PromoLimit =
   | { ok: true; hasRollover: false }
@@ -16,6 +30,80 @@ type ResponsibleStatus =
   | { ok: true; excluded: boolean; until: string | null; reason: string | null }
   | { ok: false; error: string };
 
+type CrashApi = {
+  ok?: boolean;
+  crashMultiplier?: number;
+  targetMultiplier?: number;
+  didCashout?: boolean;
+  payout?: number;
+  houseEdgeBps?: number;
+  serverSeedHash?: string;
+  serverSeed?: string;
+  refId?: string;
+  error?: string;
+  message?: string;
+  maxBet?: number;
+};
+
+function clamp(n: number, a: number, b: number) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return a;
+  return Math.max(a, Math.min(b, x));
+}
+
+function money(n: number) {
+  const x = Number(n || 0);
+  return x.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function useLocalSetting<T>(key: string, initial: T) {
+  const [value, setValue] = useState<T>(initial);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return;
+      setValue(JSON.parse(raw));
+    } catch {
+      // ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch {
+      // ignore
+    }
+  }, [key, value]);
+
+  return [value, setValue] as const;
+}
+
+function playSfx(src: string, volume: number, opts?: { loop?: boolean }) {
+  try {
+    const a = new Audio(src);
+    a.volume = Math.max(0, Math.min(1, volume));
+    if (opts?.loop) a.loop = true;
+    void a.play().catch(() => {});
+    return a;
+  } catch {
+    return null;
+  }
+}
+
+function vibrate(ms: number) {
+  try {
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      // @ts-ignore
+      navigator.vibrate(ms);
+    }
+  } catch {
+    // ignore
+  }
+}
+
 export default function CrashPro() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { balance, bonusBalance, refresh, formatted, formattedBonus } = useWalletBalance();
@@ -23,12 +111,10 @@ export default function CrashPro() {
 
   const available = (balance || 0) + (bonusBalance || 0);
 
-  const [gameState, setGameState] = useState<"IDLE" | "RUNNING" | "CRASHED" | "WON">("IDLE");
-  const [multiplier, setMultiplier] = useState(1.0);
-  const [bet, setBet] = useState(10);
-  const [target, setTarget] = useState(2.0);
-  const [loading, setLoading] = useState(false);
-  const [history, setHistory] = useState<{ crash: number; win: boolean }[]>([]);
+  const [soundEnabled, setSoundEnabled] = useLocalSetting<boolean>("chido_sound", true);
+  const [turbo, setTurbo] = useLocalSetting<boolean>("chido_crash_turbo", false);
+  const [vfx, setVfx] = useLocalSetting<boolean>("chido_vfx", true);
+  const [haptics, setHaptics] = useLocalSetting<boolean>("chido_haptics", true);
 
   const [promo, setPromo] = useState<PromoLimit>({ ok: true, hasRollover: false });
   const [resp, setResp] = useState<ResponsibleStatus>({ ok: true, excluded: false, until: null, reason: null });
@@ -41,6 +127,17 @@ export default function CrashPro() {
     if (promo.ok && promo.hasRollover) n = Math.min(n, promo.maxBet);
     return Math.max(1, Math.floor(n));
   };
+
+  const [gameState, setGameState] = useState<"IDLE" | "RUNNING" | "CRASHED" | "WON">("IDLE");
+  const [multiplier, setMultiplier] = useState(1.0);
+  const [bet, setBet] = useState(10);
+  const [target, setTarget] = useState(2.0);
+  const [loading, setLoading] = useState(false);
+
+  const [history, setHistory] = useState<{ crash: number; win: boolean }[]>([]);
+  const [lastRound, setLastRound] = useState<{ hash?: string; seed?: string; edge?: number; ref?: string; ts: string } | null>(null);
+
+  const tickRef = useRef<HTMLAudioElement | null>(null);
 
   const loadGates = async () => {
     try {
@@ -66,16 +163,30 @@ export default function CrashPro() {
   }, []);
 
   useEffect(() => {
-    // si hay cap, clamp inmediato
     setBet((b) => clampBet(b));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [promo.ok, (promo as any).hasRollover, (promo as any).maxBet]);
+
+  const durations = useMemo(() => {
+    return turbo
+      ? { stepMs: 14, curve: 0.0105 }
+      : { stepMs: 22, curve: 0.0082 };
+  }, [turbo]);
+
+  const stopTick = () => {
+    try {
+      tickRef.current?.pause();
+      tickRef.current = null;
+    } catch {
+      // ignore
+    }
+  };
 
   const startGame = async () => {
     if (resp.ok && resp.excluded) {
       return toast({
         title: "Autoexclusión activa",
-        description: resp.until ? `Hasta: ${new Date(resp.until).toLocaleString()}` : "No puedes jugar por ahora.",
+        description: resp.until ? `Hasta: ${new Date(resp.until).toLocaleString()}` : "Ahorita no se arma.",
         variant: "destructive",
       });
     }
@@ -84,12 +195,20 @@ export default function CrashPro() {
     if (safeBet !== bet) setBet(safeBet);
 
     if (safeBet > available) {
-      return toast({ title: "Saldo insuficiente", description: "Tu disponible incluye bono si aplica.", variant: "destructive" });
+      return toast({
+        title: "Saldo insuficiente",
+        description: "Tu disponible incluye bono si aplica.",
+        variant: "destructive",
+      });
     }
 
     setLoading(true);
     setGameState("IDLE");
     setMultiplier(1.0);
+    setLastRound(null);
+
+    if (haptics) vibrate(turbo ? 18 : 28);
+    if (soundEnabled) playSfx("/sounds/ui-click.mp3", 0.35);
 
     try {
       const res = await fetch("/api/games/crash/play", {
@@ -98,10 +217,9 @@ export default function CrashPro() {
         body: JSON.stringify({ betAmount: safeBet, targetMultiplier: target }),
       });
 
-      const data = await res.json().catch(() => ({}));
+      const data = (await res.json().catch(() => ({}))) as CrashApi;
 
       if (!res.ok) {
-        // Errores “bonitos”
         if (data?.error === "PROMO_MAX_BET") {
           setBet(clampBet(Number(data.maxBet || safeBet)));
           throw new Error(data?.message || "Apuesta excede el máximo permitido por bono.");
@@ -117,25 +235,49 @@ export default function CrashPro() {
       setLoading(false);
       setGameState("RUNNING");
 
-      const crashPoint = Number(data.crashMultiplier);
+      const crashPoint = Number(data.crashMultiplier || 1);
       const userWon = Boolean(data.didCashout);
-      const targetPoint = Number(data.targetMultiplier);
+      const targetPoint = Number(data.targetMultiplier || target);
+
+      setLastRound({
+        hash: data.serverSeedHash,
+        seed: data.serverSeed,
+        edge: data.houseEdgeBps,
+        ref: data.refId,
+        ts: new Date().toISOString(),
+      });
+
+      // Sonido “tick” mientras sube
+      if (soundEnabled) {
+        stopTick();
+        tickRef.current = playSfx("/sounds/crash-tick.mp3", turbo ? 0.12 : 0.10, { loop: true });
+      }
 
       let currentM = 1.0;
+      const stopPoint = userWon ? targetPoint : crashPoint;
+
       const interval = setInterval(() => {
-        currentM += currentM * 0.008 + 0.002;
-        const stopPoint = userWon ? targetPoint : crashPoint;
+        currentM += currentM * durations.curve + 0.0028;
 
         if (currentM >= stopPoint) {
           clearInterval(interval);
           setMultiplier(stopPoint);
+          stopTick();
 
           if (userWon) {
             setGameState("WON");
-            toast({ title: "¡GANASTE!", description: `Cobraste a ${targetPoint.toFixed(2)}x (+${Number(data.payout).toFixed(2)} MXN)` });
+            if (soundEnabled) playSfx("/sounds/crash-win.mp3", 0.30);
+            if (haptics) vibrate(60);
+
+            toast({
+              title: "¡Se armó! Cobraste ✅",
+              description: `${targetPoint.toFixed(2)}x (+${money(Number(data.payout || 0))} MXN)`,
+            });
           } else {
             setGameState("CRASHED");
             setMultiplier(crashPoint);
+            if (soundEnabled) playSfx("/sounds/crash-bust.mp3", 0.28);
+            if (haptics) vibrate(45);
           }
 
           setHistory((prev) => [{ crash: crashPoint, win: userWon }, ...prev].slice(0, 10));
@@ -144,17 +286,19 @@ export default function CrashPro() {
         } else {
           setMultiplier(currentM);
         }
-      }, 20);
+      }, durations.stepMs);
     } catch (error: any) {
+      stopTick();
       setLoading(false);
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "No se armó", description: error.message || "Error", variant: "destructive" });
     }
   };
 
-  // Canvas draw
+  // Canvas draw (más “casino”, sin romper tu lógica)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
@@ -167,13 +311,15 @@ export default function CrashPro() {
     const draw = () => {
       ctx.clearRect(0, 0, rect.width, rect.height);
 
-      ctx.strokeStyle = "#ffffff05";
+      // grid
+      ctx.strokeStyle = "rgba(255,255,255,0.04)";
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      for (let i = 0; i < rect.width; i += 50) {
+      for (let i = 0; i < rect.width; i += 48) {
         ctx.moveTo(i, 0);
         ctx.lineTo(i, rect.height);
       }
-      for (let i = 0; i < rect.height; i += 50) {
+      for (let i = 0; i < rect.height; i += 48) {
         ctx.moveTo(0, i);
         ctx.lineTo(rect.width, i);
       }
@@ -181,12 +327,13 @@ export default function CrashPro() {
 
       if (gameState !== "IDLE") {
         const t = Math.min(1, (multiplier - 1) / 10);
-        const x = t * rect.width * 0.8;
-        const y = rect.height - t * rect.height * 0.8;
+        const x = t * rect.width * 0.86;
+        const y = rect.height - t * rect.height * 0.82;
 
+        // curve
         ctx.beginPath();
         ctx.moveTo(0, rect.height);
-        ctx.quadraticCurveTo(x * 0.5, rect.height, x, y);
+        ctx.quadraticCurveTo(x * 0.52, rect.height, x, y);
 
         let color = "#00F0FF";
         if (gameState === "CRASHED") color = "#FF3D00";
@@ -197,169 +344,317 @@ export default function CrashPro() {
         ctx.lineCap = "round";
         ctx.stroke();
 
+        // glow fill
         ctx.lineTo(x, rect.height);
         ctx.lineTo(0, rect.height);
         const grad = ctx.createLinearGradient(0, 0, 0, rect.height);
-        grad.addColorStop(0, color + "33");
+        grad.addColorStop(0, `${color}55`);
         grad.addColorStop(1, "rgba(0,0,0,0)");
         ctx.fillStyle = grad;
         ctx.fill();
+
+        // “rocket dot”
+        ctx.beginPath();
+        ctx.arc(x, y, 5.5, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 18;
+        ctx.fill();
+        ctx.shadowBlur = 0;
       }
 
       requestAnimationFrame(draw);
     };
+
     draw();
   }, [gameState, multiplier]);
 
+  const showCap = promo.ok && promo.hasRollover;
+
   return (
-    <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-100px)] p-4 max-w-7xl mx-auto animate-fade-in">
-      {/* Sidebar */}
-      <div className="w-full lg:w-80 flex flex-col gap-4 bg-[#1A1A1D] p-6 rounded-3xl border border-white/5 h-fit shadow-xl">
-        <div className="flex items-center gap-2 mb-2">
-          <Zap className="text-[#00F0FF]" />
-          <h2 className="font-bold text-white">Configuración</h2>
-        </div>
-
-        {/* Gates UI */}
-        {resp.ok && resp.excluded ? (
-          <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-white/80 flex items-start gap-2">
-            <Ban className="mt-0.5 text-red-400" size={18} />
-            <div>
-              <div className="font-black">Autoexclusión activa</div>
-              <div className="text-xs text-white/65">
-                {resp.until ? `Hasta: ${new Date(resp.until).toLocaleString()}` : "No puedes jugar por ahora."}
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        {promo.ok && promo.hasRollover ? (
-          <div className="rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-white/80">
-            <div className="flex items-start gap-2">
-              <ShieldAlert className="mt-0.5 text-[#FFD700]" size={18} />
-              <div className="w-full">
-                <div className="font-black">Bono activo (rollover)</div>
-                <div className="text-xs text-white/65">
-                  Apuesta máxima por jugada: <b className="text-white">{promo.maxBet} MXN</b>
-                </div>
-                <div className="mt-2 h-2 rounded-full bg-white/10 overflow-hidden">
-                  <div className="h-full bg-[#32CD32]" style={{ width: `${promo.pct}%` }} />
-                </div>
-                <div className="mt-1 text-[11px] text-white/45">
-                  {Math.round(promo.progress)} / {Math.round(promo.required)} MXN • {promo.pct}%
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        <div className="p-3 bg-black/40 rounded-xl mb-2 border border-white/5">
-          <div className="text-xs text-zinc-500 uppercase">Disponible</div>
-          <div className="text-lg font-mono text-white">{formatted} <span className="text-xs text-white/40">+ bono {formattedBonus}</span></div>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-xs font-bold text-zinc-500 uppercase">
-            Apuesta {Number.isFinite(maxBet) && maxBet !== Infinity ? `(max ${maxBet})` : ""}
-          </label>
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500">$</span>
-            <Input
-              type="number"
-              value={bet}
-              onChange={(e) => setBet(clampBet(Number(e.target.value)))}
-              className="bg-black border-white/10 h-12 pl-8 font-mono text-white focus:ring-[#00F0FF]"
-              disabled={gameState === "RUNNING" || (resp.ok && resp.excluded)}
-            />
-          </div>
-          <div className="grid grid-cols-4 gap-2">
-            {[10, 50, 100, 500].map((v) => {
-              const disabled = (promo.ok && promo.hasRollover && v > promo.maxBet) || (resp.ok && resp.excluded) || gameState === "RUNNING";
-              return (
-                <button
-                  key={v}
-                  onClick={() => setBet(clampBet(v))}
-                  disabled={disabled}
-                  className="bg-white/5 text-xs py-2 rounded hover:bg-white/10 transition disabled:opacity-40"
-                >
-                  {v}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="space-y-2 mt-2">
-          <label className="text-xs font-bold text-zinc-500 uppercase">Auto Retiro (x)</label>
-          <Input
-            type="number"
-            value={target}
-            step="0.10"
-            onChange={(e) => setTarget(Number(e.target.value))}
-            className="bg-black border-white/10 h-12 font-mono text-white focus:ring-[#00F0FF]"
-            disabled={gameState === "RUNNING" || (resp.ok && resp.excluded)}
-          />
-        </div>
-
-        <Button
-          onClick={startGame}
-          disabled={gameState === "RUNNING" || loading || (resp.ok && resp.excluded)}
-          className={`h-14 mt-4 text-lg font-black uppercase tracking-widest transition-all
-            ${gameState === "RUNNING" ? "bg-zinc-700 opacity-50 cursor-not-allowed" : "bg-[#00F0FF] text-black hover:bg-[#00d6e6] shadow-[0_0_20px_rgba(0,240,255,0.2)] hover:scale-[1.02]"}
-          `}
-        >
-          {loading ? <Loader2 className="animate-spin" /> : gameState === "RUNNING" ? "EN JUEGO..." : "APOSTAR"}
-        </Button>
-
-        <div className="text-[11px] text-white/45 flex items-center gap-2">
-          <Info size={14} /> Si tienes bono activo, hay límite por jugada para proteger el sistema.
-        </div>
+    <div className="relative min-h-[calc(100vh-90px)] px-4 pb-24">
+      {/* background */}
+      <div className="absolute inset-0 -z-10">
+        <Image src="/hero-bg.jpg" alt="Fondo" fill className="object-cover opacity-20" priority />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/60 to-black/85" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(0,240,255,0.12),transparent_45%),radial-gradient(circle_at_70%_40%,rgba(255,0,153,0.14),transparent_45%),radial-gradient(circle_at_50%_80%,rgba(50,205,50,0.10),transparent_50%)]" />
       </div>
 
-      {/* Juego */}
-      <div className="flex-1 flex flex-col gap-4">
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-          <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full text-xs text-zinc-500 font-bold border border-white/5">
-            <History size={12} /> RECIENTES
+      <div className="mx-auto max-w-7xl pt-6 animate-fade-in">
+        {/* top bar */}
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className="relative h-12 w-12">
+              <Image src="/isotipo-color.png" alt="CHIDO" fill className="object-contain" />
+            </div>
+            <div>
+              <div className="text-2xl font-black tracking-tight">
+                Chido Crash <span className="text-[#00F0FF]">PRO</span>
+              </div>
+              <div className="text-xs text-white/55">Auto-cobro real (tu backend ya opera con target).</div>
+            </div>
           </div>
-          {history.map((h, i) => (
-            <div
-              key={i}
-              className={`px-3 py-1 rounded-full text-xs font-mono font-bold whitespace-nowrap ${
-                h.win
-                  ? "bg-[#32CD32]/10 text-[#32CD32] border border-[#32CD32]/20"
-                  : "bg-red-500/10 text-red-500 border border-red-500/20"
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setTurbo((v) => !v)}
+              className={`h-10 px-3 rounded-2xl border text-xs font-black inline-flex items-center gap-2 transition ${
+                turbo ? "bg-[#FFD700] text-black border-[#FFD700]/40" : "bg-black/40 text-white/70 border-white/10 hover:bg-white/5"
               }`}
+              aria-label="Turbo"
             >
-              {h.crash.toFixed(2)}x
-            </div>
-          ))}
-        </div>
+              <Zap size={16} />
+              Turbo
+            </button>
 
-        <div className="relative flex-1 bg-[#0f0f11] rounded-3xl border border-white/5 overflow-hidden shadow-2xl">
-          <canvas ref={canvasRef} className="w-full h-full object-cover" />
-
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <div
-              className={`text-8xl lg:text-9xl font-black tracking-tighter tabular-nums drop-shadow-2xl transition-colors duration-200 
-                ${gameState === "CRASHED" ? "text-[#FF3D00]" : gameState === "WON" ? "text-[#32CD32]" : "text-white"}`}
+            <button
+              onClick={() => setVfx((v) => !v)}
+              className={`h-10 px-3 rounded-2xl border text-xs font-black inline-flex items-center gap-2 transition ${
+                vfx ? "bg-white text-black border-white/30" : "bg-black/40 text-white/70 border-white/10 hover:bg-white/5"
+              }`}
+              aria-label="VFX"
             >
-              {multiplier.toFixed(2)}x
-            </div>
+              <Sparkles size={16} />
+              VFX
+            </button>
 
-            {gameState === "CRASHED" && (
-              <div className="mt-4 px-6 py-2 bg-[#FF3D00] text-black font-black text-xl uppercase tracking-widest rounded-full animate-in zoom-in">
-                CRASHED
-              </div>
-            )}
+            <button
+              onClick={() => setHaptics((v) => !v)}
+              className={`h-10 px-3 rounded-2xl border text-xs font-black inline-flex items-center gap-2 transition ${
+                haptics ? "bg-white text-black border-white/30" : "bg-black/40 text-white/70 border-white/10 hover:bg-white/5"
+              }`}
+              aria-label="Haptics"
+            >
+              <Flame size={16} />
+              Vibra
+            </button>
 
-            {gameState === "WON" && (
-              <div className="mt-4 px-6 py-2 bg-[#32CD32] text-black font-black text-xl uppercase tracking-widest rounded-full animate-in zoom-in">
-                ¡COBRADO!
-              </div>
-            )}
+            <button
+              onClick={() => setSoundEnabled((v) => !v)}
+              className="h-10 w-10 rounded-2xl border border-white/10 bg-black/40 hover:bg-white/5 flex items-center justify-center"
+              aria-label="Sonido"
+            >
+              {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+            </button>
           </div>
         </div>
+
+        {/* layout */}
+        <div className="mt-5 flex flex-col lg:flex-row gap-5">
+          {/* Sidebar */}
+          <div className="w-full lg:w-[360px] rounded-[32px] border border-white/10 bg-black/30 p-5 shadow-xl h-fit">
+            {/* Gates */}
+            {resp.ok && resp.excluded ? (
+              <div className="mb-4 rounded-3xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-white/80 flex items-start gap-2">
+                <Ban className="mt-0.5 text-red-400" size={18} />
+                <div>
+                  <div className="font-black">Autoexclusión activa</div>
+                  <div className="text-xs text-white/65">
+                    {resp.until ? `Hasta: ${new Date(resp.until).toLocaleString()}` : "No puedes jugar por ahora."}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {showCap ? (
+              <div className="mb-4 rounded-3xl border border-white/10 bg-black/30 p-4 text-sm text-white/80">
+                <div className="flex items-start gap-2">
+                  <ShieldAlert className="mt-0.5 text-[#FFD700]" size={18} />
+                  <div className="w-full">
+                    <div className="font-black">Bono activo (rollover)</div>
+                    <div className="text-xs text-white/65">
+                      Máximo por jugada: <b className="text-white">{promo.ok && promo.hasRollover ? promo.maxBet : 0} MXN</b>
+                    </div>
+                    <div className="mt-2 h-2 rounded-full bg-white/10 overflow-hidden">
+                      <div className="h-full bg-[#32CD32]" style={{ width: `${promo.ok && promo.hasRollover ? promo.pct : 0}%` }} />
+                    </div>
+                    <div className="mt-1 text-[11px] text-white/45">
+                      {promo.ok && promo.hasRollover ? `${Math.round(promo.progress)} / ${Math.round(promo.required)} MXN • ${promo.pct}%` : ""}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="rounded-3xl border border-white/10 bg-black/30 p-4">
+              <div className="text-[10px] uppercase tracking-widest text-white/50 font-bold">Disponible</div>
+              <div className="mt-1 text-lg font-black tabular-nums">
+                {formatted} <span className="text-xs text-white/45">+ bono {formattedBonus}</span>
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              <div>
+                <label className="text-[10px] font-black text-white/55 uppercase tracking-widest">
+                  Apuesta {Number.isFinite(maxBet) && maxBet !== Infinity ? `(max ${maxBet})` : ""}
+                </label>
+                <div className="mt-2 relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/35 font-black">$</span>
+                  <Input
+                    type="number"
+                    value={bet}
+                    onChange={(e) => setBet(clampBet(Number(e.target.value)))}
+                    className="bg-black/40 border-white/10 h-12 pl-8 font-mono text-white"
+                    disabled={gameState === "RUNNING" || (resp.ok && resp.excluded)}
+                  />
+                </div>
+
+                <div className="mt-2 grid grid-cols-4 gap-2">
+                  {[10, 50, 100, 500].map((v) => {
+                    const disabled =
+                      (promo.ok && promo.hasRollover && v > promo.maxBet) ||
+                      (resp.ok && resp.excluded) ||
+                      gameState === "RUNNING";
+                    return (
+                      <button
+                        key={v}
+                        onClick={() => setBet(clampBet(v))}
+                        disabled={disabled}
+                        className="bg-white/5 text-xs py-2 rounded-2xl border border-white/10 hover:bg-white/10 transition disabled:opacity-40"
+                      >
+                        {v}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-white/55 uppercase tracking-widest">Auto-cobro (x)</label>
+                <Input
+                  type="number"
+                  value={target}
+                  step="0.10"
+                  onChange={(e) => setTarget(clamp(Number(e.target.value), 1.01, 1000))}
+                  className="bg-black/40 border-white/10 h-12 font-mono text-white"
+                  disabled={gameState === "RUNNING" || (resp.ok && resp.excluded)}
+                />
+                <div className="mt-2 flex gap-2">
+                  {[1.5, 2, 3, 5].map((x) => (
+                    <button
+                      key={x}
+                      onClick={() => setTarget(x)}
+                      disabled={gameState === "RUNNING" || (resp.ok && resp.excluded)}
+                      className="px-3 py-2 rounded-2xl bg-white/5 border border-white/10 text-xs font-black text-white/80 hover:bg-white/10 disabled:opacity-40 transition"
+                    >
+                      {x}x
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <Button
+                onClick={startGame}
+                disabled={gameState === "RUNNING" || loading || (resp.ok && resp.excluded)}
+                className={`h-14 rounded-3xl text-lg font-black uppercase tracking-widest transition-all ${
+                  gameState === "RUNNING"
+                    ? "bg-zinc-700 opacity-60 cursor-not-allowed"
+                    : "bg-[#00F0FF] text-black hover:bg-[#00d6e6] shadow-[0_0_30px_rgba(0,240,255,0.25)] hover:scale-[1.01]"
+                }`}
+              >
+                {loading ? <Loader2 className="animate-spin" /> : gameState === "RUNNING" ? "EN JUEGO..." : "APOSTAR"}
+              </Button>
+
+              <div className="text-[11px] text-white/45 flex items-center gap-2">
+                <Info size={14} /> Si hay bono activo, aplicamos cap por jugada (anti-abuso).
+              </div>
+            </div>
+
+            {/* Provably fair */}
+            <div className="mt-4 rounded-3xl border border-white/10 bg-black/25 p-4 text-xs text-white/70">
+              <div className="flex items-center gap-2 font-black text-white/85">
+                <Info size={14} /> Provably Fair
+              </div>
+              {lastRound?.hash ? (
+                <div className="mt-2 font-mono break-all text-[11px] text-white/65">
+                  hash: {lastRound.hash}
+                  {typeof lastRound.edge === "number" ? <> • edge: {lastRound.edge} bps</> : null}
+                </div>
+              ) : (
+                <div className="mt-2 text-[11px] text-white/55">Se muestra después de una ronda.</div>
+              )}
+            </div>
+          </div>
+
+          {/* Game stage */}
+          <div className="flex-1 flex flex-col gap-4">
+            {/* history pills */}
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+              <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full text-xs text-white/55 font-black border border-white/10">
+                <History size={12} /> RECIENTES
+              </div>
+              {history.map((h, i) => (
+                <div
+                  key={i}
+                  className={`px-3 py-1 rounded-full text-xs font-mono font-black whitespace-nowrap border ${
+                    h.win
+                      ? "bg-[#32CD32]/10 text-[#32CD32] border-[#32CD32]/20"
+                      : "bg-red-500/10 text-red-400 border-red-500/20"
+                  }`}
+                >
+                  {h.crash.toFixed(2)}x
+                </div>
+              ))}
+            </div>
+
+            {/* canvas */}
+            <div className="relative flex-1 min-h-[420px] bg-[#0f0f11] rounded-[32px] border border-white/10 overflow-hidden shadow-2xl">
+              <div className="absolute inset-0 opacity-20">
+                <Image src="/opengraph-image.jpg" alt="Overlay" fill className="object-cover" />
+              </div>
+              <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/45 to-black/70" />
+              {vfx ? <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(0,240,255,0.10),transparent_45%),radial-gradient(circle_at_40%_70%,rgba(255,0,153,0.10),transparent_50%)]" /> : null}
+
+              <canvas ref={canvasRef} className="relative z-10 w-full h-full" />
+
+              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none">
+                <div
+                  className={`text-7xl sm:text-8xl lg:text-9xl font-black tracking-tighter tabular-nums drop-shadow-2xl transition-colors duration-150 ${
+                    gameState === "CRASHED" ? "text-[#FF3D00]" : gameState === "WON" ? "text-[#32CD32]" : "text-white"
+                  }`}
+                >
+                  {multiplier.toFixed(2)}x
+                </div>
+
+                {gameState === "CRASHED" ? (
+                  <div className="mt-4 px-6 py-2 bg-[#FF3D00] text-black font-black text-lg uppercase tracking-widest rounded-full animate-in zoom-in">
+                    CRASH
+                  </div>
+                ) : null}
+
+                {gameState === "WON" ? (
+                  <div className="mt-4 px-6 py-2 bg-[#32CD32] text-black font-black text-lg uppercase tracking-widest rounded-full animate-in zoom-in">
+                    COBRADO ✅
+                  </div>
+                ) : null}
+
+                {gameState === "RUNNING" ? (
+                  <div className="mt-4 text-xs text-white/60 font-black uppercase tracking-widest">
+                    Auto-cobro en {target.toFixed(2)}x
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            {/* footer note */}
+            <div className="flex items-center justify-between gap-3 flex-wrap text-xs text-white/45">
+              <div className="inline-flex items-center gap-2">
+                <Flame size={14} className="text-[#FF5E00]" />
+                Tip: si traes bono, juega inteligente y no te pases del cap.
+              </div>
+              <div className="inline-flex items-center gap-2">
+                <Image src="/isotipo-bw.png" alt="CHIDO" width={18} height={18} className="opacity-70" />
+                <span>CHIDO Originals</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <style jsx global>{`
+          @media (prefers-reduced-motion: reduce) {
+            * { scroll-behavior: auto !important; }
+          }
+        `}</style>
       </div>
     </div>
   );
