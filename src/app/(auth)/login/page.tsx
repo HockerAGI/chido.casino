@@ -1,16 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
-import Image from "next/image";
+import { Logo } from "@/components/ui/logo";
+import { Loader2, Lock, Mail } from "lucide-react";
 
 export default function LoginPage() {
-  const supabase = createClientComponentClient();
+  const supabase = useMemo(() => createClientComponentClient(), []);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -23,11 +23,30 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      const riskRes = await fetch("/api/auth/risk/attempt", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email }),
+      }).catch(() => null);
+
+      if (riskRes) {
+        const r = await riskRes.json().catch(() => ({}));
+        if (riskRes.ok === false || r?.ok === false) {
+          const cd = Number(r?.cooldownSeconds || 0);
+          toast({
+            title: "Protección activa",
+            description: cd > 0 ? `Espera ${cd}s e intenta de nuevo.` : "Espera un momento e intenta de nuevo.",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+      }
+
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
-      // ✅ Afiliados: atribución best-effort
-      // Si existe cookie chido_ref, el server la lee (no necesitamos leerla en el cliente).
+      await fetch("/api/auth/risk/reset", { method: "POST" }).catch(() => {});
       await fetch("/api/affiliates/attribution", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -36,10 +55,11 @@ export default function LoginPage() {
 
       toast({ title: "Bienvenido", description: "Acceso concedido." });
       router.push("/lobby");
+      router.refresh();
     } catch (err: any) {
       toast({
-        title: "Error",
-        description: err.message || "No se pudo iniciar sesión.",
+        title: "No se pudo entrar",
+        description: err.message || "Verifica tu correo y contraseña.",
         variant: "destructive",
       });
     } finally {
@@ -51,38 +71,51 @@ export default function LoginPage() {
     <div className="flex min-h-[100vh] items-center justify-center bg-black px-4">
       <Card className="w-full max-w-md rounded-3xl border-white/10 bg-white/5 p-6 text-white">
         <div className="mb-6 flex items-center justify-center">
-          <Image src="/chido-logo.png" alt="CHIDO" width={160} height={48} priority />
+          <Logo variant="full" size={160} />
         </div>
 
-        <h1 className="text-2xl font-bold">Iniciar sesión</h1>
+        <h1 className="text-2xl font-black">Iniciar sesión</h1>
         <p className="mt-1 text-sm text-white/60">Accede a tu cuenta.</p>
 
         <form onSubmit={handleLogin} className="mt-6 space-y-3">
-          <Input
-            type="email"
-            placeholder="correo@ejemplo.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="rounded-2xl border-white/10 bg-black/40 text-white"
-            required
-          />
+          <div className="relative">
+            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-white/35" size={18} />
+            <input
+              type="email"
+              placeholder="correo@ejemplo.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-black/40 text-white pl-12 pr-4 py-4 text-sm outline-none focus:border-[#00F0FF]"
+              required
+            />
+          </div>
 
-          <Input
-            type="password"
-            placeholder="Contraseña"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="rounded-2xl border-white/10 bg-black/40 text-white"
-            required
-          />
+          <div className="relative">
+            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/35" size={18} />
+            <input
+              type="password"
+              placeholder="Contraseña"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-black/40 text-white pl-12 pr-4 py-4 text-sm outline-none focus:border-[#00F0FF]"
+              required
+            />
+          </div>
 
-          <Button
+          <button
             type="submit"
             disabled={loading}
-            className="h-12 w-full rounded-2xl bg-white text-black hover:bg-white/90"
+            className="h-12 w-full rounded-2xl bg-white text-black hover:bg-white/90 font-black disabled:opacity-70 flex items-center justify-center gap-2"
           >
-            {loading ? "Entrando..." : "Entrar"}
-          </Button>
+            {loading ? <Loader2 className="animate-spin" size={18} /> : "Entrar"}
+          </button>
+
+          <div className="text-center text-xs text-white/60 pt-2">
+            ¿No tienes cuenta?{" "}
+            <Link href="/signup" className="text-[#00F0FF] font-black hover:underline">
+              Crear cuenta
+            </Link>
+          </div>
         </form>
       </Card>
     </div>
