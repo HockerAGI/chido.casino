@@ -1,5 +1,4 @@
 "use client";
-
 export const dynamic = "force-dynamic";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -8,6 +7,7 @@ import { useWalletBalance } from "@/lib/useWalletBalance";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
+import { sfx } from "@/lib/sfx";
 import {
   History,
   Zap,
@@ -64,33 +64,17 @@ function useLocalSetting<T>(key: string, initial: T) {
       const raw = localStorage.getItem(key);
       if (!raw) return;
       setValue(JSON.parse(raw));
-    } catch {
-      // ignore
-    }
+    } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     try {
       localStorage.setItem(key, JSON.stringify(value));
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, [key, value]);
 
   return [value, setValue] as const;
-}
-
-function playSfx(src: string, volume: number, opts?: { loop?: boolean }) {
-  try {
-    const a = new Audio(src);
-    a.volume = Math.max(0, Math.min(1, volume));
-    if (opts?.loop) a.loop = true;
-    void a.play().catch(() => {});
-    return a;
-  } catch {
-    return null;
-  }
 }
 
 function vibrate(ms: number) {
@@ -99,9 +83,7 @@ function vibrate(ms: number) {
       // @ts-ignore
       navigator.vibrate(ms);
     }
-  } catch {
-    // ignore
-  }
+  } catch {}
 }
 
 export default function CrashPro() {
@@ -135,9 +117,9 @@ export default function CrashPro() {
   const [loading, setLoading] = useState(false);
 
   const [history, setHistory] = useState<{ crash: number; win: boolean }[]>([]);
-  const [lastRound, setLastRound] = useState<{ hash?: string; seed?: string; edge?: number; ref?: string; ts: string } | null>(null);
-
-  const tickRef = useRef<HTMLAudioElement | null>(null);
+  const [lastRound, setLastRound] = useState<{ hash?: string; seed?: string; edge?: number; ref?: string; ts: string } | null>(
+    null
+  );
 
   const loadGates = async () => {
     try {
@@ -151,9 +133,7 @@ export default function CrashPro() {
 
       if (p.ok) setPromo(pj);
       if (r.ok) setResp({ ok: true, excluded: !!rj.excluded, until: rj.until ?? null, reason: rj.reason ?? null });
-    } catch {
-      // ignore
-    }
+    } catch {}
   };
 
   useEffect(() => {
@@ -167,22 +147,25 @@ export default function CrashPro() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [promo.ok, (promo as any).hasRollover, (promo as any).maxBet]);
 
+  useEffect(() => {
+    sfx.setEnabled(soundEnabled);
+    if (!soundEnabled) sfx.stopAllLoops();
+  }, [soundEnabled]);
+
+  useEffect(() => {
+    return () => {
+      sfx.stopAllLoops();
+    };
+  }, []);
+
   const durations = useMemo(() => {
-    return turbo
-      ? { stepMs: 14, curve: 0.0105 }
-      : { stepMs: 22, curve: 0.0082 };
+    return turbo ? { stepMs: 14, curve: 0.0105 } : { stepMs: 22, curve: 0.0082 };
   }, [turbo]);
 
-  const stopTick = () => {
-    try {
-      tickRef.current?.pause();
-      tickRef.current = null;
-    } catch {
-      // ignore
-    }
-  };
-
   const startGame = async () => {
+    sfx.setEnabled(soundEnabled);
+    sfx.unlock();
+
     if (resp.ok && resp.excluded) {
       return toast({
         title: "Autoexclusión activa",
@@ -208,7 +191,7 @@ export default function CrashPro() {
     setLastRound(null);
 
     if (haptics) vibrate(turbo ? 18 : 28);
-    if (soundEnabled) playSfx("/sounds/ui-click.mp3", 0.35);
+    if (soundEnabled) sfx.uiClick();
 
     try {
       const res = await fetch("/api/games/crash/play", {
@@ -247,11 +230,7 @@ export default function CrashPro() {
         ts: new Date().toISOString(),
       });
 
-      // Sonido “tick” mientras sube
-      if (soundEnabled) {
-        stopTick();
-        tickRef.current = playSfx("/sounds/crash-tick.mp3", turbo ? 0.12 : 0.10, { loop: true });
-      }
+      if (soundEnabled) sfx.crashTickStart(turbo);
 
       let currentM = 1.0;
       const stopPoint = userWon ? targetPoint : crashPoint;
@@ -262,11 +241,11 @@ export default function CrashPro() {
         if (currentM >= stopPoint) {
           clearInterval(interval);
           setMultiplier(stopPoint);
-          stopTick();
+          sfx.stopLoop("crashTick");
 
           if (userWon) {
             setGameState("WON");
-            if (soundEnabled) playSfx("/sounds/crash-win.mp3", 0.30);
+            if (soundEnabled) sfx.crashWin();
             if (haptics) vibrate(60);
 
             toast({
@@ -276,7 +255,7 @@ export default function CrashPro() {
           } else {
             setGameState("CRASHED");
             setMultiplier(crashPoint);
-            if (soundEnabled) playSfx("/sounds/crash-bust.mp3", 0.28);
+            if (soundEnabled) sfx.crashBust();
             if (haptics) vibrate(45);
           }
 
@@ -288,13 +267,13 @@ export default function CrashPro() {
         }
       }, durations.stepMs);
     } catch (error: any) {
-      stopTick();
+      sfx.stopLoop("crashTick");
       setLoading(false);
       toast({ title: "No se armó", description: error.message || "Error", variant: "destructive" });
     }
   };
 
-  // Canvas draw (más “casino”, sin romper tu lógica)
+  // Canvas draw
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -308,10 +287,11 @@ export default function CrashPro() {
     canvas.height = rect.height * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
+    let raf = 0;
+
     const draw = () => {
       ctx.clearRect(0, 0, rect.width, rect.height);
 
-      // grid
       ctx.strokeStyle = "rgba(255,255,255,0.04)";
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -330,7 +310,6 @@ export default function CrashPro() {
         const x = t * rect.width * 0.86;
         const y = rect.height - t * rect.height * 0.82;
 
-        // curve
         ctx.beginPath();
         ctx.moveTo(0, rect.height);
         ctx.quadraticCurveTo(x * 0.52, rect.height, x, y);
@@ -344,7 +323,6 @@ export default function CrashPro() {
         ctx.lineCap = "round";
         ctx.stroke();
 
-        // glow fill
         ctx.lineTo(x, rect.height);
         ctx.lineTo(0, rect.height);
         const grad = ctx.createLinearGradient(0, 0, 0, rect.height);
@@ -353,7 +331,6 @@ export default function CrashPro() {
         ctx.fillStyle = grad;
         ctx.fill();
 
-        // “rocket dot”
         ctx.beginPath();
         ctx.arc(x, y, 5.5, 0, Math.PI * 2);
         ctx.fillStyle = color;
@@ -363,17 +340,17 @@ export default function CrashPro() {
         ctx.shadowBlur = 0;
       }
 
-      requestAnimationFrame(draw);
+      raf = requestAnimationFrame(draw);
     };
 
     draw();
+    return () => cancelAnimationFrame(raf);
   }, [gameState, multiplier]);
 
   const showCap = promo.ok && promo.hasRollover;
 
   return (
     <div className="relative min-h-[calc(100vh-90px)] px-4 pb-24">
-      {/* background */}
       <div className="absolute inset-0 -z-10">
         <Image src="/hero-bg.jpg" alt="Fondo" fill className="object-cover opacity-20" priority />
         <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/60 to-black/85" />
@@ -381,7 +358,7 @@ export default function CrashPro() {
       </div>
 
       <div className="mx-auto max-w-7xl pt-6 animate-fade-in">
-        {/* top bar */}
+        {/* top */}
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="relative h-12 w-12">
@@ -430,7 +407,11 @@ export default function CrashPro() {
             </button>
 
             <button
-              onClick={() => setSoundEnabled((v) => !v)}
+              onClick={() => {
+                setSoundEnabled((v) => !v);
+                sfx.unlock();
+                sfx.uiClick();
+              }}
               className="h-10 w-10 rounded-2xl border border-white/10 bg-black/40 hover:bg-white/5 flex items-center justify-center"
               aria-label="Sonido"
             >
@@ -443,7 +424,6 @@ export default function CrashPro() {
         <div className="mt-5 flex flex-col lg:flex-row gap-5">
           {/* Sidebar */}
           <div className="w-full lg:w-[360px] rounded-[32px] border border-white/10 bg-black/30 p-5 shadow-xl h-fit">
-            {/* Gates */}
             {resp.ok && resp.excluded ? (
               <div className="mb-4 rounded-3xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-white/80 flex items-start gap-2">
                 <Ban className="mt-0.5 text-red-400" size={18} />
@@ -469,7 +449,9 @@ export default function CrashPro() {
                       <div className="h-full bg-[#32CD32]" style={{ width: `${promo.ok && promo.hasRollover ? promo.pct : 0}%` }} />
                     </div>
                     <div className="mt-1 text-[11px] text-white/45">
-                      {promo.ok && promo.hasRollover ? `${Math.round(promo.progress)} / ${Math.round(promo.required)} MXN • ${promo.pct}%` : ""}
+                      {promo.ok && promo.hasRollover
+                        ? `${Math.round(promo.progress)} / ${Math.round(promo.required)} MXN • ${promo.pct}%`
+                        : ""}
                     </div>
                   </div>
                 </div>
@@ -502,9 +484,7 @@ export default function CrashPro() {
                 <div className="mt-2 grid grid-cols-4 gap-2">
                   {[10, 50, 100, 500].map((v) => {
                     const disabled =
-                      (promo.ok && promo.hasRollover && v > promo.maxBet) ||
-                      (resp.ok && resp.excluded) ||
-                      gameState === "RUNNING";
+                      (promo.ok && promo.hasRollover && v > promo.maxBet) || (resp.ok && resp.excluded) || gameState === "RUNNING";
                     return (
                       <button
                         key={v}
@@ -560,7 +540,6 @@ export default function CrashPro() {
               </div>
             </div>
 
-            {/* Provably fair */}
             <div className="mt-4 rounded-3xl border border-white/10 bg-black/25 p-4 text-xs text-white/70">
               <div className="flex items-center gap-2 font-black text-white/85">
                 <Info size={14} /> Provably Fair
@@ -578,7 +557,6 @@ export default function CrashPro() {
 
           {/* Game stage */}
           <div className="flex-1 flex flex-col gap-4">
-            {/* history pills */}
             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
               <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full text-xs text-white/55 font-black border border-white/10">
                 <History size={12} /> RECIENTES
@@ -587,9 +565,7 @@ export default function CrashPro() {
                 <div
                   key={i}
                   className={`px-3 py-1 rounded-full text-xs font-mono font-black whitespace-nowrap border ${
-                    h.win
-                      ? "bg-[#32CD32]/10 text-[#32CD32] border-[#32CD32]/20"
-                      : "bg-red-500/10 text-red-400 border-red-500/20"
+                    h.win ? "bg-[#32CD32]/10 text-[#32CD32] border-[#32CD32]/20" : "bg-red-500/10 text-red-400 border-red-500/20"
                   }`}
                 >
                   {h.crash.toFixed(2)}x
@@ -597,13 +573,14 @@ export default function CrashPro() {
               ))}
             </div>
 
-            {/* canvas */}
             <div className="relative flex-1 min-h-[420px] bg-[#0f0f11] rounded-[32px] border border-white/10 overflow-hidden shadow-2xl">
               <div className="absolute inset-0 opacity-20">
                 <Image src="/opengraph-image.jpg" alt="Overlay" fill className="object-cover" />
               </div>
               <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/45 to-black/70" />
-              {vfx ? <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(0,240,255,0.10),transparent_45%),radial-gradient(circle_at_40%_70%,rgba(255,0,153,0.10),transparent_50%)]" /> : null}
+              {vfx ? (
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(0,240,255,0.10),transparent_45%),radial-gradient(circle_at_40%_70%,rgba(255,0,153,0.10),transparent_50%)]" />
+              ) : null}
 
               <canvas ref={canvasRef} className="relative z-10 w-full h-full" />
 
@@ -636,7 +613,6 @@ export default function CrashPro() {
               </div>
             </div>
 
-            {/* footer note */}
             <div className="flex items-center justify-between gap-3 flex-wrap text-xs text-white/45">
               <div className="inline-flex items-center gap-2">
                 <Flame size={14} className="text-[#FF5E00]" />
@@ -652,7 +628,9 @@ export default function CrashPro() {
 
         <style jsx global>{`
           @media (prefers-reduced-motion: reduce) {
-            * { scroll-behavior: auto !important; }
+            * {
+              scroll-behavior: auto !important;
+            }
           }
         `}</style>
       </div>
