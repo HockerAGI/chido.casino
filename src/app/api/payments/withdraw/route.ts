@@ -5,6 +5,8 @@ import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { walletApplyDelta } from "@/lib/walletApplyDelta";
+import { getSelfExclusionState } from "@/lib/responsibleGaming";
+import { fraudLog, velocityLimit } from "@/lib/fraud";
 
 function isValidClabe(clabe: string) {
   return /^[0-9]{18}$/.test(clabe);
@@ -22,9 +24,27 @@ export async function POST(req: Request) {
   try {
     const supabase = createRouteHandlerClient({ cookies });
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-    const body = await req.json();
+    // ✅ Autoexclusión: permite retirar? (muchas plataformas sí), pero NO permite iniciar retiros nuevos.
+    // Aquí lo bloqueamos para no abrir loops operativos durante autoexclusión.
+    const ex = await getSelfExclusionState(supabaseAdmin as any, session.user.id);
+    if (ex.ok && ex.excluded) {
+      return NextResponse.json(
+        { error: "SELF_EXCLUDED", message: "Autoexclusión activa. No puedes solicitar retiros por ahora.", until: ex.until },
+        { status: 403 }
+      );
+    }
+
+    // ✅ Anti-spam retiros: 3 en 24h
+    const lim = await velocityLimit(supabaseAdmin as any, "withdraw_requests", {
+      userId: session.user.id,
+      minutes: 24 * 60,
+      max: 3,
+    });
+    if (!lim.ok) return NextResponse.json({ error: "RATE_LIMIT", message: lim.error }, { status: 429 });
+
+    const body = await req.json().catch(() => ({} as any));
     const amount = Number(body?.amount);
     const clabe = String(body?.clabe || "").trim();
     const beneficiary = String(body?.beneficiary || "").trim();
@@ -33,7 +53,7 @@ export async function POST(req: Request) {
     if (!isValidClabe(clabe)) return NextResponse.json({ error: "CLABE inválida (18 dígitos)" }, { status: 400 });
     if (beneficiary.length < 3) return NextResponse.json({ error: "Beneficiario inválido" }, { status: 400 });
 
-    // KYC gate (real)
+    // ✅ KYC gate
     const { data: p } = await supabaseAdmin
       .from("profiles")
       .select("kyc_status")
@@ -42,10 +62,10 @@ export async function POST(req: Request) {
 
     const kyc = String(p?.kyc_status || "").toLowerCase();
     if (!(kyc === "approved" || kyc === "verified")) {
-      return NextResponse.json({ error: "KYC_REQUIRED" }, { status: 403 });
+      return NextResponse.json({ error: "KYC_REQUIRED", message: "Necesitas KYC aprobado para retirar." }, { status: 403 });
     }
 
-    // 🔒 Promo gate (real): si hay rollover pendiente, no permitimos retirar
+    // ✅ Promo gate (rollover)
     const { data: claim } = await supabaseAdmin
       .from("promo_claims")
       .select("id,wagering_required,wagering_progress,status")
@@ -89,7 +109,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "WALLET_ERROR" }, { status: 500 });
     }
 
-    // Insert withdraw request (new schema + fallback)
     const payloadNew = {
       user_id: session.user.id,
       amount: Number(amount),
@@ -118,7 +137,6 @@ export async function POST(req: Request) {
     }
 
     if (ins.error) {
-      // rollback
       await walletApplyDelta(supabaseAdmin as any, {
         userId: session.user.id,
         deltaBalance: Number(amount),
@@ -127,13 +145,17 @@ export async function POST(req: Request) {
         reason: "withdraw_rollback",
         refId: `${externalId}:rb`,
       });
-
       return NextResponse.json({ error: "DB_ERROR" }, { status: 500 });
     }
 
+    await fraudLog(supabaseAdmin as any, req, {
+      userId: session.user.id,
+      eventType: "withdraw_requested",
+      metadata: { amount, provider: "astropay" },
+    });
+
     return NextResponse.json({ ok: true, status: "pending", externalId });
   } catch (e: any) {
-    console.error(e);
     return NextResponse.json({ error: e?.message || "Error interno" }, { status: 500 });
   }
 }
