@@ -3,6 +3,12 @@ import "./globals.css";
 import AppShell from "./_components/AppShell";
 import PWARegister from "./_components/PWARegister";
 import { Toaster } from "@/components/ui/toaster";
+import { ToastProvider } from "@/components/ui/use-toast";
+
+// CHIDO usa Auth/Supabase (cookies) y múltiples páginas client-side.
+// Forzamos rendering dinámico para evitar prerender estático que rompe en build.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://chido.casino"),
@@ -35,8 +41,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es">
       <body className="min-h-screen bg-[#050510] text-white selection:bg-chido-pink/30">
         <PWARegister />
-        <AppShell>{children}</AppShell>
-        <Toaster />
+        <ToastProvider>
+          <AppShell>{children}</AppShell>
+          <Toaster />
+        </ToastProvider>
       </body>
     </html>
   );
