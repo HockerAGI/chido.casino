@@ -1,93 +1,96 @@
 "use client";
 
+import Link from "next/link";
 import { Card } from "@/components/ui/card";
-import { ScrollText, Shield, Scale, AlertTriangle } from "lucide-react";
+import { ScrollText, Shield, Scale, AlertTriangle, ChevronRight } from "lucide-react";
 
 export default function LegalPage() {
   return (
-    <div className="min-h-screen pb-20">
-      
-      {/* HEADER SIMPLE */}
+    <div className="min-h-screen pb-24">
       <div className="bg-[#121214] border-b border-white/5 py-12 px-6">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-black text-white mb-2 tracking-tight">Centro Legal y Cumplimiento</h1>
-          <p className="text-zinc-500">Última actualización: 12 de Febrero, 2026</p>
+        <div className="max-w-5xl mx-auto">
+          <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight">Legal & Cumplimiento</h1>
+          <p className="mt-2 text-white/55 text-sm">
+            Este documento describe reglas reales de uso según el sistema implementado (KYC para retiros, promos con rollover, antifraude, etc.).
+          </p>
+          <div className="mt-4">
+            <Link href="/lobby" className="text-xs text-white/60 hover:text-white inline-flex items-center gap-1">
+              Volver al lobby <ChevronRight size={14} />
+            </Link>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-6 py-12 flex flex-col md:flex-row gap-8">
-        
-        {/* SIDEBAR DE NAVEGACIÓN (Sticky) */}
-        <aside className="w-full md:w-64 flex-shrink-0">
-           <nav className="sticky top-24 space-y-1">
-              <div className="flex items-center gap-3 px-4 py-3 bg-[#00F0FF]/10 text-[#00F0FF] rounded-xl text-sm font-bold border border-[#00F0FF]/20">
-                 <ScrollText size={16} /> Términos de Uso
-              </div>
-              <div className="flex items-center gap-3 px-4 py-3 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl text-sm font-medium transition-colors cursor-pointer">
-                 <Shield size={16} /> Privacidad
-              </div>
-              <div className="flex items-center gap-3 px-4 py-3 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl text-sm font-medium transition-colors cursor-pointer">
-                 <Scale size={16} /> KYC / AML
-              </div>
-              <div className="flex items-center gap-3 px-4 py-3 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl text-sm font-medium transition-colors cursor-pointer">
-                 <AlertTriangle size={16} /> Juego Responsable
-              </div>
-           </nav>
+      <div className="max-w-5xl mx-auto px-6 py-10 grid md:grid-cols-[240px_1fr] gap-6">
+        {/* NAV */}
+        <aside className="md:sticky md:top-24 h-fit">
+          <Card className="bg-black/30 border-white/10 p-3 rounded-3xl">
+            <a href="#terms" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-white/5 text-sm font-bold">
+              <ScrollText size={16} /> Términos
+            </a>
+            <a href="#privacy" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-white/5 text-sm font-bold">
+              <Shield size={16} /> Privacidad
+            </a>
+            <a href="#kyc" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-white/5 text-sm font-bold">
+              <Scale size={16} /> KYC / AML
+            </a>
+            <a href="#responsible" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-white/5 text-sm font-bold">
+              <AlertTriangle size={16} /> Juego Responsable
+            </a>
+          </Card>
         </aside>
 
-        {/* CONTENIDO LEGAL */}
-        <div className="flex-1 space-y-8">
-          
-          <Card className="p-8 bg-[#1A1A1D] border-white/5">
-             <h2 className="text-xl font-bold text-white mb-6">1. Introducción y Aceptación</h2>
-             <div className="space-y-4 text-sm text-zinc-400 leading-relaxed">
-                <p>
-                  Bienvenido a CHIDO CASINO ("La Plataforma"). Al registrarse y utilizar nuestros servicios, usted ("El Usuario") acepta estar legalmente vinculado por estos Términos y Condiciones.
-                </p>
-                <p>
-                  Estos servicios son operados por Hocker AGI Technologies bajo licencia internacional de juego. El acceso a la plataforma está estrictamente prohibido para menores de 18 años.
-                </p>
-             </div>
+        {/* CONTENT */}
+        <div className="space-y-6">
+          <Card id="terms" className="bg-black/30 border-white/10 p-6 rounded-3xl">
+            <h2 className="text-xl font-black mb-3">1) Términos de uso (real)</h2>
+            <div className="text-sm text-white/70 space-y-3 leading-relaxed">
+              <p>
+                CHIDO es una plataforma de entretenimiento. Debes ser mayor de edad (18+). Si eres menor, no uses el sistema.
+              </p>
+              <ul className="list-disc pl-5 space-y-2">
+                <li>1 cuenta por persona. Multicuenta/abuso puede causar bloqueo de cuenta y/o reversión de bonos.</li>
+                <li>Promos: 1 promo activa por usuario a la vez (regla implementada en backend).</li>
+                <li>Pagos: por ahora el sistema implementa depósitos SPEI manuales/Bitso-Juno según configuración.</li>
+              </ul>
+            </div>
           </Card>
 
-          <Card className="p-8 bg-[#1A1A1D] border-white/5">
-             <h2 className="text-xl font-bold text-white mb-6">2. Cuentas de Usuario</h2>
-             <div className="space-y-4 text-sm text-zinc-400 leading-relaxed">
-                <ul className="list-disc pl-5 space-y-2">
-                   <li>Solo se permite una cuenta por persona, hogar, dirección IP o dispositivo.</li>
-                   <li>El Usuario es responsable de mantener la confidencialidad de sus credenciales de acceso.</li>
-                   <li>Nos reservamos el derecho de suspender cualquier cuenta que muestre actividad sospechosa, uso de bots o intentos de explotación del sistema.</li>
-                </ul>
-             </div>
+          <Card id="privacy" className="bg-black/30 border-white/10 p-6 rounded-3xl">
+            <h2 className="text-xl font-black mb-3">2) Privacidad</h2>
+            <div className="text-sm text-white/70 space-y-3 leading-relaxed">
+              <p>
+                El sistema almacena datos mínimos necesarios para operar: cuenta, wallet, transacciones y métricas antifraude.
+              </p>
+              <p>
+                Afiliados: los clicks pueden registrarse con hash de IP (no se guarda la IP en claro si hay salt configurado).
+              </p>
+            </div>
           </Card>
 
-          <Card className="p-8 bg-[#1A1A1D] border-white/5">
-             <h2 className="text-xl font-bold text-white mb-6">3. Política Financiera (Depósitos y Retiros)</h2>
-             <div className="space-y-4 text-sm text-zinc-400 leading-relaxed">
-                <p>
-                  <strong>Depósitos:</strong> Los fondos depositados deben provenir de cuentas a nombre del titular registrado. No se aceptan pagos de terceros.
-                </p>
-                <p>
-                  <strong>Retiros:</strong> Para cumplir con las regulaciones Anti-Lavado de Dinero (AML), todos los depósitos deben ser apostados al menos una vez (Rollover x1) antes de solicitar un retiro.
-                </p>
-                <p>
-                  Los retiros superiores a $10,000 MXN pueden requerir verificación de identidad adicional (KYC Nivel 2).
-                </p>
-             </div>
+          <Card id="kyc" className="bg-black/30 border-white/10 p-6 rounded-3xl">
+            <h2 className="text-xl font-black mb-3">3) KYC / AML (implementado)</h2>
+            <div className="text-sm text-white/70 space-y-3 leading-relaxed">
+              <p>
+                Para solicitar retiros, el sistema exige KYC aprobado (bloqueo real en /api/payments/withdraw).
+              </p>
+              <p>
+                Si necesitas KYC, solicítalo en <Link className="underline" href="/support">Soporte</Link>.
+              </p>
+            </div>
           </Card>
 
-          <Card className="p-8 bg-[#1A1A1D] border-white/5">
-             <h2 className="text-xl font-bold text-white mb-6">4. Juego Responsable</h2>
-             <div className="space-y-4 text-sm text-zinc-400 leading-relaxed">
-                <p>
-                  El juego debe ser una forma de entretenimiento, no una forma de ganar dinero. Ofrecemos herramientas de autoexclusión y límites de depósito.
-                </p>
-                <p>
-                  Si siente que el juego está afectando su vida negativamente, contacte a soporte inmediatamente para activar el protocolo de protección al jugador.
-                </p>
-             </div>
+          <Card id="responsible" className="bg-black/30 border-white/10 p-6 rounded-3xl">
+            <h2 className="text-xl font-black mb-3">4) Juego responsable</h2>
+            <div className="text-sm text-white/70 space-y-3 leading-relaxed">
+              <p>
+                Juega por entretenimiento. Si sientes que pierdes control, pausa y contacta soporte para medidas manuales (bloqueo/limitación).
+              </p>
+              <p className="text-xs text-white/50">
+                Nota: límites automáticos y autoexclusión “en UI” no se prometen aquí si no están desplegados.
+              </p>
+            </div>
           </Card>
-
         </div>
       </div>
     </div>
