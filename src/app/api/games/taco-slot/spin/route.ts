@@ -7,6 +7,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { walletApplyDelta } from "@/lib/walletApplyDelta";
 import { fairFloat, generateServerSeed, serverSeedHash } from "@/lib/provablyFair";
 import { promoWageringProgress } from "@/lib/promoWagering";
+import { getPromoLimitState } from "@/lib/promoLimits";
 
 type SymbolKey = "verde" | "jalapeno" | "serrano" | "habanero";
 
@@ -17,7 +18,7 @@ const SYMBOLS: { key: SymbolKey; img: string; weight: number }[] = [
   { key: "habanero", img: "/badge-habanero.png", weight: 8 },
 ];
 
-// Par ajustado: RTP esperado ≈ 94.7376%
+// RTP esperado ≈ 94.7376%
 const PAIR_MULTIPLIER = 0.82;
 
 function pickWeighted(serverSeed: string, clientSeed: string, nonce: number, round: number) {
@@ -110,6 +111,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Apuesta inválida" }, { status: 400 });
     }
 
+    // ✅ CAP si hay rollover activo
+    const promoState = await getPromoLimitState(supabaseAdmin as any, session.user.id);
+    if (promoState.ok && promoState.hasRollover) {
+      if (bet > promoState.maxBet) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "PROMO_MAX_BET",
+            message: `Con bono activo (rollover), la apuesta máxima por jugada es ${promoState.maxBet} MXN.`,
+            maxBet: promoState.maxBet,
+            required: promoState.required,
+            progress: promoState.progress,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // nonce global best-effort
     const { data: maxRow, error: maxErr } = await supabaseAdmin
       .from("slot_spins")
@@ -140,7 +159,7 @@ export async function POST(req: Request) {
     const multiplier = calcMultiplier(reels);
     const payout = multiplier > 0 ? round2(bet * multiplier) : 0;
 
-    // payout SIEMPRE a balance real (y si hay promo, retiro queda bloqueado hasta completar)
+    // payout SIEMPRE a balance real
     if (payout > 0) {
       const credit = await walletApplyDelta(supabaseAdmin as any, {
         userId: session.user.id,
@@ -180,7 +199,6 @@ export async function POST(req: Request) {
     });
 
     if (ins.error && !isMissingTable(String((ins.error as any)?.message || ""))) {
-      // no rompemos UX por logging
       console.error("slot_spins insert error:", ins.error);
     }
 
