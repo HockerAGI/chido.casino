@@ -1,5 +1,4 @@
 "use client";
-
 export const dynamic = "force-dynamic";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -7,6 +6,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { useWalletBalance } from "@/lib/useWalletBalance";
 import { useToast } from "@/components/ui/use-toast";
+import { sfx } from "@/lib/sfx";
 import {
   Loader2,
   Info,
@@ -58,15 +58,12 @@ type SpinApi =
   | { ok: false; error: string; message?: string; maxBet?: number };
 
 const SLOT_SYMBOLS_PRIMARY: Record<string, string> = {
-  // ✅ REELS (DEBERÍAN SER SÍMBOLOS DEL SLOT)
-  // Si todavía no existen, el componente hace fallback a /badge-*.png sin romper.
   verde: "/slot-verde.png",
   jalapeno: "/slot-jalapeno.png",
   serrano: "/slot-serrano.png",
   habanero: "/slot-habanero.png",
 };
 
-// ✅ BADGES = SOLO “NIVEL DEL JUGADOR” (como tú pediste)
 const LEVEL_BADGES: Record<string, string> = {
   verde: "/badge-verde.png",
   jalapeno: "/badge-jalapeno.png",
@@ -97,34 +94,17 @@ function useLocalSetting<T>(key: string, initial: T) {
       const raw = localStorage.getItem(key);
       if (!raw) return;
       setValue(JSON.parse(raw));
-    } catch {
-      // ignore
-    }
+    } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     try {
       localStorage.setItem(key, JSON.stringify(value));
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, [key, value]);
 
   return [value, setValue] as const;
-}
-
-function playSfx(src: string, volume: number, opts?: { loop?: boolean }) {
-  try {
-    const a = new Audio(src);
-    a.volume = Math.max(0, Math.min(1, volume));
-    if (opts?.loop) a.loop = true;
-    // no await: no bloquea UI
-    void a.play().catch(() => {});
-    return a;
-  } catch {
-    return null;
-  }
 }
 
 function vibrate(ms: number) {
@@ -133,18 +113,10 @@ function vibrate(ms: number) {
       // @ts-ignore
       navigator.vibrate(ms);
     }
-  } catch {
-    // ignore
-  }
+  } catch {}
 }
 
-function SymbolImg({
-  symbolKey,
-  spinning,
-}: {
-  symbolKey: string;
-  spinning: boolean;
-}) {
+function SymbolImg({ symbolKey, spinning }: { symbolKey: string; spinning: boolean }) {
   const [src, setSrc] = useState<string>(() => SLOT_SYMBOLS_PRIMARY[symbolKey] || `/slot-${symbolKey}.png`);
   const fallback = LEVEL_BADGES[symbolKey] || "/badge-verde.png";
 
@@ -158,9 +130,7 @@ function SymbolImg({
         src={src}
         alt={symbolKey}
         fill
-        className={`object-contain drop-shadow-[0_10px_18px_rgba(0,0,0,0.55)] ${
-          spinning ? "animate-slotJitter" : ""
-        }`}
+        className={`object-contain drop-shadow-[0_10px_18px_rgba(0,0,0,0.55)] ${spinning ? "animate-slotJitter" : ""}`}
         onError={() => setSrc(fallback)}
         priority={false}
       />
@@ -199,7 +169,9 @@ export default function TacoSlotPro() {
   const [reels, setReels] = useState<string[]>(["verde", "verde", "verde"]);
   const [level, setLevel] = useState<{ key: string; label: string; badge: string } | null>(null);
 
-  const [winData, setWinData] = useState<{ payout: number; mult: number; kind: "small" | "big" | "mega" } | null>(null);
+  const [winData, setWinData] = useState<{ payout: number; mult: number; kind: "small" | "big" | "mega" } | null>(
+    null
+  );
   const [lastFair, setLastFair] = useState<{ hash?: string; seed?: string; nonce?: number; ts: string } | null>(null);
 
   // Autoplay
@@ -207,13 +179,8 @@ export default function TacoSlotPro() {
   const autoRef = useRef<number>(0);
   autoRef.current = autoLeft;
 
-  const spinLoopRef = useRef<HTMLAudioElement | null>(null);
-
   const durations = useMemo(() => {
-    // “Pragmatic-like”: turbo reduce tiempos fuerte 1
-    return turbo
-      ? { spin: 520, revealGap: 150 }
-      : { spin: 1100, revealGap: 260 };
+    return turbo ? { spin: 520, revealGap: 150 } : { spin: 1100, revealGap: 260 };
   }, [turbo]);
 
   const randomSymbol = () => {
@@ -233,9 +200,7 @@ export default function TacoSlotPro() {
 
       if (p.ok) setPromo(pj);
       if (r.ok) setResp({ ok: true, excluded: !!rj.excluded, until: rj.until ?? null, reason: rj.reason ?? null });
-    } catch {
-      // ignore
-    }
+    } catch {}
   };
 
   useEffect(() => {
@@ -249,14 +214,17 @@ export default function TacoSlotPro() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [promo.ok, (promo as any).hasRollover, (promo as any).maxBet]);
 
-  const stopSpinAudio = () => {
-    try {
-      spinLoopRef.current?.pause();
-      spinLoopRef.current = null;
-    } catch {
-      // ignore
-    }
-  };
+  useEffect(() => {
+    // si desactivas sonido, corta loops
+    sfx.setEnabled(soundEnabled);
+    if (!soundEnabled) sfx.stopAllLoops();
+  }, [soundEnabled]);
+
+  useEffect(() => {
+    return () => {
+      sfx.stopAllLoops();
+    };
+  }, []);
 
   const classifyWin = (payout: number, betAmount: number) => {
     const ratio = betAmount > 0 ? payout / betAmount : 0;
@@ -268,6 +236,9 @@ export default function TacoSlotPro() {
 
   const doSpin = async (triggeredByAuto = false) => {
     if (spinning) return;
+
+    sfx.setEnabled(soundEnabled);
+    sfx.unlock();
 
     if (resp.ok && resp.excluded) {
       if (!triggeredByAuto) {
@@ -301,14 +272,12 @@ export default function TacoSlotPro() {
     setPhase("spin");
 
     if (haptics) vibrate(turbo ? 20 : 35);
-
     if (soundEnabled) {
-      playSfx("/sounds/ui-click.mp3", 0.35);
-      stopSpinAudio();
-      spinLoopRef.current = playSfx("/sounds/slot-spin.mp3", turbo ? 0.22 : 0.18, { loop: true });
+      sfx.uiClick();
+      sfx.slotSpinStart(turbo);
     }
 
-    // “spinning visuals”
+    // visual jitter
     const jitter = setInterval(() => {
       setReels([randomSymbol(), randomSymbol(), randomSymbol()]);
     }, turbo ? 55 : 90);
@@ -326,15 +295,13 @@ export default function TacoSlotPro() {
 
       if (!res.ok || !("ok" in api) || (api as any).ok !== true) {
         const err = (api as any)?.error || "Error al girar";
-        if (err === "PROMO_MAX_BET") {
-          setBet(clampBet(Number((api as any).maxBet || safeBet)));
-        }
+        if (err === "PROMO_MAX_BET") setBet(clampBet(Number((api as any).maxBet || safeBet)));
         if (err === "SELF_EXCLUDED") await loadGates();
         throw new Error((api as any)?.message || err);
       }
     } catch (e: any) {
       clearInterval(jitter);
-      stopSpinAudio();
+      sfx.stopLoop("slotSpin");
       setPhase("idle");
       setSpinning(false);
       setAutoLeft(0);
@@ -354,24 +321,23 @@ export default function TacoSlotPro() {
     const payout = Number(okApi.payout || 0);
     const mult = Number(okApi.multiplier || 0);
 
-    // Anticipación pro: revelamos uno por uno
     const t0 = setTimeout(() => {
       setPhase("reveal1");
       setReels([finalKeys[0] || "verde", randomSymbol(), randomSymbol()]);
-      if (soundEnabled) playSfx("/sounds/slot-stop.mp3", 0.25);
+      if (soundEnabled) sfx.slotStop();
       if (haptics) vibrate(15);
     }, durations.spin);
 
     const t1 = setTimeout(() => {
       setPhase("reveal2");
       setReels([finalKeys[0] || "verde", finalKeys[1] || "verde", randomSymbol()]);
-      if (soundEnabled) playSfx("/sounds/slot-stop.mp3", 0.25);
+      if (soundEnabled) sfx.slotStop();
       if (haptics) vibrate(15);
     }, durations.spin + durations.revealGap);
 
     const t2 = setTimeout(() => {
       clearInterval(jitter);
-      stopSpinAudio();
+      sfx.stopLoop("slotSpin");
 
       setPhase("reveal3");
       setReels([finalKeys[0] || "verde", finalKeys[1] || "verde", finalKeys[2] || "verde"]);
@@ -389,22 +355,24 @@ export default function TacoSlotPro() {
         setWinData({ payout, mult, kind });
 
         if (soundEnabled) {
-          playSfx(kind === "mega" ? "/sounds/win-mega.mp3" : kind === "big" ? "/sounds/win-big.mp3" : "/sounds/win-small.mp3", 0.35);
+          if (kind === "mega") sfx.winMega();
+          else if (kind === "big") sfx.winBig();
+          else sfx.winSmall();
         }
+
         if (haptics) vibrate(kind === "mega" ? 90 : kind === "big" ? 60 : 35);
 
         toast({
-          title: kind === "mega" ? "MEGA WIN 🔥" : kind === "big" ? "¡Qué chilo! Ganaste" : "Pegó 👌",
+          title: kind === "mega" ? "MEGA WIN 🔥" : kind === "big" ? "¡Qué chido! Ganaste" : "Pegó 👌",
           description: `x${mult} (+${money(payout)} MXN)`,
         });
       } else {
-        if (soundEnabled) playSfx("/sounds/slot-lose.mp3", 0.18);
+        if (soundEnabled) sfx.slotLose();
       }
 
       refresh();
       void loadGates();
 
-      // Auto: sigue si quedan
       setTimeout(() => {
         setPhase("idle");
         setSpinning(false);
@@ -415,17 +383,15 @@ export default function TacoSlotPro() {
       }, turbo ? 120 : 220);
     }, durations.spin + durations.revealGap * 2);
 
-    // limpieza en caso de unmount
     return () => {
       clearInterval(jitter);
       clearTimeout(t0);
       clearTimeout(t1);
       clearTimeout(t2);
-      stopSpinAudio();
+      sfx.stopLoop("slotSpin");
     };
   };
 
-  // Autoplay driver
   useEffect(() => {
     if (autoLeft <= 0) return;
     if (spinning) return;
@@ -452,12 +418,12 @@ export default function TacoSlotPro() {
   const showCap = promo.ok && promo.hasRollover;
 
   const headline = useMemo(() => {
-    // Mex vibe “nacional” sin pasarnos de lanza
     const lines = [
       "Se armó el slot 👀",
-      "A ver si pega chido",
-      "Dale, que hoy cae",
+      "A ver si cae la buena",
+      "Dale, que hoy pinta chido",
       "Puro sabor, puro CHIDO",
+      "Que ruede la suerte, patrón",
     ];
     return lines[Math.floor(Math.random() * lines.length)];
   }, []);
@@ -476,7 +442,12 @@ export default function TacoSlotPro() {
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="relative h-12 w-12">
-              <Image src="/isotipo-color.png" alt="CHIDO" fill className="object-contain drop-shadow-[0_10px_18px_rgba(0,0,0,0.6)]" />
+              <Image
+                src="/isotipo-color.png"
+                alt="CHIDO"
+                fill
+                className="object-contain drop-shadow-[0_10px_18px_rgba(0,0,0,0.6)]"
+              />
             </div>
             <div>
               <div className="text-2xl font-black tracking-tight">
@@ -491,7 +462,9 @@ export default function TacoSlotPro() {
             <button
               onClick={() => setTurbo((v) => !v)}
               className={`h-10 px-3 rounded-2xl border text-xs font-black inline-flex items-center gap-2 transition ${
-                turbo ? "bg-[#FFD700] text-black border-[#FFD700]/40" : "bg-black/40 text-white/70 border-white/10 hover:bg-white/5"
+                turbo
+                  ? "bg-[#FFD700] text-black border-[#FFD700]/40"
+                  : "bg-black/40 text-white/70 border-white/10 hover:bg-white/5"
               }`}
               aria-label="Turbo"
             >
@@ -502,7 +475,9 @@ export default function TacoSlotPro() {
             <button
               onClick={() => setVfx((v) => !v)}
               className={`h-10 px-3 rounded-2xl border text-xs font-black inline-flex items-center gap-2 transition ${
-                vfx ? "bg-white text-black border-white/30" : "bg-black/40 text-white/70 border-white/10 hover:bg-white/5"
+                vfx
+                  ? "bg-white text-black border-white/30"
+                  : "bg-black/40 text-white/70 border-white/10 hover:bg-white/5"
               }`}
               aria-label="VFX"
             >
@@ -511,7 +486,12 @@ export default function TacoSlotPro() {
             </button>
 
             <button
-              onClick={() => setSoundEnabled((v) => !v)}
+              onClick={() => {
+                setSoundEnabled((v) => !v);
+                // desbloquea audio en el primer tap
+                sfx.unlock();
+                sfx.uiClick();
+              }}
               className="h-10 w-10 rounded-2xl border border-white/10 bg-black/40 hover:bg-white/5 flex items-center justify-center"
               aria-label="Sonido"
             >
@@ -546,22 +526,22 @@ export default function TacoSlotPro() {
                   <div className="h-full bg-[#32CD32]" style={{ width: `${promo.ok && promo.hasRollover ? promo.pct : 0}%` }} />
                 </div>
                 <div className="mt-1 text-[11px] text-white/45">
-                  {promo.ok && promo.hasRollover ? `${Math.round(promo.progress)} / ${Math.round(promo.required)} MXN • ${promo.pct}%` : ""}
+                  {promo.ok && promo.hasRollover
+                    ? `${Math.round(promo.progress)} / ${Math.round(promo.required)} MXN • ${promo.pct}%`
+                    : ""}
                 </div>
               </div>
             </div>
           </div>
         ) : null}
 
-        {/* Main Card */}
+        {/* Main */}
         <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_320px]">
-          {/* Slot Machine */}
+          {/* Slot */}
           <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-black/35 p-4 sm:p-6">
-            {/* frame glow */}
             <div className="absolute -inset-10 bg-[radial-gradient(circle_at_50%_20%,rgba(255,0,153,0.18),transparent_55%),radial-gradient(circle_at_60%_80%,rgba(0,240,255,0.16),transparent_55%)]" />
             <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/40 to-black/60" />
 
-            {/* Reels stage */}
             <div className="relative z-10">
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div className="text-sm font-black text-white/90 inline-flex items-center gap-2">
@@ -587,7 +567,6 @@ export default function TacoSlotPro() {
               </div>
 
               <div className="mt-4 relative rounded-3xl border border-white/10 bg-[#0b0b0e] p-4 sm:p-5 overflow-hidden shadow-[0_25px_80px_rgba(0,0,0,0.55)]">
-                {/* subtle noise */}
                 <div className="absolute inset-0 opacity-[0.10] bg-[url('/opengraph-image.jpg')] bg-cover mix-blend-overlay" />
                 <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/50" />
 
@@ -599,11 +578,9 @@ export default function TacoSlotPro() {
                         phase === "spin" ? "shadow-[0_0_40px_rgba(0,240,255,0.10)]" : ""
                       }`}
                     >
-                      {/* shine */}
                       <div className={`absolute inset-0 ${phase === "spin" ? "animate-reelShine" : ""}`} />
                       <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-transparent to-black/55 pointer-events-none" />
                       <SymbolImg symbolKey={k} spinning={phase === "spin"} />
-                      {/* stop “tick” indicator */}
                       {phase !== "spin" ? (
                         <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-white/15" />
                       ) : (
@@ -613,13 +590,18 @@ export default function TacoSlotPro() {
                   ))}
                 </div>
 
-                {/* Win overlay */}
                 {winData && vfx ? (
                   <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in zoom-in duration-200">
                     <div className="text-center px-6">
-                      <div className={`text-6xl sm:text-7xl font-black drop-shadow-2xl ${
-                        winData.kind === "mega" ? "text-[#FFD700]" : winData.kind === "big" ? "text-[#00F0FF]" : "text-[#32CD32]"
-                      }`}>
+                      <div
+                        className={`text-6xl sm:text-7xl font-black drop-shadow-2xl ${
+                          winData.kind === "mega"
+                            ? "text-[#FFD700]"
+                            : winData.kind === "big"
+                            ? "text-[#00F0FF]"
+                            : "text-[#32CD32]"
+                        }`}
+                      >
                         {winData.kind === "mega" ? "MEGA WIN" : winData.kind === "big" ? "BIG WIN" : "WIN"}
                       </div>
                       <div className="mt-2 text-white text-xl font-black">
@@ -631,13 +613,12 @@ export default function TacoSlotPro() {
                       </div>
                     </div>
 
-                    {/* particles */}
                     <div className={`absolute inset-0 pointer-events-none ${winData.kind !== "small" ? "animate-confetti" : "animate-sparks"}`} />
                   </div>
                 ) : null}
               </div>
 
-              {/* Bottom controls */}
+              {/* Controls */}
               <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto] items-center">
                 <div className="rounded-3xl border border-white/10 bg-black/30 p-4">
                   <div className="flex items-end justify-between gap-3">
@@ -662,10 +643,7 @@ export default function TacoSlotPro() {
                   <div className="mt-3 flex items-center justify-between gap-2">
                     <div className="flex gap-2">
                       {[10, 20, 50, 100].map((v) => {
-                        const disabled =
-                          spinning ||
-                          (resp.ok && resp.excluded) ||
-                          (promo.ok && promo.hasRollover && v > promo.maxBet);
+                        const disabled = spinning || (resp.ok && resp.excluded) || (promo.ok && promo.hasRollover && v > promo.maxBet);
                         return (
                           <button
                             key={v}
@@ -739,9 +717,6 @@ export default function TacoSlotPro() {
                 ) : (
                   <div className="mt-2 text-[11px] text-white/55">Se muestra después de un giro.</div>
                 )}
-                <div className="mt-2 text-[11px] text-white/45">
-                  Nota: el “turbo/autoplay” son controles UI comunes en slots comerciales. 2
-                </div>
               </div>
             </div>
           </div>
@@ -780,7 +755,7 @@ export default function TacoSlotPro() {
                 RTP esperado ~94.74% (server-side).
               </div>
               <div className="mt-3 text-[11px] text-white/45">
-                *Si aún ves badges en reels es porque faltan los símbolos del slot (abajo te dejo prompts).
+                *Si aún ves badges en reels es porque faltan los símbolos del slot (slot-*.png).
               </div>
             </div>
           </div>
@@ -799,51 +774,87 @@ export default function TacoSlotPro() {
         }
 
         @keyframes slotJitter {
-          0% { transform: translateY(0) scale(1); }
-          25% { transform: translateY(-2px) scale(1.01); }
-          50% { transform: translateY(1px) scale(0.99); }
-          75% { transform: translateY(-1px) scale(1.005); }
-          100% { transform: translateY(0) scale(1); }
+          0% {
+            transform: translateY(0) scale(1);
+          }
+          25% {
+            transform: translateY(-2px) scale(1.01);
+          }
+          50% {
+            transform: translateY(1px) scale(0.99);
+          }
+          75% {
+            transform: translateY(-1px) scale(1.005);
+          }
+          100% {
+            transform: translateY(0) scale(1);
+          }
         }
         .animate-slotJitter {
           animation: slotJitter 220ms linear infinite;
         }
 
         @keyframes reelShine {
-          0% { transform: translateX(-140%) rotate(12deg); opacity: 0; }
-          10% { opacity: 0.15; }
-          45% { opacity: 0.10; }
-          100% { transform: translateX(140%) rotate(12deg); opacity: 0; }
+          0% {
+            transform: translateX(-140%) rotate(12deg);
+            opacity: 0;
+          }
+          10% {
+            opacity: 0.15;
+          }
+          45% {
+            opacity: 0.1;
+          }
+          100% {
+            transform: translateX(140%) rotate(12deg);
+            opacity: 0;
+          }
         }
         .animate-reelShine {
-          background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,0.16) 50%, transparent 65%);
+          background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.16) 50%, transparent 65%);
           animation: reelShine 700ms ease-in-out infinite;
         }
 
         @keyframes confetti {
-          0% { background-position: 0 0; opacity: 0.0; }
-          10% { opacity: 1; }
-          100% { background-position: 0 900px; opacity: 0; }
+          0% {
+            background-position: 0 0;
+            opacity: 0;
+          }
+          10% {
+            opacity: 1;
+          }
+          100% {
+            background-position: 0 900px;
+            opacity: 0;
+          }
         }
         .animate-confetti {
-          background-image:
-            radial-gradient(circle, rgba(255,0,153,0.9) 0 2px, transparent 3px),
-            radial-gradient(circle, rgba(0,240,255,0.9) 0 2px, transparent 3px),
-            radial-gradient(circle, rgba(255,215,0,0.9) 0 2px, transparent 3px),
-            radial-gradient(circle, rgba(50,205,50,0.9) 0 2px, transparent 3px);
+          background-image: radial-gradient(circle, rgba(255, 0, 153, 0.9) 0 2px, transparent 3px),
+            radial-gradient(circle, rgba(0, 240, 255, 0.9) 0 2px, transparent 3px),
+            radial-gradient(circle, rgba(255, 215, 0, 0.9) 0 2px, transparent 3px),
+            radial-gradient(circle, rgba(50, 205, 50, 0.9) 0 2px, transparent 3px);
           background-size: 140px 140px;
           animation: confetti 900ms linear infinite;
         }
 
         @keyframes sparks {
-          0% { opacity: 0; transform: scale(0.98); }
-          30% { opacity: 1; transform: scale(1); }
-          100% { opacity: 0; transform: scale(1.02); }
+          0% {
+            opacity: 0;
+            transform: scale(0.98);
+          }
+          30% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: scale(1.02);
+          }
         }
         .animate-sparks {
-          background: radial-gradient(circle at 30% 40%, rgba(0,240,255,0.25), transparent 55%),
-                      radial-gradient(circle at 70% 50%, rgba(255,0,153,0.22), transparent 55%),
-                      radial-gradient(circle at 50% 70%, rgba(50,205,50,0.18), transparent 55%);
+          background: radial-gradient(circle at 30% 40%, rgba(0, 240, 255, 0.25), transparent 55%),
+            radial-gradient(circle at 70% 50%, rgba(255, 0, 153, 0.22), transparent 55%),
+            radial-gradient(circle at 50% 70%, rgba(50, 205, 50, 0.18), transparent 55%);
           animation: sparks 520ms ease-in-out infinite;
         }
       `}</style>
