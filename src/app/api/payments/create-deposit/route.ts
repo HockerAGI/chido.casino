@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getServerSession } from "@/lib/session";
 import { junoCreateClabe } from "@/lib/juno";
+import { getSelfExclusionState } from "@/lib/responsibleGaming";
+import { fraudLog, velocityLimit } from "@/lib/fraud";
 
 type Method = "spei" | "oxxo" | "card";
 
@@ -11,8 +13,27 @@ function folio() {
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(req);
     if (!session) return NextResponse.json({ ok: false, error: "No autorizado" }, { status: 401 });
+
+    // ✅ Autoexclusión: bloquea generar depósitos
+    const ex = await getSelfExclusionState(supabaseAdmin as any, session.user.id);
+    if (ex.ok && ex.excluded) {
+      return NextResponse.json(
+        { ok: false, error: "SELF_EXCLUDED", message: "Autoexclusión activa. No puedes depositar por ahora.", until: ex.until },
+        { status: 403 }
+      );
+    }
+
+    // ✅ Anti-spam depósitos: 5 en 30 min
+    const lim = await velocityLimit(supabaseAdmin as any, "manual_deposit_requests", {
+      userId: session.user.id,
+      minutes: 30,
+      max: 5,
+    });
+    if (!lim.ok) {
+      return NextResponse.json({ ok: false, error: "RATE_LIMIT", message: lim.error }, { status: 429 });
+    }
 
     const body = await req.json().catch(() => ({}));
     const amount = Number(body?.amount);
@@ -22,7 +43,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Monto inválido" }, { status: 400 });
     }
 
-    // Por ahora solo SPEI manual/Bitso-Juno (oxxo/card quedan para después)
     if (method !== "spei") {
       return NextResponse.json(
         { ok: false, error: "Método no disponible todavía (solo SPEI por ahora)." },
@@ -43,18 +63,13 @@ export async function POST(req: Request) {
     const whatsappPhone = process.env.SUPPORT_WHATSAPP || "";
 
     if (useJuno) {
-      // Bitso Business (Juno): CLABE única generada por API
       clabe = await junoCreateClabe();
-      // Beneficiario/institución no vienen en "retrieve details"; dejamos un label claro:
       beneficiary = "Bitso Business (Juno)";
       institution = "SPEI";
     }
 
     if (!clabe) {
-      return NextResponse.json(
-        { ok: false, error: "SPEI no configurado (CLABE faltante)." },
-        { status: 500 }
-      );
+      return NextResponse.json({ ok: false, error: "SPEI no configurado (CLABE faltante)." }, { status: 500 });
     }
 
     const concept = f;
@@ -76,12 +91,13 @@ export async function POST(req: Request) {
         "Haz una transferencia SPEI con la CLABE indicada.",
         `Usa el concepto exactamente como aparece: ${concept}`,
         "Conserva tu comprobante. Si el saldo no se refleja, soporte lo valida con tu folio.",
-        useJuno ? "Nota: en Bitso/Juno el mínimo recomendado es 100 MXN." : " ",
-      ].filter(Boolean),
+      ],
       whatsapp: {
         ready: Boolean(whatsappPhone),
         phone: whatsappPhone || null,
-        link: whatsappPhone ? `https://wa.me/${whatsappPhone.replace(/\D/g, "")}?text=${encodeURIComponent(`Depósito CHIDO folio ${f}. Adj. comprobante.`)}` : null,
+        link: whatsappPhone
+          ? `https://wa.me/${whatsappPhone.replace(/\D/g, "")}?text=${encodeURIComponent(`Depósito CHIDO folio ${f}. Adj. comprobante.`)}`
+          : null,
       },
       telegram: {
         ready: Boolean(telegramUsername),
@@ -106,6 +122,12 @@ export async function POST(req: Request) {
     if (error) {
       return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     }
+
+    await fraudLog(supabaseAdmin as any, req, {
+      userId: session.user.id,
+      eventType: "deposit_request_created",
+      metadata: { folio: f, amount, provider: useJuno ? "juno" : "manual" },
+    });
 
     return NextResponse.json({
       ok: true,
