@@ -1,133 +1,288 @@
 "use client";
 
-// FIX: Evita errores de build por uso de cookies/auth
 export const dynamic = "force-dynamic";
 
-import { useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
-import { useProfile } from "@/lib/useProfile";
-import { useWalletBalance } from "@/lib/useWalletBalance";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { UserCircle, Upload, ShieldCheck, CreditCard } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { useProfile } from "@/lib/useProfile";
+import { useWalletBalance } from "@/lib/useWalletBalance";
+import { uploadAvatar } from "@/lib/uploadAvatar";
+import { createClient } from "@/lib/supabaseClient";
+import { UserCircle, Upload, ShieldCheck, ShieldAlert, LogOut, KeyRound, Wallet, Users } from "lucide-react";
+
+type AffiliateMe = {
+  ok: boolean;
+  link?: string;
+  affiliate?: { code: string };
+};
 
 export default function ProfilePage() {
-  const { profile, loading } = useProfile();
+  const supabase = useMemo(() => createClient(), []);
+  const { profile, loading, refresh } = useProfile();
   const wallet = useWalletBalance();
+
+  const [username, setUsername] = useState("");
+  const [saving, setSaving] = useState(false);
+
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [msg, setMsg] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  async function uploadAvatar() {
-    if (!avatarFile || !profile) return;
-    setUploading(true);
+  const [msg, setMsg] = useState<string | null>(null);
 
-    const path = `${profile.user_id}/avatar.png`;
-    const { error: upErr } = await supabase.storage
-      .from("avatars")
-      .upload(path, avatarFile, { upsert: true });
+  const [aff, setAff] = useState<AffiliateMe | null>(null);
 
-    if (upErr) {
-      setMsg("Error: " + upErr.message);
-      setUploading(false);
+  useEffect(() => {
+    setUsername(profile?.username || "");
+  }, [profile?.username]);
+
+  useEffect(() => {
+    const loadAff = async () => {
+      try {
+        const res = await fetch("/api/affiliates/me", { cache: "no-store" });
+        const json = (await res.json()) as AffiliateMe;
+        if (json.ok) setAff(json);
+      } catch {
+        // ignore
+      }
+    };
+    void loadAff();
+  }, []);
+
+  const kyc = String(profile?.kyc_status || "").toLowerCase();
+  const kycLabel =
+    kyc === "approved" || kyc === "verified" ? "KYC aprobado" : kyc ? `KYC: ${kyc}` : "KYC pendiente";
+
+  const saveUsername = async () => {
+    if (!profile) return;
+    const u = username.trim();
+    if (u.length < 3) {
+      setMsg("El username debe tener al menos 3 caracteres.");
       return;
     }
 
-    const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+    setSaving(true);
+    setMsg(null);
+    try {
+      const { error } = await supabase.from("profiles").update({ username: u }).eq("user_id", profile.user_id);
+      if (error) throw error;
+      setMsg("Perfil actualizado ✅");
+      await refresh();
+    } catch (e: any) {
+      setMsg(e?.message || "No se pudo guardar.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
-    // Truco: añadir timestamp para romper caché de imagen
-    const publicUrl = `${data.publicUrl}?t=${Date.now()}`;
+  const doUploadAvatar = async () => {
+    if (!avatarFile) return;
+    setUploading(true);
+    setMsg(null);
+    try {
+      await uploadAvatar(avatarFile);
+      setMsg("Avatar actualizado ✅");
+      setAvatarFile(null);
+      await refresh();
+    } catch (e: any) {
+      setMsg(e?.message || "No se pudo subir.");
+    } finally {
+      setUploading(false);
+    }
+  };
 
-    await supabase
-      .from("profiles")
-      .update({ avatar_url: publicUrl })
-      .eq("user_id", profile.user_id);
+  const resetPassword = async () => {
+    setMsg(null);
+    try {
+      const { data } = await supabase.auth.getUser();
+      const email = data?.user?.email;
+      if (!email) {
+        setMsg("No se detectó tu correo. Re-inicia sesión.");
+        return;
+      }
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${location.origin}/login`,
+      });
+      if (error) throw error;
+      setMsg("Te mandé un correo para cambiar tu contraseña ✅");
+    } catch (e: any) {
+      setMsg(e?.message || "No se pudo enviar el correo.");
+    }
+  };
 
-    setMsg("Avatar actualizado correctamente");
-    setUploading(false);
-    window.location.reload(); // Recarga simple para ver cambios
+  const logout = async () => {
+    await supabase.auth.signOut().catch(() => {});
+    location.href = "/login";
+  };
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center text-white/60">Cargando perfil…</div>;
   }
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-zinc-500">Cargando perfil...</div>;
+  if (!profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-white/60">
+        Necesitas iniciar sesión.
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen pb-20 animate-fade-in max-w-4xl mx-auto">
-      
-      <div className="mb-8">
-        <h1 className="text-3xl font-black text-white">Mi Perfil</h1>
-        <p className="text-zinc-400">Gestiona tu identidad y seguridad.</p>
+    <div className="min-h-screen pb-24 max-w-5xl mx-auto px-6 pt-6 space-y-6">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <div className="text-3xl font-black">Mi perfil</div>
+          <div className="text-white/60 text-sm">Cuenta, seguridad y estado de verificación.</div>
+        </div>
+
+        <div className="flex gap-2">
+          <Link href="/wallet">
+            <Button variant="secondary" className="font-black">
+              <Wallet size={16} /> Bóveda
+            </Button>
+          </Link>
+          <Button variant="destructive" onClick={logout} className="font-black">
+            <LogOut size={16} /> Salir
+          </Button>
+        </div>
       </div>
 
+      {msg ? (
+        <Card className="bg-black/30 border-white/10 p-4 rounded-2xl text-sm text-white/75">
+          {msg}
+        </Card>
+      ) : null}
+
       <div className="grid md:grid-cols-3 gap-6">
-        
-        {/* TARJETA DE IDENTIDAD */}
-        <Card className="bg-[#1A1A1D] border-white/5 p-6 rounded-2xl md:col-span-1 flex flex-col items-center text-center">
-           <div className="relative w-32 h-32 mb-4">
-             <img
-               src={profile?.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${profile?.user_id}`}
-               className="w-full h-full rounded-full border-4 border-[#121214] shadow-xl object-cover bg-zinc-800"
-               alt="Avatar"
-             />
-             <div className="absolute bottom-0 right-0 p-2 bg-[#00F0FF] rounded-full text-black cursor-pointer hover:scale-110 transition-transform shadow-lg">
-                <label htmlFor="avatar-upload" className="cursor-pointer">
-                   <Upload size={16} />
-                </label>
-                <input 
-                  id="avatar-upload" 
-                  type="file" 
-                  accept="image/*" 
-                  className="hidden" 
+        {/* Identidad */}
+        <Card className="bg-black/30 border-white/10 p-6 rounded-3xl md:col-span-1">
+          <div className="flex items-center gap-3">
+            <div className="rounded-2xl bg-white/5 border border-white/10 p-3">
+              <UserCircle />
+            </div>
+            <div>
+              <div className="text-sm font-black">Identidad</div>
+              <div className="text-xs text-white/55">{kycLabel}</div>
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-col items-center text-center">
+            <div className="relative w-28 h-28">
+              <img
+                src={profile.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${profile.user_id}`}
+                className="w-full h-full rounded-full border border-white/10 bg-black/40 object-cover"
+                alt="Avatar"
+              />
+              <label className="absolute bottom-0 right-0 cursor-pointer rounded-full bg-[#00F0FF] text-black p-2 border border-white/10">
+                <Upload size={16} />
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
                   onChange={(e) => setAvatarFile(e.target.files?.[0] || null)}
                 />
-             </div>
-           </div>
-           
-           <h2 className="text-xl font-bold text-white mb-1">{profile?.full_name || "Usuario"}</h2>
-           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-xs font-bold border border-emerald-500/20 mb-4">
-              <ShieldCheck size={12} /> Verificado
-           </div>
+              </label>
+            </div>
 
-           {avatarFile && (
-             <Button onClick={uploadAvatar} disabled={uploading} className="w-full bg-white text-black hover:bg-zinc-200 mb-2">
-               {uploading ? "Subiendo..." : "Guardar Foto"}
-             </Button>
-           )}
-           {msg && <p className="text-xs text-[#00F0FF] mt-2">{msg}</p>}
+            <div className="mt-4 text-xs text-white/55">User ID</div>
+            <div className="font-mono text-xs text-white/75 break-all">{profile.user_id}</div>
+
+            {avatarFile ? (
+              <Button onClick={doUploadAvatar} disabled={uploading} className="mt-4 w-full font-black">
+                {uploading ? "Subiendo…" : "Guardar avatar"}
+              </Button>
+            ) : null}
+
+            <div className="mt-5 w-full">
+              <div className="text-xs text-white/55 mb-2">Username</div>
+              <Input value={username} onChange={(e) => setUsername(e.target.value)} />
+              <Button onClick={saveUsername} disabled={saving} className="mt-3 w-full font-black">
+                {saving ? "Guardando…" : "Guardar"}
+              </Button>
+            </div>
+
+            <div className="mt-5 w-full rounded-2xl border border-white/10 bg-black/30 p-4 text-left">
+              {kyc === "approved" || kyc === "verified" ? (
+                <div className="flex items-start gap-2 text-xs text-white/75">
+                  <ShieldCheck size={16} className="text-[#32CD32] mt-0.5" />
+                  KYC aprobado. Puedes solicitar retiros.
+                </div>
+              ) : (
+                <div className="flex items-start gap-2 text-xs text-white/75">
+                  <ShieldAlert size={16} className="text-[#FFD700] mt-0.5" />
+                  Para retirar necesitas KYC aprobado. Pídelo en <Link className="underline" href="/support">Soporte</Link>.
+                </div>
+              )}
+            </div>
+          </div>
         </Card>
 
-        {/* TARJETA DE BILLETERA */}
-        <Card className="bg-[#1A1A1D] border-white/5 p-6 rounded-2xl md:col-span-2">
-           <div className="flex items-center gap-3 mb-6 border-b border-white/5 pb-4">
-              <CreditCard className="text-[#00F0FF]" />
-              <h3 className="font-bold text-white">Resumen de Bóveda</h3>
-           </div>
+        {/* Wallet resumen */}
+        <Card className="bg-black/30 border-white/10 p-6 rounded-3xl md:col-span-2">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <div className="text-lg font-black">Bóveda</div>
+              <div className="text-xs text-white/55">Saldo real, bono y bloqueado.</div>
+            </div>
+            <Link href="/wallet">
+              <Button variant="secondary" className="font-black">Abrir bóveda</Button>
+            </Link>
+          </div>
 
-           <div className="grid grid-cols-3 gap-4">
-              <div className="bg-black/30 p-4 rounded-xl border border-white/5">
-                 <div className="text-xs text-zinc-500 uppercase font-bold mb-1">Saldo Real</div>
-                 <div className="text-xl font-mono font-bold text-white">${wallet.formatted}</div>
-              </div>
-              <div className="bg-black/30 p-4 rounded-xl border border-white/5">
-                 <div className="text-xs text-zinc-500 uppercase font-bold mb-1">Bono</div>
-                 <div className="text-xl font-mono font-bold text-[#FF0099]">${wallet.formattedBonus || "0.00"}</div>
-              </div>
-              <div className="bg-black/30 p-4 rounded-xl border border-white/5">
-                 <div className="text-xs text-zinc-500 uppercase font-bold mb-1">En Juego</div>
-                 <div className="text-xl font-mono font-bold text-zinc-400">${wallet.formattedLocked || "0.00"}</div>
-              </div>
-           </div>
+          <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+              <div className="text-xs text-white/55">Saldo real</div>
+              <div className="mt-1 text-lg font-black tabular-nums">{wallet.formatted}</div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+              <div className="text-xs text-white/55">Bono</div>
+              <div className="mt-1 text-lg font-black tabular-nums text-[#FF0099]">{wallet.formattedBonus}</div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+              <div className="text-xs text-white/55">Bloqueado</div>
+              <div className="mt-1 text-lg font-black tabular-nums text-white/70">{wallet.formattedLocked}</div>
+            </div>
+          </div>
 
-           <div className="mt-6 p-4 bg-[#00F0FF]/5 rounded-xl border border-[#00F0FF]/10 flex justify-between items-center">
-              <div>
-                <div className="text-sm font-bold text-[#00F0FF]">Nivel de Cashback</div>
-                <div className="text-xs text-zinc-400">Basado en tu juego mensual</div>
+          {/* Afiliados */}
+          <div className="mt-6 rounded-3xl border border-white/10 bg-black/30 p-5">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Users size={18} />
+                <div className="font-black">Afiliados</div>
               </div>
-              <div className="text-2xl font-black text-white">
-                {(profile?.cashback_rate ?? 0) * 100}%
-              </div>
-           </div>
+              <Link href="/affiliates">
+                <Button variant="secondary" className="font-black">Ver panel</Button>
+              </Link>
+            </div>
+
+            <div className="mt-3 text-sm text-white/65">
+              {aff?.ok && aff.link ? (
+                <>
+                  Tu link: <span className="font-mono text-white/80 break-all">{aff.link}</span>
+                </>
+              ) : (
+                "Tu link se genera en el panel de afiliados."
+              )}
+            </div>
+          </div>
+
+          {/* Seguridad */}
+          <div className="mt-6 rounded-3xl border border-white/10 bg-black/30 p-5">
+            <div className="flex items-center gap-2">
+              <KeyRound size={18} />
+              <div className="font-black">Seguridad</div>
+            </div>
+            <div className="mt-2 text-sm text-white/65">
+              Si quieres cambiar tu contraseña, te mandamos un correo de recuperación.
+            </div>
+            <Button onClick={resetPassword} className="mt-4 font-black">
+              Enviar correo para cambiar contraseña
+            </Button>
+          </div>
         </Card>
-
       </div>
     </div>
   );
