@@ -20,11 +20,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
-type NavItem = {
-  href: string;
-  label: string;
-  icon: any;
-};
+type NavItem = { href: string; label: string; icon: any };
 
 const primaryNav: NavItem[] = [
   { href: "/lobby", label: "Lobby", icon: LayoutGrid },
@@ -34,7 +30,7 @@ const primaryNav: NavItem[] = [
 ];
 
 const drawerNav: NavItem[] = [
-  { href: "/wallet", label: "Bóveda", icon: Wallet },
+  { href: "/wallet", label: "Chido Wallet", icon: Wallet },
   { href: "/affiliates", label: "Afiliados", icon: Users },
   { href: "/support", label: "Soporte", icon: Headphones },
   { href: "/legal", label: "Legal", icon: ShieldCheck },
@@ -49,13 +45,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const pathname = usePathname();
   const router = useRouter();
   const { formatted, loading } = useWalletBalance();
-
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const centerAction = useMemo(
-    () => ({ href: "/games/taco-slot", label: "Taco", icon: LayoutGrid }),
-    []
-  );
+  const centerAction = useMemo(() => ({ href: "/games/taco-slot", label: "Jugar", icon: LayoutGrid }), []);
 
   const signOut = async () => {
     try {
@@ -71,10 +63,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <div className="min-h-screen bg-[#0a0a0b] text-white">
-      {/* ========== MOBILE HEADER ========== */}
+      {/* MOBILE HEADER */}
       <header className="lg:hidden fixed top-0 left-0 right-0 z-50 glass-panel border-b border-white/5">
         <div className="h-14 px-4 flex items-center justify-between">
           <Link href="/lobby" className="flex items-center gap-2">
+            {/* isotipo-color = icon pro */}
             <Logo variant="iso-color" size={34} />
           </Link>
 
@@ -82,11 +75,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             <Link
               href="/wallet"
               className="flex items-center gap-2 rounded-full bg-black/40 border border-white/10 px-3 py-2"
-              aria-label="Abrir bóveda"
+              aria-label="Abrir Chido Wallet"
             >
-              <span className="text-[10px] uppercase tracking-widest text-white/60 font-bold">
-                Saldo
-              </span>
+              <span className="text-[10px] uppercase tracking-widest text-white/60 font-bold">Saldo</span>
               <span className="text-sm font-black tabular-nums text-[#32CD32]">
                 {loading ? "..." : formatted}
               </span>
@@ -103,7 +94,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         </div>
       </header>
 
-      {/* ========== DESKTOP SIDEBAR ========== */}
+      {/* DESKTOP SIDEBAR */}
       <div className="hidden lg:flex min-h-screen">
         <aside className="w-64 bg-[#121214] border-r border-white/5 flex flex-col">
           <div className="h-20 flex items-center px-6 border-b border-white/5">
@@ -142,9 +133,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           </nav>
 
           <div className="p-4 border-t border-white/5">
-            <div className="text-[10px] text-zinc-600 px-1">
-              v1.0.0 • Chido Casino
-            </div>
+            <div className="text-[10px] text-zinc-600 px-1">v1.0.0 • Chido Casino</div>
           </div>
         </aside>
 
@@ -156,12 +145,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               className="group flex items-center gap-3 bg-[#1A1A1D] hover:bg-[#222] border border-white/10 rounded-full px-1 pl-4 py-1 transition-all"
             >
               <div className="flex flex-col items-end leading-none mr-1">
-                <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
-                  Saldo
-                </span>
-                <span className="text-sm font-bold tabular-nums text-white">
-                  {loading ? "..." : formatted}
-                </span>
+                <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Chido Wallet</span>
+                <span className="text-sm font-bold tabular-nums text-white">{loading ? "..." : formatted}</span>
               </div>
               <div className="h-8 w-8 rounded-full bg-[#00F0FF] text-black flex items-center justify-center font-bold">
                 <Wallet size={16} />
@@ -175,22 +160,20 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         </div>
       </div>
 
-      {/* ========== MOBILE CONTENT WRAPPER ========== */}
-      <main className="lg:hidden pt-14 pb-24 px-4">
+      {/* MOBILE CONTENT */}
+      <main className="lg:hidden pt-14 pb-28 px-4">
         <div className="max-w-3xl mx-auto">{children}</div>
       </main>
 
-      {/* ========== MOBILE BOTTOM NAV ========== */}
+      {/* MOBILE BOTTOM NAV (safe-area) */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50">
-        <div className="mx-auto max-w-3xl px-4 pb-4">
+        <div className="mx-auto max-w-3xl px-4 pb-[calc(env(safe-area-inset-bottom)+16px)]">
           <div className="relative rounded-3xl border border-white/10 bg-black/60 backdrop-blur-xl">
             <div className="grid grid-cols-5 items-center">
               <Link
                 href="/lobby"
                 className={`py-3 flex flex-col items-center gap-1 text-[11px] font-bold ${
-                  isActive(pathname, "/lobby")
-                    ? "text-[#00F0FF]"
-                    : "text-white/60"
+                  isActive(pathname, "/lobby") ? "text-[#00F0FF]" : "text-white/60"
                 }`}
                 aria-label="Lobby"
               >
@@ -201,9 +184,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               <Link
                 href="/games/crash"
                 className={`py-3 flex flex-col items-center gap-1 text-[11px] font-bold ${
-                  isActive(pathname, "/games/crash")
-                    ? "text-[#00F0FF]"
-                    : "text-white/60"
+                  isActive(pathname, "/games/crash") ? "text-[#00F0FF]" : "text-white/60"
                 }`}
                 aria-label="Crash"
               >
@@ -211,13 +192,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 Crash
               </Link>
 
-              <Link
-                href={centerAction.href}
-                className="py-3 flex flex-col items-center gap-1 text-[11px] font-bold"
-                aria-label="Taco Slot"
-              >
+              <Link href={centerAction.href} className="py-3 flex flex-col items-center gap-1 text-[11px] font-bold" aria-label="Jugar">
                 <div className="-mt-7 h-14 w-14 rounded-full bg-gradient-to-b from-[#FF0099] to-[#FF3D00] flex items-center justify-center shadow-[0_0_30px_rgba(255,0,153,0.35)] border border-white/10">
-                  <Logo variant="iso-bw" size={28} className="hover:scale-100" />
+                  {/* isotipo-color para CTA central */}
+                  <Logo variant="iso-color" size={28} className="hover:scale-100" />
                 </div>
                 <span className="text-white/80">Jugar</span>
               </Link>
@@ -225,9 +203,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               <Link
                 href="/promos"
                 className={`py-3 flex flex-col items-center gap-1 text-[11px] font-bold ${
-                  isActive(pathname, "/promos")
-                    ? "text-[#FF0099]"
-                    : "text-white/60"
+                  isActive(pathname, "/promos") ? "text-[#FF0099]" : "text-white/60"
                 }`}
                 aria-label="Bonos"
               >
@@ -238,9 +214,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               <Link
                 href="/profile"
                 className={`py-3 flex flex-col items-center gap-1 text-[11px] font-bold ${
-                  isActive(pathname, "/profile")
-                    ? "text-[#00F0FF]"
-                    : "text-white/60"
+                  isActive(pathname, "/profile") ? "text-[#00F0FF]" : "text-white/60"
                 }`}
                 aria-label="Perfil"
               >
@@ -252,19 +226,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         </div>
       </nav>
 
-      {/* ========== MOBILE DRAWER ========== */}
+      {/* MOBILE DRAWER */}
       {drawerOpen ? (
         <div className="lg:hidden fixed inset-0 z-[60]">
-          <div
-            className="absolute inset-0 bg-black/70"
-            onClick={() => setDrawerOpen(false)}
-          />
+          <div className="absolute inset-0 bg-black/70" onClick={() => setDrawerOpen(false)} />
 
           <div className="absolute top-0 right-0 h-full w-[86%] max-w-sm bg-[#121214] border-l border-white/10 p-5">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Logo variant="full" size={110} className="hover:scale-100" />
-              </div>
+              <Logo variant="full" size={110} className="hover:scale-100" />
               <button
                 onClick={() => setDrawerOpen(false)}
                 className="h-10 w-10 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center"
@@ -275,19 +244,15 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             </div>
 
             <div className="mt-4 rounded-2xl border border-white/10 bg-black/30 p-4">
-              <div className="text-[10px] uppercase tracking-widest text-white/60 font-bold">
-                Saldo
-              </div>
-              <div className="mt-1 text-lg font-black tabular-nums text-[#32CD32]">
-                {loading ? "..." : formatted}
-              </div>
+              <div className="text-[10px] uppercase tracking-widest text-white/60 font-bold">Saldo</div>
+              <div className="mt-1 text-lg font-black tabular-nums text-[#32CD32]">{loading ? "..." : formatted}</div>
               <Link
                 href="/wallet"
                 onClick={() => setDrawerOpen(false)}
                 className="mt-3 inline-flex items-center gap-2 rounded-xl bg-white text-black px-4 py-2 text-sm font-black"
               >
                 <Wallet size={16} />
-                Abrir bóveda
+                Abrir Chido Wallet
               </Link>
             </div>
 
@@ -301,9 +266,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                     href={item.href}
                     onClick={() => setDrawerOpen(false)}
                     className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold ${
-                      active
-                        ? "bg-white/10 text-white"
-                        : "text-white/70 hover:bg-white/5 hover:text-white"
+                      active ? "bg-white/10 text-white" : "text-white/70 hover:bg-white/5 hover:text-white"
                     }`}
                   >
                     <Icon size={18} className={active ? "text-[#00F0FF]" : ""} />
