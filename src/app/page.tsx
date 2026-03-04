@@ -2,7 +2,6 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-// Nota: usamos <img> en badges para evitar bloqueo por CSP/remotePatterns cuando el src viene de Score Store.
 import clsx from "clsx";
 import {
   LayoutDashboard,
@@ -14,9 +13,14 @@ import {
   Shield,
   RefreshCcw,
   Search,
+  Plus,
   X,
+  Pencil,
+  Trash2,
   HelpCircle,
-  ExternalLink,
+  LogOut,
+  Menu,
+  ChevronDown,
   Truck,
   CreditCard,
   PiggyBank,
@@ -25,8 +29,9 @@ import {
   Clock,
   Activity,
   AlertTriangle,
-  LogOut,
-  Menu,
+  CheckCircle2,
+  ExternalLink,
+  Copy,
 } from "lucide-react";
 
 import AiDock from "./ai-dock";
@@ -34,12 +39,10 @@ import { supabase, SUPABASE_CONFIGURED } from "@/lib/supabase";
 import { hasPerm, canManageUsers } from "@/lib/authz";
 
 /* =========================================================
-   BRAND (white + pro)
+   Brand
 ========================================================= */
 const BRAND = {
   name: "UnicOs",
-  accent: "#0ea5e9", // sky-500
-  accent2: "#2563eb", // blue-600
   grad: "linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)",
 };
 
@@ -57,6 +60,7 @@ const isUuid = (s) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(s || "").trim());
 
 const normEmail = (s) => String(s || "").trim().toLowerCase();
+
 const num = (v) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
@@ -109,7 +113,7 @@ function Toast({ t }) {
 
 /**
  * HelpTip: icono "?" pequeño, click -> explicación
- * No usa librerías extra. Cierra al click fuera / Escape.
+ * Cierra al click fuera / Escape.
  */
 function HelpTip({ title = "Ayuda", text }) {
   const [open, setOpen] = useState(false);
@@ -146,7 +150,7 @@ function HelpTip({ title = "Ayuda", text }) {
       </button>
 
       {open ? (
-        <div className="absolute z-[9999] top-9 right-0 w-[320px] max-w-[85vw]">
+        <div className="absolute z-[9999] top-9 right-0 w-[330px] max-w-[85vw]">
           <div className="rounded-2xl border border-slate-200 bg-white shadow-2xl p-4">
             <p className="text-xs font-black text-slate-900">{title}</p>
             <p className="text-sm font-semibold text-slate-600 leading-relaxed mt-1">{text}</p>
@@ -164,14 +168,79 @@ function HelpTip({ title = "Ayuda", text }) {
   );
 }
 
+function ImgBadge({ src, alt }) {
+  const resolveSrc = (s) => {
+    const v = String(s || "").trim();
+    if (!v) return "";
+    if (/^https?:\/\//i.test(v)) return v;
+    if (v.startsWith("assets/")) return `${String(SCORESTORE_BASE).replace(/\/+$/, "")}/${v}`;
+    if (v.startsWith("/")) return v;
+    return v;
+  };
+
+  const finalSrc = resolveSrc(src);
+
+  return (
+    <div className="w-12 h-12 rounded-2xl border border-slate-200 bg-white shadow-sm flex items-center justify-center overflow-hidden relative">
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-50 to-white" />
+      {finalSrc ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={finalSrc}
+          alt={alt || "img"}
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          className="w-full h-full object-contain p-2 relative"
+        />
+      ) : (
+        <span className="text-xs font-black text-slate-400 relative">IMG</span>
+      )}
+    </div>
+  );
+}
+
+function MiniKPI({ label, value, icon, note }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{label}</p>
+          <p className="text-lg font-black text-slate-900 mt-1">{String(value ?? "—")}</p>
+          {note ? <p className="text-[11px] font-bold text-slate-500 mt-1">{note}</p> : null}
+        </div>
+        <div className="w-9 h-9 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-center text-slate-700">
+          {icon}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Divider() {
+  return <div className="h-px bg-slate-200 my-6" />;
+}
+
+function SkeletonLine() {
+  return <div className="h-4 rounded-xl bg-slate-100 animate-pulse" />;
+}
+
+function EmptyState({ title, text }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <p className="text-sm font-black text-slate-900">{title}</p>
+      <p className="text-sm font-semibold text-slate-600 mt-1">{text}</p>
+    </div>
+  );
+}
+
 /* =========================================================
-   Supabase “org-safe” accessors (org_id / organization_id)
+   Supabase org-safe role
 ========================================================= */
 async function selectAdminRole(orgId, user) {
   const email = normEmail(user?.email);
   const uid = user?.id || "00000000-0000-0000-0000-000000000000";
 
-  // Try org_id first
   const q1 = await supabase
     .from("admin_users")
     .select("role,is_active,email,user_id,org_id,organization_id")
@@ -183,7 +252,6 @@ async function selectAdminRole(orgId, user) {
 
   if (!q1.error && q1.data?.is_active) return String(q1.data.role || "").toLowerCase();
 
-  // Fallback organization_id
   const q2 = await supabase
     .from("admin_users")
     .select("role,is_active,email,user_id,org_id,organization_id")
@@ -194,136 +262,72 @@ async function selectAdminRole(orgId, user) {
     .maybeSingle();
 
   if (!q2.error && q2.data?.is_active) return String(q2.data.role || "").toLowerCase();
+
   return null;
 }
 
-function ImgBadge({ src, alt }) {
-  // “cuadradas con fondo blanco” -> contenedor pro
-  const resolveSrc = (s) => {
-    const v = String(s || "").trim();
-    if (!v) return "";
-    if (/^https?:\/\//i.test(v)) return v;
-    // Si viene como assets/... (Score Store), lo resolvemos al dominio de Score Store
-    if (v.startsWith("assets/")) return `${String(SCORESTORE_BASE).replace(/\/+$/, "")}/${v}`;
-    // paths absolutos
-    if (v.startsWith("/")) return v;
-    return v;
-  };
-
-  const finalSrc = resolveSrc(src);
-
-  return (
-    <div className="w-10 h-10 rounded-2xl border border-slate-200 bg-white overflow-hidden flex items-center justify-center shadow-sm">
-      {finalSrc ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={finalSrc} alt={alt || "IMG"} className="w-full h-full object-contain" />
-      ) : (
-        <span className="text-xs font-black text-slate-300">IMG</span>
-      )}
-    </div>
-  );
-}
-
-function SkeletonLine() {
-  return <div className="h-5 rounded-xl bg-slate-200/70 animate-pulse" />;
-}
-
-function EmptyState({ title, text }) {
-  return (
-    <div className="rounded-[2rem] border border-slate-200 bg-white shadow-sm p-8">
-      <p className="text-lg font-black text-slate-900">{title}</p>
-      <p className="text-sm font-semibold text-slate-600 mt-2 leading-relaxed">{text}</p>
-    </div>
-  );
-}
-
-function MiniKPI({ label, value, note, icon }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-2">
-          <span className="text-slate-500">{icon}</span>
-          {label}
-        </span>
-        {note ? <span className="text-[10px] font-black text-slate-400">{note}</span> : null}
-      </p>
-      <p className="text-lg font-black text-slate-900 mt-2">{String(value ?? "—")}</p>
-    </div>
-  );
-}
-
-export default function HomePage() {
+/* =========================================================
+   Page
+========================================================= */
+export default function Page() {
   const { toast, show } = useToast();
 
   const [ready, setReady] = useState(false);
   const [user, setUser] = useState(null);
-
-  const [orgId] = useState(SCORE_ORG_ID);
-
   const [role, setRole] = useState(null);
-  const canWrite = !!role && hasPerm(role, "write");
-  const canUsers = !!role && canManageUsers(role);
+  const [orgId, setOrgId] = useState(SCORE_ORG_ID);
 
-  const [active, setActive] = useState("dashboard");
   const [navOpen, setNavOpen] = useState(false);
+  const [active, setActive] = useState("dashboard");
 
+  const [accessToken, setAccessToken] = useState("");
+
+  const canWrite = useMemo(() => (role ? hasPerm(role, "write") : false), [role]);
+  const canUsers = useMemo(() => (role ? canManageUsers(role) : false), [role]);
+
+  // Bootstrap auth + token
   useEffect(() => {
-    const run = async () => {
+    let sub = null;
+
+    const boot = async () => {
       if (!SUPABASE_CONFIGURED) {
+        show({ type: "bad", text: "Falta configurar Supabase en .env (URL / KEY)." });
         setReady(true);
         return;
       }
-      const { data } = await supabase.auth.getSession();
-      const u = data?.session?.user || null;
-      setUser(u);
+
+      const { data: sess0 } = await supabase.auth.getSession();
+      setAccessToken(sess0?.session?.access_token || "");
+
+      const { data } = await supabase.auth.getUser();
+      setUser(data?.user || null);
+
+      sub = supabase.auth.onAuthStateChange(async (_e, session) => {
+        setUser(session?.user || null);
+        setAccessToken(session?.access_token || "");
+      }).data?.subscription;
+
       setReady(true);
     };
 
-    run().catch(() => setReady(true));
-  }, []);
+    boot().catch(() => setReady(true));
 
+    return () => {
+      try {
+        sub?.unsubscribe?.();
+      } catch {}
+    };
+  }, [show]);
+
+  // Resolve role
   useEffect(() => {
     const run = async () => {
-      if (!user || !orgId) return;
+      if (!user || !isUuid(orgId)) return;
       const r = await selectAdminRole(orgId, user);
       setRole(r);
     };
     run().catch(() => {});
   }, [user, orgId]);
-
-  // ✅ TOKEN REAL para APIs server-side (Stripe/Envía)
-  const [authToken, setAuthToken] = useState("");
-
-  useEffect(() => {
-    let unsub = null;
-
-    const bootToken = async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        const t = data?.session?.access_token || "";
-        setAuthToken(t);
-      } catch {
-        setAuthToken("");
-      }
-
-      try {
-        const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-          setAuthToken(session?.access_token || "");
-        });
-        unsub = data?.subscription || null;
-      } catch {
-        // ignore
-      }
-    };
-
-    bootToken();
-
-    return () => {
-      try {
-        unsub?.unsubscribe?.();
-      } catch {}
-    };
-  }, []);
 
   const logout = async () => {
     try {
@@ -338,7 +342,7 @@ export default function HomePage() {
      Views
   ========================================================= */
 
-  function DashboardView({ orgId, token, toast }) {
+  function DashboardView({ orgId, toast }) {
     const [busy, setBusy] = useState(false);
 
     const [kpi, setKpi] = useState({
@@ -349,10 +353,7 @@ export default function HomePage() {
       stripeFee: 0,
       stripeMode: "estimate",
       enviaCost: 0,
-      sessions: [],
       updatedAt: null,
-      stripeDash: null,
-      enviaDash: null,
     });
 
     const load = useCallback(async () => {
@@ -374,10 +375,9 @@ export default function HomePage() {
         const orders = list.length;
         const avg = orders ? gross / orders : 0;
 
-        // Envía cost: desde shipping_labels.raw (cuando existe)
         const { data: labels } = await supabase
           .from("shipping_labels")
-          .select("stripe_session_id, raw, created_at, org_id, organization_id")
+          .select("raw, created_at, org_id, organization_id")
           .or(`org_id.eq.${orgId},organization_id.eq.${orgId}`)
           .order("created_at", { ascending: false })
           .limit(800);
@@ -393,7 +393,7 @@ export default function HomePage() {
           return acc + total;
         }, 0);
 
-        // Stripe fee real (si API está disponible), si no estimado
+        // Stripe fee real (si API ok), si no estimado
         let stripeFee = 0;
         let stripeMode = "estimate";
 
@@ -402,9 +402,8 @@ export default function HomePage() {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              Authorization: accessToken ? `Bearer ${accessToken}` : "",
             },
-            // Nota: el backend valida por admin_users. Aquí mandamos sesiones.
             body: JSON.stringify({
               org_id: orgId,
               stripe_session_ids: list.map((x) => x.stripe_session_id).filter(Boolean),
@@ -424,38 +423,8 @@ export default function HomePage() {
           stripeMode = "estimate";
         }
 
-        // Stripe/Envía dashboards (misma info que ves en sus plataformas)
-        // Nota: requiere token (Supabase Auth) + env vars en server.
-        let stripeDash = null;
-        let enviaDash = null;
-
-        if (token) {
-          try {
-            const [sres, eres] = await Promise.all([
-              fetch(`/api/stripe/summary`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ org_id: orgId }),
-              }),
-              fetch(`/api/envia/summary`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ org_id: orgId, include_track: false }),
-              }),
-            ]);
-
-            const sj = await sres.json().catch(() => null);
-            const ej = await eres.json().catch(() => null);
-
-            if (sres.ok && sj?.ok) stripeDash = sj;
-            if (eres.ok && ej?.ok) enviaDash = ej;
-          } catch {
-            // ignore, UI mantiene costos desde Supabase
-          }
-        }
-
         const netRaw = Math.max(0, gross - stripeFee - enviaCost);
-        const net = Math.max(0, netRaw * 0.7); // no se menciona en UI
+        const net = Math.max(0, netRaw * 0.7); // no se menciona
 
         setKpi({
           gross,
@@ -465,17 +434,14 @@ export default function HomePage() {
           stripeFee,
           stripeMode,
           enviaCost,
-          sessions: list.slice(0, 12),
           updatedAt: new Date().toISOString(),
-          stripeDash,
-          enviaDash,
         });
       } catch (e) {
         toast?.({ type: "bad", text: String(e?.message || e) });
       } finally {
         setBusy(false);
       }
-    }, [orgId, toast, token]);
+    }, [orgId, toast]);
 
     useEffect(() => {
       load();
@@ -490,13 +456,13 @@ export default function HomePage() {
                 <PiggyBank size={14} className="text-sky-600" /> Ganancia Score Store
                 <HelpTip
                   title="Ganancia Score Store"
-                  text="Este indicador ya considera costos. Aquí ves el valor operativo que usa la empresa para decisiones internas."
+                  text="Este número ya considera costos. Está pensado para decisiones rápidas y evitar confusión."
                 />
               </p>
 
               <h3 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">{moneyMXN(kpi.net)}</h3>
 
-              <p className="text-sm font-semibold text-slate-600 mt-1">Resumen en tiempo real de ingresos y costos.</p>
+              <p className="text-sm font-semibold text-slate-600 mt-1">Resumen de ingresos y costos.</p>
 
               <p className="text-xs font-semibold text-slate-500 mt-2">
                 {kpi.updatedAt ? `Última actualización: ${new Date(kpi.updatedAt).toLocaleString("es-MX")}` : "—"}
@@ -528,135 +494,18 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Stripe + Envía (igual que dashboards) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="rounded-[2rem] border border-slate-200 bg-white shadow-sm p-6">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                  <CreditCard size={14} className="text-sky-600" /> Stripe (dashboard)
-                  <HelpTip
-                    title="Stripe (dashboard)"
-                    text="Esto trae datos reales desde Stripe (balance, payouts, disputas y reembolsos). Si no aparece, falta STRIPE_SECRET_KEY en el servidor o no tienes permisos."
-                  />
-                </p>
-                <h4 className="text-lg font-black text-slate-900 mt-1">Balance</h4>
-              </div>
-              <a
-                href="https://dashboard.stripe.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-3 py-2 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 font-black text-xs flex items-center gap-2"
-                title="Abrir Stripe"
-              >
-                <ExternalLink size={14} /> Abrir
-              </a>
-            </div>
-
-            {kpi.stripeDash ? (
-              <div className="mt-4 space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <MiniKPI label="Disponible" value={moneyMXN(kpi.stripeDash?.balance?.available_mxn || 0)} icon={<Wallet size={14} />} />
-                  <MiniKPI label="Pendiente" value={moneyMXN(kpi.stripeDash?.balance?.pending_mxn || 0)} icon={<Clock size={14} />} />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <MiniKPI label="Disputas (30 días)" value={String(kpi.stripeDash?.last_30_days?.disputes_count || 0)} icon={<AlertTriangle size={14} />} />
-                  <MiniKPI label="Reembolsos (30 días)" value={String(kpi.stripeDash?.last_30_days?.refunds_count || 0)} icon={<Receipt size={14} />} />
-                </div>
-
-                <p className="text-xs font-semibold text-slate-500">
-                  Última sync: {kpi.stripeDash?.updated_at ? new Date(kpi.stripeDash.updated_at).toLocaleString("es-MX") : "—"}
-                </p>
-              </div>
-            ) : (
-              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-sm font-black text-slate-900">Aún no disponible</p>
-                <p className="text-sm font-semibold text-slate-600 mt-1">
-                  Para ver esto necesitas:
-                  <br />• Iniciar sesión (token)
-                  <br />• Permiso owner/admin/finance en admin_users
-                  <br />• STRIPE_SECRET_KEY en el servidor de UnicOs
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-[2rem] border border-slate-200 bg-white shadow-sm p-6">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                  <Truck size={14} className="text-sky-600" /> Envía.com (dashboard)
-                  <HelpTip
-                    title="Envía.com (dashboard)"
-                    text="Esto trae datos reales desde Envía.com usando tu ENVIA_API_KEY. Muestra costos y últimos envíos registrados."
-                  />
-                </p>
-                <h4 className="text-lg font-black text-slate-900 mt-1">Envíos</h4>
-              </div>
-              <a
-                href="https://envia.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-3 py-2 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 font-black text-xs flex items-center gap-2"
-                title="Abrir Envía"
-              >
-                <ExternalLink size={14} /> Abrir
-              </a>
-            </div>
-
-            {kpi.enviaDash ? (
-              <div className="mt-4 space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <MiniKPI label="Guías (últimas 200)" value={String(kpi.enviaDash?.totals?.labels || 0)} icon={<Package size={14} />} />
-                  <MiniKPI label="Costo total" value={moneyMXN(kpi.enviaDash?.totals?.cost_mxn || 0)} icon={<Wallet size={14} />} />
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 overflow-hidden">
-                  <div className="px-4 py-2 bg-slate-50 border-b border-slate-200">
-                    <p className="text-xs font-black text-slate-700">Últimos envíos</p>
-                  </div>
-                  <div className="max-h-[200px] overflow-auto">
-                    {(kpi.enviaDash?.rows || []).slice(0, 8).map((r) => (
-                      <div key={r.id} className="px-4 py-3 border-b border-slate-200 last:border-b-0">
-                        <p className="text-sm font-black text-slate-900 truncate">
-                          {r.carrier || "Carrier"} · {r.tracking ? r.tracking : "Sin tracking"}
-                        </p>
-                        <p className="text-xs font-semibold text-slate-500">
-                          {r.created_at ? new Date(r.created_at).toLocaleString("es-MX") : "—"} · {moneyMXN(r.cost_mxn || 0)}
-                        </p>
-                      </div>
-                    ))}
-                    {!((kpi.enviaDash?.rows || []).length) ? (
-                      <div className="px-4 py-6">
-                        <p className="text-sm font-semibold text-slate-600">Aún no hay guías registradas.</p>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-
-                <p className="text-xs font-semibold text-slate-500">
-                  Última sync: {kpi.enviaDash?.updated_at ? new Date(kpi.enviaDash.updated_at).toLocaleString("es-MX") : "—"}
-                </p>
-              </div>
-            ) : (
-              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-sm font-black text-slate-900">Aún no disponible</p>
-                <p className="text-sm font-semibold text-slate-600 mt-1">
-                  Para ver esto necesitas:
-                  <br />• Iniciar sesión (token)
-                  <br />• Permiso owner/admin/ops/finance en admin_users
-                  <br />• ENVIA_API_KEY en el servidor de UnicOs
-                </p>
-              </div>
-            )}
-          </div>
+        <div className="rounded-[2rem] border border-slate-200 bg-white shadow-sm p-6">
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-2">
+            <Activity size={14} className="text-slate-700" /> Siguiente paso
+            <HelpTip
+              title="Siguiente paso"
+              text="Cuando Score Store quede 100% final, aquí se activa la operación completa: garantías, devoluciones, tickets y control total."
+            />
+          </p>
+          <p className="text-sm font-semibold text-slate-700">
+            Ya tienes datos reales. El módulo “Operación” te enseña Stripe y Envía.com de forma entendible.
+          </p>
         </div>
-
-        <EmptyState
-          title="Siguiente (control total)"
-          text="Cuando Score Store quede final, aquí activamos el espejo completo: cambiar temporada/tema, copys, promo bar, pixel y automatización de operación."
-        />
       </div>
     );
   }
@@ -792,6 +641,7 @@ export default function HomePage() {
 
       const image_url = String(form.image_url || "").trim() || (images[0] || null);
 
+      // Compat con tu tabla (ya vimos que tiene NOT NULL: org_id, base_mxn, sub_section, img)
       const payload = {
         org_id: orgId,
         organization_id: orgId, // compat
@@ -802,14 +652,15 @@ export default function HomePage() {
         price_cents: Math.round(price_mxn * 100),
         stock: Number.isFinite(stock) ? Math.max(0, Math.floor(stock)) : 0,
         section_id,
+        sub_section: section_id,
         rank: Number.isFinite(rank) ? rank : 999,
         is_active: !!form.is_active,
+        active: !!form.is_active,
         images: images.length ? images : [],
         sizes: sizes.length ? sizes : [],
         image_url,
-        img: image_url || (images[0] || ""), // compat con schema viejo
-        base_mxn: price_mxn, // schema viejo requiere base_mxn NOT NULL
-        sub_section: section_id, // schema viejo requiere sub_section NOT NULL
+        img: image_url || (images[0] || ""),
+        base_mxn: price_mxn,
         updated_at: new Date().toISOString(),
       };
 
@@ -849,7 +700,7 @@ export default function HomePage() {
       try {
         const { error } = await supabase
           .from("products")
-          .update({ deleted_at: new Date().toISOString(), is_active: false, updated_at: new Date().toISOString() })
+          .update({ deleted_at: new Date().toISOString(), is_active: false, active: false, updated_at: new Date().toISOString() })
           .eq("id", row.id);
 
         if (error) throw error;
@@ -870,14 +721,12 @@ export default function HomePage() {
             <div className="flex items-center gap-2">
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Catálogo</p>
               <HelpTip
-                title="¿Para qué sirve Catálogo?"
-                text="Aquí se administran los productos que aparecen en Score Store. Lo que edites aquí alimenta el sitio en vivo."
+                title="Catálogo"
+                text="Aquí administras productos reales. Lo que edites aquí se refleja en Score Store (si el sitio está configurado para leer Supabase)."
               />
             </div>
             <h4 className="text-lg font-black text-slate-900">Productos (en vivo)</h4>
-            <p className="text-sm font-semibold text-slate-600">
-              Estos datos alimentan Score Store en tiempo real (Netlify Functions → Supabase).
-            </p>
+            <p className="text-sm font-semibold text-slate-600">Evita tecnicismos: nombre, precio, stock, imágenes.</p>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
@@ -906,7 +755,7 @@ export default function HomePage() {
                 canWrite ? "bg-slate-900 text-white hover:bg-slate-800" : "bg-slate-200 text-slate-500 cursor-not-allowed"
               )}
             >
-              <Package size={16} /> Nuevo
+              <Plus size={16} /> Nuevo
             </button>
           </div>
         </div>
@@ -929,7 +778,7 @@ export default function HomePage() {
                 <tr key={r.id} className="border-t border-slate-200">
                   <td className="py-3 pr-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <ImgBadge src={r?.image_url} alt={r?.name || "Producto"} />
+                      <ImgBadge src={r?.image_url || (Array.isArray(r?.images) ? r.images[0] : "")} alt={r?.name || "Producto"} />
                       <div className="min-w-0">
                         <p className="text-sm font-black text-slate-900 truncate">{r?.name || "—"}</p>
                         <p className="text-xs font-semibold text-slate-500 truncate">Rank: {String(r?.rank ?? "—")}</p>
@@ -965,24 +814,24 @@ export default function HomePage() {
                         disabled={!canWrite}
                         className={clsx(
                           "px-3 py-2 rounded-2xl font-black text-sm border",
-                          canWrite
-                            ? "border-slate-200 bg-white hover:bg-slate-50 text-slate-900"
-                            : "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed"
+                          canWrite ? "border-slate-200 bg-white hover:bg-slate-50 text-slate-900" : "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed"
                         )}
+                        title="Editar"
+                        aria-label="Editar"
                       >
-                        Editar
+                        <Pencil size={16} />
                       </button>
                       <button
                         onClick={() => softDelete(r)}
                         disabled={!canWrite}
                         className={clsx(
                           "px-3 py-2 rounded-2xl font-black text-sm border",
-                          canWrite
-                            ? "border-red-200 bg-red-50 hover:bg-red-100 text-red-700"
-                            : "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed"
+                          canWrite ? "border-red-200 bg-red-50 hover:bg-red-100 text-red-700" : "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed"
                         )}
+                        title="Eliminar"
+                        aria-label="Eliminar"
                       >
-                        Eliminar
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </td>
@@ -1003,27 +852,17 @@ export default function HomePage() {
         {/* Modal */}
         {open ? (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-            <div
-              className="absolute inset-0 bg-black/40"
-              onClick={closeModal}
-              role="button"
-              aria-label="Cerrar modal"
-            />
+            <div className="absolute inset-0 bg-black/40" onClick={closeModal} role="button" aria-label="Cerrar modal" />
             <div className="relative w-full max-w-3xl rounded-[2rem] border border-slate-200 bg-white shadow-xl p-6">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">
                     {editing?.id ? "Editar" : "Nuevo"} producto
                   </p>
-                  <h4 className="text-lg font-black text-slate-900">
-                    {editing?.id ? editing?.name || "Producto" : "Crear producto"}
-                  </h4>
+                  <h4 className="text-lg font-black text-slate-900">{editing?.id ? (editing?.name || "Producto") : "Crear producto"}</h4>
                 </div>
 
-                <button
-                  onClick={closeModal}
-                  className="w-10 h-10 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center"
-                >
+                <button onClick={closeModal} className="w-10 h-10 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center">
                   <X size={18} />
                 </button>
               </div>
@@ -1048,18 +887,23 @@ export default function HomePage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-black text-slate-700">Precio MXN</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black text-slate-700">Precio MXN</label>
+                    <HelpTip title="Precio" text="Este es el precio que verá el cliente en la tienda." />
+                  </div>
                   <input
                     value={form.price_mxn}
                     onChange={(e) => setForm((p) => ({ ...p, price_mxn: e.target.value }))}
                     inputMode="decimal"
                     className="mt-1 w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white font-semibold text-slate-900 outline-none"
                   />
-                  <p className="text-[11px] font-semibold text-slate-500 mt-1">Stripe usa centavos automáticamente.</p>
                 </div>
 
                 <div>
-                  <label className="text-xs font-black text-slate-700">Stock</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black text-slate-700">Stock</label>
+                    <HelpTip title="Stock" text="Si está en 0, es mejor marcarlo como 'agotado' o desactivarlo para evitar problemas." />
+                  </div>
                   <input
                     value={form.stock}
                     onChange={(e) => setForm((p) => ({ ...p, stock: e.target.value }))}
@@ -1069,7 +913,10 @@ export default function HomePage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-black text-slate-700">Sección (section_id)</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black text-slate-700">Sección</label>
+                    <HelpTip title="Sección" text="Ejemplo: EDICION_2025, BAJA_500, BAJA_400. Sirve para ordenar el catálogo." />
+                  </div>
                   <input
                     value={form.section_id}
                     onChange={(e) => setForm((p) => ({ ...p, section_id: e.target.value }))}
@@ -1078,7 +925,10 @@ export default function HomePage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-black text-slate-700">Rank (orden)</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black text-slate-700">Rank (orden)</label>
+                    <HelpTip title="Orden" text="Número más pequeño = aparece más arriba en la tienda." />
+                  </div>
                   <input
                     value={form.rank}
                     onChange={(e) => setForm((p) => ({ ...p, rank: e.target.value }))}
@@ -1122,8 +972,11 @@ export default function HomePage() {
                     onChange={(e) => setForm((p) => ({ ...p, images_lines: e.target.value }))}
                     rows={4}
                     className="mt-1 w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white font-semibold text-slate-900 outline-none"
-                    placeholder="https://.../img1.webp&#10;https://.../img2.webp"
+                    placeholder="https://.../img1.webp&#10;assets/EDICION_2025/hoodie.webp&#10;https://.../img2.webp"
                   />
+                  <p className="text-[11px] font-semibold text-slate-500 mt-1">
+                    Tip: si pones <b>assets/...</b>, UnicOs lo resuelve automático a Score Store.
+                  </p>
                 </div>
 
                 <div className="md:col-span-2 flex items-center justify-between gap-3">
@@ -1159,7 +1012,7 @@ export default function HomePage() {
               </div>
 
               <p className="text-[11px] font-semibold text-slate-500 mt-4">
-                Nota: Score Store consume estos datos vía <code>/.netlify/functions/catalog</code> y valida precios en checkout.
+                Nota: la tienda valida estos datos. Mantén nombres claros y fotos correctas.
               </p>
             </div>
           </div>
@@ -1168,13 +1021,349 @@ export default function HomePage() {
     );
   }
 
+  function OperationView({ orgId, toast }) {
+    const [busy, setBusy] = useState(false);
+
+    const [stripe, setStripe] = useState(null);
+    const [envia, setEnvia] = useState(null);
+
+    const copy = async (txt) => {
+      try {
+        await navigator.clipboard.writeText(String(txt || ""));
+        toast?.({ type: "ok", text: "Copiado." });
+      } catch {
+        toast?.({ type: "bad", text: "No se pudo copiar." });
+      }
+    };
+
+    const load = useCallback(async () => {
+      if (!orgId) return;
+
+      setBusy(true);
+      try {
+        // Stripe Summary
+        const sRes = await fetch("/api/stripe/summary", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: accessToken ? `Bearer ${accessToken}` : "",
+          },
+          body: JSON.stringify({ org_id: orgId }),
+        });
+        const sJson = await sRes.json().catch(() => ({}));
+        if (sRes.ok && sJson?.ok) setStripe(sJson);
+        else setStripe({ ok: false, error: sJson?.error || "No se pudo leer Stripe." });
+
+        // Envía Summary (incluye tracking si existe tracking_number)
+        const eRes = await fetch("/api/envia/summary", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: accessToken ? `Bearer ${accessToken}` : "",
+          },
+          body: JSON.stringify({ org_id: orgId, include_track: true }),
+        });
+        const eJson = await eRes.json().catch(() => ({}));
+        if (eRes.ok && eJson?.ok) setEnvia(eJson);
+        else setEnvia({ ok: false, error: eJson?.error || "No se pudo leer Envía.com." });
+
+        toast?.({ type: "ok", text: "Operación actualizada." });
+      } catch (e) {
+        toast?.({ type: "bad", text: String(e?.message || e) });
+      } finally {
+        setBusy(false);
+      }
+    }, [orgId, toast]);
+
+    useEffect(() => {
+      load();
+    }, [load]);
+
+    const stripeOk = !!stripe?.ok;
+    const enviaOk = !!envia?.ok;
+
+    return (
+      <div className="space-y-6">
+        <div className="rounded-[2rem] border border-slate-200 bg-white shadow-sm p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-2">
+                <Activity size={14} className="text-slate-700" /> Operación
+                <HelpTip
+                  title="Operación"
+                  text="Aquí ves lo importante sin tecnicismos: Stripe (dinero / devoluciones) y Envía.com (guías / costos / tracking)."
+                />
+              </p>
+              <h3 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
+                Stripe + Envía.com (en vivo)
+              </h3>
+              <p className="text-sm font-semibold text-slate-600 mt-1">
+                Datos reales obtenidos por API (cuando el proveedor lo permite).
+              </p>
+            </div>
+
+            <button
+              onClick={load}
+              className="px-4 py-2 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 font-black text-sm flex items-center gap-2"
+            >
+              <RefreshCcw size={16} className={busy ? "animate-spin" : ""} /> Actualizar
+            </button>
+          </div>
+        </div>
+
+        {/* Stripe */}
+        <div className="rounded-[2rem] border border-slate-200 bg-white shadow-sm p-6">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <CreditCard size={18} className="text-sky-700" />
+              <p className="text-lg font-black text-slate-900">Stripe</p>
+              <HelpTip
+                title="Stripe"
+                text="Stripe es el procesador de pagos. Aquí ves lo disponible, lo pendiente y eventos como devoluciones o contracargos."
+              />
+            </div>
+
+            <a
+              href="https://dashboard.stripe.com/"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 font-black text-sm"
+              title="Abrir Stripe"
+            >
+              Dashboard <ExternalLink size={16} />
+            </a>
+          </div>
+
+          {!stripe ? (
+            <div className="mt-4 space-y-3">
+              <SkeletonLine />
+              <SkeletonLine />
+              <SkeletonLine />
+            </div>
+          ) : !stripeOk ? (
+            <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4">
+              <p className="text-sm font-black text-rose-900 flex items-center gap-2">
+                <AlertTriangle size={16} /> No se pudo leer Stripe
+              </p>
+              <p className="text-sm font-semibold text-rose-700 mt-1">{String(stripe?.error || "Error")}</p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                <MiniKPI label="Disponible" value={moneyMXN(stripe.balance?.available_mxn || 0)} icon={<Wallet size={14} />} />
+                <MiniKPI label="Pendiente" value={moneyMXN(stripe.balance?.pending_mxn || 0)} icon={<Clock size={14} />} />
+                <MiniKPI
+                  label="Devoluciones (30d)"
+                  value={`${num(stripe.last_30_days?.refunds_count || 0)}`}
+                  note={moneyMXN(stripe.last_30_days?.refunds_amount_mxn || 0)}
+                  icon={<Receipt size={14} />}
+                />
+                <MiniKPI
+                  label="Contracargos (30d)"
+                  value={`${num(stripe.last_30_days?.disputes_count || 0)}`}
+                  note={moneyMXN(stripe.last_30_days?.disputes_amount_mxn || 0)}
+                  icon={<AlertTriangle size={14} />}
+                />
+              </div>
+
+              <div className="mt-5">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Últimos payouts</p>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[780px]">
+                    <thead>
+                      <tr className="text-left text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        <th className="py-2 pr-3">ID</th>
+                        <th className="py-2 pr-3">Monto</th>
+                        <th className="py-2 pr-3">Estado</th>
+                        <th className="py-2 pr-3">Llegada</th>
+                        <th className="py-2 pr-3 text-right">Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(stripe.payouts || []).map((p) => (
+                        <tr key={p.id} className="border-t border-slate-200">
+                          <td className="py-3 pr-3">
+                            <p className="text-sm font-black text-slate-900">{p.id}</p>
+                          </td>
+                          <td className="py-3 pr-3">
+                            <p className="text-sm font-black text-slate-900">{moneyMXN(p.amount_mxn || 0)}</p>
+                          </td>
+                          <td className="py-3 pr-3">
+                            <span className={clsx("px-3 py-1 rounded-full text-xs font-black border",
+                              p.status === "paid"
+                                ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                : "bg-slate-50 text-slate-800 border-slate-200"
+                            )}>
+                              {String(p.status || "—")}
+                            </span>
+                          </td>
+                          <td className="py-3 pr-3">
+                            <p className="text-sm font-semibold text-slate-700">
+                              {p.arrival_date ? new Date(p.arrival_date).toLocaleDateString("es-MX") : "—"}
+                            </p>
+                          </td>
+                          <td className="py-3 pr-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() => copy(p.id)}
+                              className="inline-flex items-center gap-2 px-3 py-2 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 font-black text-sm"
+                              title="Copiar ID"
+                            >
+                              Copiar <Copy size={16} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {!stripe.payouts?.length ? (
+                        <tr>
+                          <td colSpan={5} className="py-6">
+                            <p className="text-sm font-semibold text-slate-500">Sin payouts recientes.</p>
+                          </td>
+                        </tr>
+                      ) : null}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Envía */}
+        <div className="rounded-[2rem] border border-slate-200 bg-white shadow-sm p-6">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Truck size={18} className="text-slate-700" />
+              <p className="text-lg font-black text-slate-900">Envía.com</p>
+              <HelpTip
+                title="Envía.com"
+                text="Aquí ves guías generadas, costo total y tracking cuando existe trackingNumber. Algunos reportes solo existen dentro del dashboard de Envía.com."
+              />
+            </div>
+
+            <a
+              href="https://envia.com/"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 font-black text-sm"
+              title="Abrir Envía.com"
+            >
+              Dashboard <ExternalLink size={16} />
+            </a>
+          </div>
+
+          {!envia ? (
+            <div className="mt-4 space-y-3">
+              <SkeletonLine />
+              <SkeletonLine />
+              <SkeletonLine />
+            </div>
+          ) : !enviaOk ? (
+            <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4">
+              <p className="text-sm font-black text-rose-900 flex items-center gap-2">
+                <AlertTriangle size={16} /> No se pudo leer Envía.com
+              </p>
+              <p className="text-sm font-semibold text-rose-700 mt-1">{String(envia?.error || "Error")}</p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                <MiniKPI label="Guías" value={`${num(envia.totals?.labels || 0)}`} icon={<Truck size={14} />} />
+                <MiniKPI label="Costo total" value={moneyMXN(envia.totals?.cost_mxn || 0)} icon={<Wallet size={14} />} />
+                <MiniKPI label="Tracking" value={envia.tracking?.ok ? "Disponible" : "Parcial"} icon={<Activity size={14} />} />
+                <MiniKPI label="Actualizado" value={envia.updated_at ? new Date(envia.updated_at).toLocaleTimeString("es-MX") : "—"} icon={<Clock size={14} />} />
+              </div>
+
+              <div className="mt-5">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Últimas guías (DB)</p>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[980px]">
+                    <thead>
+                      <tr className="text-left text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        <th className="py-2 pr-3">Fecha</th>
+                        <th className="py-2 pr-3">Carrier</th>
+                        <th className="py-2 pr-3">Tracking</th>
+                        <th className="py-2 pr-3">Costo</th>
+                        <th className="py-2 pr-3 text-right">Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(envia.rows || []).map((r) => (
+                        <tr key={r.id} className="border-t border-slate-200">
+                          <td className="py-3 pr-3">
+                            <p className="text-sm font-semibold text-slate-700">
+                              {r.created_at ? new Date(r.created_at).toLocaleString("es-MX") : "—"}
+                            </p>
+                          </td>
+                          <td className="py-3 pr-3">
+                            <p className="text-sm font-black text-slate-900">{r.carrier || "—"}</p>
+                          </td>
+                          <td className="py-3 pr-3">
+                            {r.tracking ? (
+                              <span className="inline-flex items-center gap-2">
+                                <p className="text-sm font-black text-slate-900">{r.tracking}</p>
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-50 border border-slate-200 text-[11px] font-black text-slate-700">
+                                  {envia.tracking?.ok ? <CheckCircle2 size={14} className="text-emerald-600" /> : <AlertTriangle size={14} className="text-amber-600" />}
+                                  Track
+                                </span>
+                              </span>
+                            ) : (
+                              <p className="text-sm font-semibold text-slate-500">—</p>
+                            )}
+                          </td>
+                          <td className="py-3 pr-3">
+                            <p className="text-sm font-black text-slate-900">{moneyMXN(r.cost_mxn || 0)}</p>
+                          </td>
+                          <td className="py-3 pr-3 text-right">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => copy(r.tracking || "")}
+                                className="inline-flex items-center gap-2 px-3 py-2 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 font-black text-sm"
+                                disabled={!r.tracking}
+                                title="Copiar tracking"
+                              >
+                                Copiar <Copy size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+
+                      {!envia.rows?.length ? (
+                        <tr>
+                          <td colSpan={5} className="py-6">
+                            <p className="text-sm font-semibold text-slate-500">Sin guías recientes en DB.</p>
+                          </td>
+                        </tr>
+                      ) : null}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-black text-slate-900">Tip para operación</p>
+                  <p className="text-sm font-semibold text-slate-600 mt-1">
+                    Si una guía no tiene tracking, normalmente significa que el proveedor no lo devolvió en el "raw" o que aún no se generó.
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   /* =========================================================
-     Layout
+     Navigation + view selector
   ========================================================= */
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
     { id: "products", label: "Productos", icon: <Package size={18} /> },
+    { id: "operation", label: "Operación", icon: <Activity size={18} /> },
     { id: "orders", label: "Pedidos", icon: <ShoppingCart size={18} /> },
     { id: "users", label: "Usuarios", icon: <Users size={18} />, hidden: !canUsers },
     { id: "marketing", label: "Marketing", icon: <Megaphone size={18} /> },
@@ -1184,6 +1373,7 @@ export default function HomePage() {
 
   const view = useMemo(() => {
     if (!ready) return <div className="space-y-3">{Array.from({ length: 10 }).map((_, i) => <SkeletonLine key={i} />)}</div>;
+
     if (!SUPABASE_CONFIGURED)
       return (
         <EmptyState
@@ -1204,20 +1394,21 @@ export default function HomePage() {
       return (
         <EmptyState
           title="Sin acceso"
-          text="Tu usuario no está registrado como admin activo para esta organización. Usa la sección Invite/Bootstrap."
+          text="Tu usuario no está registrado como admin activo para esta organización."
         />
       );
 
-    if (active === "dashboard") return <DashboardView orgId={orgId} token={authToken} toast={show} />;
+    if (active === "dashboard") return <DashboardView orgId={orgId} toast={show} />;
     if (active === "products") return <ProductsView orgId={orgId} canWrite={canWrite} toast={show} />;
+    if (active === "operation") return <OperationView orgId={orgId} toast={show} />;
 
     return (
       <EmptyState
         title="Módulo en preparación"
-        text="Este módulo se activa cuando Score Store quede final y se confirme el flujo real (pago → envío → tracking)."
+        text="Este módulo se activa cuando se confirme el flujo real completo (pago → envío → tracking → entrega)."
       />
     );
-  }, [ready, user, role, active, orgId, canWrite, show, authToken]);
+  }, [ready, user, role, active, orgId, canWrite, show]);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -1247,37 +1438,32 @@ export default function HomePage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <a
-              href="/scorestore-settings"
-              className="hidden sm:inline-flex px-4 py-2 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 font-black text-sm"
-              title="Control de Score Store"
-            >
-              Site Settings
-            </a>
+            <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-2xl border border-slate-200 bg-white">
+              <span className="text-xs font-black text-slate-600">Org:</span>
+              <span className="text-xs font-black text-slate-900">{orgId === SCORE_ORG_ID ? "Score Store" : orgId}</span>
+              <HelpTip title="Organización" text="Define de qué tienda se ven los datos. Normalmente será Score Store." />
+            </div>
 
             <button
               type="button"
               onClick={logout}
-              className="px-4 py-2 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 font-black text-sm flex items-center gap-2"
+              className="w-10 h-10 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center"
+              aria-label="Cerrar sesión"
               title="Cerrar sesión"
             >
-              <LogOut size={16} /> Salir
+              <LogOut size={18} />
             </button>
           </div>
         </div>
       </header>
 
-      {/* Body */}
-      <div className="max-w-6xl mx-auto px-4 py-6 grid grid-cols-1 md:grid-cols-12 gap-4">
+      <div className="max-w-6xl mx-auto px-4 py-6 grid grid-cols-1 md:grid-cols-[260px_1fr] gap-6">
         {/* Sidebar */}
-        <aside
-          className={clsx(
-            "md:col-span-3 lg:col-span-2",
-            navOpen ? "block" : "hidden md:block"
-          )}
-        >
-          <div className="rounded-[2rem] border border-slate-200 bg-white shadow-sm p-3">
-            <nav className="space-y-1">
+        <aside className={clsx("md:block", navOpen ? "block" : "hidden")}>
+          <div className="rounded-[2rem] border border-slate-200 bg-white shadow-sm p-4 sticky top-[84px]">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3">Menú</p>
+
+            <div className="space-y-2">
               {navItems.map((it) => (
                 <button
                   key={it.id}
@@ -1287,32 +1473,51 @@ export default function HomePage() {
                     setNavOpen(false);
                   }}
                   className={clsx(
-                    "w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-black text-sm",
-                    active === it.id ? "bg-slate-900 text-white" : "bg-white hover:bg-slate-50 text-slate-900"
+                    "w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl border font-black text-sm",
+                    active === it.id
+                      ? "border-sky-200 bg-sky-50 text-sky-900"
+                      : "border-slate-200 bg-white hover:bg-slate-50 text-slate-900"
                   )}
                 >
-                  {it.icon}
-                  {it.label}
+                  <span className="flex items-center gap-3">
+                    <span
+                      className={clsx(
+                        "w-9 h-9 rounded-2xl flex items-center justify-center border",
+                        active === it.id ? "bg-white border-sky-200 text-sky-700" : "bg-slate-50 border-slate-200 text-slate-700"
+                      )}
+                    >
+                      {it.icon}
+                    </span>
+                    {it.label}
+                  </span>
+                  <ChevronDown size={16} className="opacity-25 rotate-[-90deg]" />
                 </button>
               ))}
-            </nav>
-
-            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Rol</p>
-              <p className="text-sm font-black text-slate-900 mt-1">{role || "—"}</p>
-              <p className="text-xs font-semibold text-slate-600 mt-1">
-                Organización: <span className="font-black">{orgId.slice(0, 8)}…</span>
-              </p>
             </div>
-          </div>
 
-          <div className="mt-4">
-            <AiDock />
+            <Divider />
+
+            <div className="space-y-3">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Ayuda rápida</p>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm font-black text-slate-900">¿Te perdiste?</p>
+                <p className="text-sm font-semibold text-slate-600 mt-1">
+                  Busca los íconos <b>?</b>. Explican cada parte sin tecnicismos.
+                </p>
+              </div>
+            </div>
           </div>
         </aside>
 
         {/* Main */}
-        <main className="md:col-span-9 lg:col-span-10 space-y-4">{view}</main>
+        <main className="min-w-0">
+          {view}
+
+          {/* AI Dock */}
+          <div className="mt-6">
+            <AiDock orgId={orgId} role={role} />
+          </div>
+        </main>
       </div>
     </div>
   );
