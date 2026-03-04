@@ -11,12 +11,34 @@ import { useProfile } from "@/lib/useProfile";
 import { useWalletBalance } from "@/lib/useWalletBalance";
 import { uploadAvatar } from "@/lib/uploadAvatar";
 import { createClient } from "@/lib/supabaseClient";
-import { UserCircle, Upload, ShieldCheck, ShieldAlert, LogOut, KeyRound, Wallet, Users } from "lucide-react";
+import {
+  UserCircle,
+  Upload,
+  ShieldCheck,
+  ShieldAlert,
+  LogOut,
+  KeyRound,
+  Wallet,
+  Users,
+  Gamepad2,
+  History,
+  TrendingUp,
+} from "lucide-react";
 
 type AffiliateMe = {
   ok: boolean;
   link?: string;
   affiliate?: { code: string };
+};
+
+type HistoryRow = {
+  id: string;
+  game: "crash" | "taco_slot";
+  bet: number;
+  payout: number;
+  profit: number;
+  created_at: string;
+  meta?: any;
 };
 
 export default function ProfilePage() {
@@ -34,9 +56,12 @@ export default function ProfilePage() {
 
   const [aff, setAff] = useState<AffiliateMe | null>(null);
 
+  const [histLoading, setHistLoading] = useState(true);
+  const [hist, setHist] = useState<HistoryRow[]>([]);
+
   useEffect(() => {
-    setUsername(profile?.username || "");
-  }, [profile?.username]);
+    setUsername((profile as any)?.username || "");
+  }, [profile]);
 
   useEffect(() => {
     const loadAff = async () => {
@@ -51,7 +76,26 @@ export default function ProfilePage() {
     void loadAff();
   }, []);
 
-  const kyc = String(profile?.kyc_status || "").toLowerCase();
+  useEffect(() => {
+    const loadHistory = async () => {
+      setHistLoading(true);
+      try {
+        const res = await fetch("/api/profile/history", { cache: "no-store" });
+        const json = await res.json();
+        if (res.ok && json?.ok) setHist((json.combined || []) as HistoryRow[]);
+        else setHist([]);
+      } catch {
+        setHist([]);
+      } finally {
+        setHistLoading(false);
+      }
+    };
+    void loadHistory();
+    const t = setInterval(loadHistory, 15000);
+    return () => clearInterval(t);
+  }, []);
+
+  const kyc = String((profile as any)?.kyc_status || "").toLowerCase();
   const kycLabel =
     kyc === "approved" || kyc === "verified" ? "KYC aprobado" : kyc ? `KYC: ${kyc}` : "KYC pendiente";
 
@@ -66,7 +110,7 @@ export default function ProfilePage() {
     setSaving(true);
     setMsg(null);
     try {
-      const { error } = await supabase.from("profiles").update({ username: u }).eq("user_id", profile.user_id);
+      const { error } = await supabase.from("profiles").update({ username: u }).eq("user_id", (profile as any).user_id);
       if (error) throw error;
       setMsg("Perfil actualizado ✅");
       await refresh();
@@ -117,16 +161,14 @@ export default function ProfilePage() {
     location.href = "/login";
   };
 
+  const profitSum = hist.slice(0, 20).reduce((s, x) => s + Number(x.profit || 0), 0);
+
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center text-white/60">Cargando perfil…</div>;
   }
 
   if (!profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-white/60">
-        Necesitas iniciar sesión.
-      </div>
-    );
+    return <div className="min-h-screen flex items-center justify-center text-white/60">Necesitas iniciar sesión.</div>;
   }
 
   return (
@@ -134,7 +176,7 @@ export default function ProfilePage() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="text-3xl font-black">Mi perfil</div>
-          <div className="text-white/60 text-sm">Cuenta, seguridad y estado de verificación.</div>
+          <div className="text-white/60 text-sm">Cuenta, seguridad, bóveda e historial real.</div>
         </div>
 
         <div className="flex gap-2">
@@ -150,9 +192,7 @@ export default function ProfilePage() {
       </div>
 
       {msg ? (
-        <Card className="bg-black/30 border-white/10 p-4 rounded-2xl text-sm text-white/75">
-          {msg}
-        </Card>
+        <Card className="bg-black/30 border-white/10 p-4 rounded-2xl text-sm text-white/75">{msg}</Card>
       ) : null}
 
       <div className="grid md:grid-cols-3 gap-6">
@@ -171,7 +211,7 @@ export default function ProfilePage() {
           <div className="mt-5 flex flex-col items-center text-center">
             <div className="relative w-28 h-28">
               <img
-                src={profile.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${profile.user_id}`}
+                src={(profile as any).avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${(profile as any).user_id}`}
                 className="w-full h-full rounded-full border border-white/10 bg-black/40 object-cover"
                 alt="Avatar"
               />
@@ -187,7 +227,7 @@ export default function ProfilePage() {
             </div>
 
             <div className="mt-4 text-xs text-white/55">User ID</div>
-            <div className="font-mono text-xs text-white/75 break-all">{profile.user_id}</div>
+            <div className="font-mono text-xs text-white/75 break-all">{(profile as any).user_id}</div>
 
             {avatarFile ? (
               <Button onClick={doUploadAvatar} disabled={uploading} className="mt-4 w-full font-black">
@@ -219,16 +259,25 @@ export default function ProfilePage() {
           </div>
         </Card>
 
-        {/* Wallet resumen */}
+        {/* Bóveda + Afiliados + Seguridad */}
         <Card className="bg-black/30 border-white/10 p-6 rounded-3xl md:col-span-2">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
               <div className="text-lg font-black">Bóveda</div>
               <div className="text-xs text-white/55">Saldo real, bono y bloqueado.</div>
             </div>
-            <Link href="/wallet">
-              <Button variant="secondary" className="font-black">Abrir bóveda</Button>
-            </Link>
+            <div className="flex gap-2">
+              <Link href="/games/crash">
+                <Button variant="secondary" className="font-black">
+                  <Gamepad2 size={16} /> Crash
+                </Button>
+              </Link>
+              <Link href="/games/taco-slot">
+                <Button className="font-black">
+                  <Gamepad2 size={16} /> Taco Slot
+                </Button>
+              </Link>
+            </div>
           </div>
 
           <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -260,9 +309,7 @@ export default function ProfilePage() {
 
             <div className="mt-3 text-sm text-white/65">
               {aff?.ok && aff.link ? (
-                <>
-                  Tu link: <span className="font-mono text-white/80 break-all">{aff.link}</span>
-                </>
+                <>Tu link: <span className="font-mono text-white/80 break-all">{aff.link}</span></>
               ) : (
                 "Tu link se genera en el panel de afiliados."
               )}
@@ -276,11 +323,55 @@ export default function ProfilePage() {
               <div className="font-black">Seguridad</div>
             </div>
             <div className="mt-2 text-sm text-white/65">
-              Si quieres cambiar tu contraseña, te mandamos un correo de recuperación.
+              Te mandamos un correo para cambiar tu contraseña.
             </div>
             <Button onClick={resetPassword} className="mt-4 font-black">
               Enviar correo para cambiar contraseña
             </Button>
+          </div>
+
+          {/* Historial real */}
+          <div className="mt-6 rounded-3xl border border-white/10 bg-black/30 p-5">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <History size={18} />
+                <div className="font-black">Historial (real)</div>
+              </div>
+              <div className="text-xs text-white/60 flex items-center gap-2">
+                <TrendingUp size={14} />
+                Últimas 20: <span className="font-mono text-white/80">{profitSum >= 0 ? "+" : ""}{profitSum.toFixed(0)} MXN</span>
+              </div>
+            </div>
+
+            {histLoading ? (
+              <div className="mt-3 text-sm text-white/60">Cargando…</div>
+            ) : hist.length === 0 ? (
+              <div className="mt-3 text-sm text-white/60">Aún no hay jugadas registradas.</div>
+            ) : (
+              <div className="mt-4 space-y-2">
+                {hist.slice(0, 12).map((x) => (
+                  <div key={x.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/30 p-3">
+                    <div>
+                      <div className="text-sm font-black">
+                        {x.game === "crash" ? "Crash" : "Taco Slot"}{" "}
+                        <span className="text-xs text-white/45 font-mono">({new Date(x.created_at).toLocaleString()})</span>
+                      </div>
+                      <div className="text-xs text-white/60">
+                        Apostaste <span className="font-mono">{x.bet.toFixed(2)}</span> • Cobraste{" "}
+                        <span className="font-mono">{x.payout.toFixed(2)}</span>
+                      </div>
+                    </div>
+                    <div className={`font-mono text-sm font-black ${x.profit >= 0 ? "text-[#32CD32]" : "text-[#FF5E00]"}`}>
+                      {x.profit >= 0 ? "+" : ""}{x.profit.toFixed(2)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-4 text-[11px] text-white/45">
+              *Esto sale directo de tus tablas (Crash/Slot) vía API autenticada.
+            </div>
           </div>
         </Card>
       </div>
