@@ -1,5 +1,6 @@
 export const runtime = "nodejs";
 
+import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { walletApplyDelta } from "@/lib/walletApplyDelta";
@@ -11,6 +12,33 @@ function isMissingTable(msg: string) {
 function isDuplicate(msg: string) {
   const m = msg.toLowerCase();
   return m.includes("duplicate") || m.includes("unique") || m.includes("23505");
+}
+
+function safeEqual(a: string, b: string) {
+  try {
+    const ba = Buffer.from(a);
+    const bb = Buffer.from(b);
+    if (ba.length !== bb.length) return false;
+    return crypto.timingSafeEqual(ba, bb);
+  } catch {
+    return false;
+  }
+}
+
+function verifySignature(bodyText: string, headerSigRaw: string | null) {
+  const secret = process.env.ASTROPAY_WEBHOOK_SECRET || "";
+  if (!secret) return { enforced: false, ok: true };
+
+  const headerSig = String(headerSigRaw || "").trim();
+  if (!headerSig) return { enforced: true, ok: false };
+
+  const cleaned = headerSig.includes("=") ? headerSig.split("=").pop()!.trim() : headerSig;
+
+  const hex = crypto.createHmac("sha256", secret).update(bodyText, "utf8").digest("hex");
+  const b64 = crypto.createHmac("sha256", secret).update(bodyText, "utf8").digest("base64");
+
+  const ok = safeEqual(cleaned.toLowerCase(), hex.toLowerCase()) || safeEqual(cleaned, b64);
+  return { enforced: true, ok };
 }
 
 async function maybeCreditAffiliateFirstDeposit(params: { userId: string; amount: number; intentId: string }) {
@@ -36,7 +64,6 @@ async function maybeCreditAffiliateFirstDeposit(params: { userId: string; amount
 
     const refId = `aff_firstdep:${params.intentId}`;
 
-    // Insert comisión (idempotente por ref_id)
     const ins = await supabaseAdmin.from("affiliate_commissions").insert({
       affiliate_user_id: ref.affiliate_user_id,
       referred_user_id: params.userId,
@@ -49,12 +76,11 @@ async function maybeCreditAffiliateFirstDeposit(params: { userId: string; amount
 
     if (ins.error) {
       if (isMissingTable(String(ins.error.message || ""))) return;
-      if (isDuplicate(String(ins.error.message || ""))) return; // ya se pagó
+      if (isDuplicate(String(ins.error.message || ""))) return;
       console.error("affiliate_commissions insert error:", ins.error);
       return;
     }
 
-    // Credit wallet del afiliado
     const credit = await walletApplyDelta(supabaseAdmin, {
       userId: ref.affiliate_user_id,
       deltaBalance: reward,
@@ -66,14 +92,11 @@ async function maybeCreditAffiliateFirstDeposit(params: { userId: string; amount
     });
 
     if (credit.error) {
-      // AQUÍ ESTÁ BIEN (usar credit.error directo en logs)
       console.error("affiliate wallet credit error:", credit.error);
-      // rollback best-effort
       await supabaseAdmin.from("affiliate_commissions").delete().eq("ref_id", refId);
       return;
     }
 
-    // Update referral stats
     await supabaseAdmin
       .from("affiliate_referrals")
       .update({
@@ -88,11 +111,13 @@ async function maybeCreditAffiliateFirstDeposit(params: { userId: string; amount
 }
 
 export async function POST(req: Request) {
-  const sig = req.headers.get("x-astropay-signature");
   const bodyText = await req.text();
+  const sigHeader = req.headers.get("x-astropay-signature");
 
-  // TODO: valida firma si AstroPay la requiere en tu contrato (depende del setup).
-  // Por ahora: seguimos el flujo actual.
+  const sig = verifySignature(bodyText, sigHeader);
+  if (sig.enforced && !sig.ok) {
+    return NextResponse.json({ ok: false, error: "INVALID_SIGNATURE" }, { status: 401 });
+  }
 
   let payload: any = null;
   try {
@@ -101,11 +126,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "INVALID_JSON" }, { status: 400 });
   }
 
-  // Normalización mínima (según tu integración actual)
   const intentId = String(payload?.intent_id || payload?.intentId || payload?.data?.intent_id || "").trim();
   if (!intentId) return NextResponse.json({ ok: false, error: "NO_INTENT" }, { status: 400 });
 
-  // 1) buscar intent (tabla tuya)
   const { data: intent, error: iErr } = await supabaseAdmin
     .from("deposit_intents")
     .select("*")
@@ -113,15 +136,12 @@ export async function POST(req: Request) {
     .maybeSingle();
 
   if (iErr) return NextResponse.json({ ok: false, error: iErr.message }, { status: 500 });
-  if (!intent) return NextResponse.json({ ok: true }); // idempotente: si no existe, no tronamos
+  if (!intent) return NextResponse.json({ ok: true }); // idempotente
 
-  // 2) si ya estaba acreditado, no duplicar
   if (intent.status === "credited") return NextResponse.json({ ok: true });
 
-  // 3) validar status “success”
   const status = String(payload?.status || payload?.data?.status || "success").toLowerCase();
   if (!["success", "paid", "credited", "approved"].includes(status)) {
-    // marca fallido / pendiente si quieres
     await supabaseAdmin.from("deposit_intents").update({ status: "failed" }).eq("intent_id", intentId);
     return NextResponse.json({ ok: true });
   }
@@ -129,7 +149,6 @@ export async function POST(req: Request) {
   const userId = String(intent.user_id);
   const amount = Number(intent.amount || 0);
 
-  // 4) acreditar wallet del usuario
   const refId = `astropay_deposit:${intentId}`;
 
   const apply = await walletApplyDelta(supabaseAdmin, {
@@ -142,13 +161,10 @@ export async function POST(req: Request) {
     metadata: { intent_id: intentId },
   });
 
-  // CORRECCIÓN AQUÍ: Usamos apply.error directo (es string)
   if (apply.error) return NextResponse.json({ ok: false, error: apply.error }, { status: 500 });
 
-  // 5) marcar intent acreditado
   await supabaseAdmin.from("deposit_intents").update({ status: "credited" }).eq("intent_id", intentId);
 
-  // 6) ✅ Afiliados: primer depósito = comisión (best-effort)
   await maybeCreditAffiliateFirstDeposit({ userId, amount, intentId });
 
   return NextResponse.json({ ok: true });
