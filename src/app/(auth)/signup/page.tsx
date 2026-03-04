@@ -2,23 +2,34 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Logo } from "@/components/ui/logo";
 import { Lock, Mail, AlertCircle, Loader2, CheckCircle2, Ticket } from "lucide-react";
 
 export default function SignupPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const supabase = useMemo(() => createClientComponentClient(), []);
 
-  const ref = (searchParams.get("ref") || "").trim().toUpperCase();
+  // ⚠️ No usamos useSearchParams() para evitar el error de Next
+  // "missing suspense boundary" durante prerender/build.
+  const [ref, setRef] = useState("");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      const r = (sp.get("ref") || "").trim().toUpperCase();
+      setRef(r);
+    } catch {
+      setRef("");
+    }
+  }, []);
 
   useEffect(() => {
     if (!ref) return;
