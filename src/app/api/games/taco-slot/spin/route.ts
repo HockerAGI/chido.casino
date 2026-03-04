@@ -16,6 +16,11 @@ const SYMBOLS: { key: SymbolKey; img: string; weight: number }[] = [
   { key: "habanero", img: "/badge-habanero.png", weight: 8 },
 ];
 
+// Paytable:
+// x3 verde=3, jalapeño=5, serrano=10, habanero=20
+// par=0.82   -> RTP esperado ~0.947376 (94.7376%)
+const PAIR_MULTIPLIER = 0.82;
+
 function pickWeighted(serverSeed: string, clientSeed: string, nonce: number, round: number) {
   const total = SYMBOLS.reduce((s, x) => s + x.weight, 0);
   const r = fairFloat(serverSeed, clientSeed, nonce, round) * total;
@@ -38,17 +43,16 @@ function calcMultiplier(reels: { key: SymbolKey }[]) {
     return 3;
   }
 
-  if (a === b || b === c || a === c) return 1.5;
+  // Par
+  if (a === b || b === c || a === c) return PAIR_MULTIPLIER;
 
   return 0;
 }
 
 function levelFromBet(bet: number) {
   if (bet <= 20) return { key: "verde" as const, label: "Nivel Verde", badge: "/badge-verde.png" };
-  if (bet <= 50)
-    return { key: "jalapeno" as const, label: "Nivel Jalapeño", badge: "/badge-jalapeno.png" };
-  if (bet <= 120)
-    return { key: "serrano" as const, label: "Nivel Serrano", badge: "/badge-serrano.png" };
+  if (bet <= 50) return { key: "jalapeno" as const, label: "Nivel Jalapeño", badge: "/badge-jalapeno.png" };
+  if (bet <= 120) return { key: "serrano" as const, label: "Nivel Serrano", badge: "/badge-serrano.png" };
   return { key: "habanero" as const, label: "Nivel Habanero", badge: "/badge-habanero.png" };
 }
 
@@ -60,6 +64,10 @@ function isInsufficient(msg: string) {
 function isMissingTable(msg: string) {
   const m = msg.toLowerCase();
   return m.includes("relation") && m.includes("does not exist");
+}
+
+function round2(n: number) {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
 export async function POST(req: Request) {
@@ -109,7 +117,6 @@ export async function POST(req: Request) {
     });
 
     if (deb.error) {
-      // FIX: deb.error es string directo
       const msg = String(deb.error || "");
       if (isInsufficient(msg)) return NextResponse.json({ ok: false, error: "Saldo insuficiente" }, { status: 400 });
       console.error("wallet_apply_delta bet error:", deb.error);
@@ -126,7 +133,7 @@ export async function POST(req: Request) {
 
     // 4) Payout
     const multiplier = calcMultiplier(reels);
-    const payout = multiplier > 0 ? Number((bet * multiplier).toFixed(2)) : 0;
+    const payout = multiplier > 0 ? round2(bet * multiplier) : 0;
 
     if (payout > 0) {
       const credit = await walletApplyDelta(supabaseAdmin, {
@@ -167,6 +174,7 @@ export async function POST(req: Request) {
       server_seed: serverSeed,
       client_seed: clientSeed,
       nonce: Number(nonce),
+      metadata: { pair_multiplier: PAIR_MULTIPLIER, expected_rtp: 0.947376 },
     });
 
     if (ins.error && !isMissingTable(String((ins.error as any)?.message || ""))) {
@@ -181,6 +189,7 @@ export async function POST(req: Request) {
       multiplier,
       reels,
       level: levelFromBet(bet),
+      rtp: 0.947376,
       fair: {
         serverSeedHash: serverSeedHashHex,
         serverSeed,
