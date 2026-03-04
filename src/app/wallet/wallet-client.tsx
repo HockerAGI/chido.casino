@@ -7,11 +7,11 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   Copy,
-  CreditCard,
   Landmark,
   Loader2,
   MessageCircle,
   Wallet,
+  ExternalLink,
 } from "lucide-react";
 
 type TxRow = {
@@ -20,12 +20,6 @@ type TxRow = {
   amount: number;
   created_at: string;
   metadata?: any;
-};
-
-type DepositProvider = {
-  redirect_url: string;
-  provider?: string;
-  intent_id?: string;
 };
 
 type ManualInstructionsV2 = {
@@ -58,12 +52,6 @@ type ManualRequest = {
 type CreateDepositResponse =
   | {
       ok: true;
-      mode: "provider";
-      message: string;
-      deposit: DepositProvider;
-    }
-  | {
-      ok: true;
       mode: "manual";
       message: string;
       instructions: ManualInstructionsV2;
@@ -86,9 +74,7 @@ export default function WalletClient() {
   const [amount, setAmount] = useState<string>("");
 
   // deposit
-  const [depositMethod, setDepositMethod] = useState<"card" | "spei" | "oxxo">("spei");
   const [depositLoading, setDepositLoading] = useState(false);
-  const [deposit, setDeposit] = useState<DepositProvider | null>(null);
   const [instructions, setInstructions] = useState<ManualInstructionsV2 | null>(null);
   const [manualReq, setManualReq] = useState<ManualRequest | null>(null);
 
@@ -111,7 +97,7 @@ export default function WalletClient() {
 
       const { data: userRes } = await supabase.auth.getUser();
       if (!userRes?.user) {
-        setMessage("Inicia sesión para ver tu wallet.");
+        setMessage("Inicia sesión para ver tu bóveda.");
         setLoading(false);
         return;
       }
@@ -131,7 +117,7 @@ export default function WalletClient() {
         .select("id, type, amount, created_at, metadata")
         .eq("user_id", userRes.user.id)
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(25);
 
       setTxs((tx ?? []) as any);
       setLoading(false);
@@ -156,7 +142,6 @@ export default function WalletClient() {
 
   const handleDeposit = async () => {
     setMessage(null);
-    setDeposit(null);
     setInstructions(null);
     setManualReq(null);
 
@@ -170,7 +155,7 @@ export default function WalletClient() {
       const res = await fetch("/api/payments/create-deposit", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ amount: amt, method: depositMethod }),
+        body: JSON.stringify({ amount: amt, method: "spei" }),
       });
 
       const data = (await res.json()) as CreateDepositResponse;
@@ -181,13 +166,8 @@ export default function WalletClient() {
       }
 
       setMessage(data.message || "Listo.");
-
-      if (data.mode === "provider") {
-        setDeposit(data.deposit);
-      } else {
-        setInstructions(data.instructions);
-        setManualReq(data.request);
-      }
+      setInstructions((data as any).instructions);
+      setManualReq((data as any).request);
     } catch (e: any) {
       setMessage(e?.message || "Error al crear depósito.");
     } finally {
@@ -231,7 +211,7 @@ export default function WalletClient() {
 
       if (!res.ok) {
         if (data?.error === "KYC_REQUIRED") {
-          setMessage("Necesitas KYC aprobado para retirar.");
+          setMessage("Para retirar necesitas KYC aprobado. Pídelo en Soporte.");
           return;
         }
         setMessage(data?.error || "Error al solicitar retiro.");
@@ -253,7 +233,7 @@ export default function WalletClient() {
     return (
       <div className="flex items-center gap-2 text-sm text-neutral-400">
         <Loader2 className="h-4 w-4 animate-spin" />
-        Cargando wallet…
+        Cargando bóveda…
       </div>
     );
   }
@@ -270,7 +250,7 @@ export default function WalletClient() {
               <div className="text-xs uppercase tracking-wider text-white/50">Total disponible</div>
               <div className="text-2xl font-black tabular-nums">{total.toFixed(2)} MXN</div>
               <div className="text-xs text-white/50">
-                Saldo: {balance.toFixed(2)} • Bono: {bonusBalance.toFixed(2)} • En juego: {lockedBalance.toFixed(2)}
+                Saldo: {balance.toFixed(2)} • Bono: {bonusBalance.toFixed(2)} • Bloqueado: {lockedBalance.toFixed(2)}
               </div>
             </div>
           </div>
@@ -302,7 +282,7 @@ export default function WalletClient() {
         <div className="rounded-2xl border border-white/10 bg-black/30 p-5 space-y-4">
           <div className="flex items-center gap-2">
             <ArrowDownToLine className="h-4 w-4" />
-            <div className="text-lg font-black">Depositar</div>
+            <div className="text-lg font-black">Depositar (SPEI)</div>
           </div>
 
           <div className="grid gap-3 md:grid-cols-3">
@@ -310,27 +290,22 @@ export default function WalletClient() {
               <div className="text-xs text-white/50 mb-2 flex items-center gap-2">
                 <Landmark className="h-4 w-4" /> Método
               </div>
-              <select
-                value={depositMethod}
-                onChange={(e) => setDepositMethod(e.target.value as any)}
-                className="w-full rounded-lg bg-black/40 border border-white/10 px-3 py-2 text-sm"
-              >
-                <option value="spei">SPEI (transferencia)</option>
-                <option value="oxxo">OXXO (próximamente)</option>
-                <option value="card">Tarjeta (próximamente)</option>
-              </select>
+              <div className="w-full rounded-lg bg-black/40 border border-white/10 px-3 py-2 text-sm">
+                SPEI (transferencia)
+              </div>
             </div>
 
             <div className="rounded-xl border border-white/10 bg-black/30 p-3 md:col-span-2">
-              <div className="text-xs text-white/50 mb-2 flex items-center gap-2">
-                <CreditCard className="h-4 w-4" /> Monto
-              </div>
+              <div className="text-xs text-white/50 mb-2">Monto</div>
               <input
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="Ej: 500"
                 className="w-full rounded-lg bg-black/40 border border-white/10 px-3 py-2 text-sm"
               />
+              <div className="text-[11px] text-white/45 mt-2">
+                Tip: usa múltiplos simples (100/200/500) para conciliación rápida.
+              </div>
             </div>
           </div>
 
@@ -341,17 +316,6 @@ export default function WalletClient() {
           >
             {depositLoading ? "Generando..." : "Generar depósito"}
           </button>
-
-          {deposit?.redirect_url && (
-            <a
-              href={deposit.redirect_url}
-              target="_blank"
-              rel="noreferrer"
-              className="block text-center rounded-xl bg-[#00F0FF] text-black font-black py-3 hover:opacity-90"
-            >
-              Continuar con pago
-            </a>
-          )}
 
           {instructions && (
             <div className="rounded-2xl border border-white/10 bg-black/40 p-4 space-y-3">
@@ -382,9 +346,9 @@ export default function WalletClient() {
               <div className="rounded-xl border border-white/10 bg-black/30 p-3">
                 <div className="text-xs text-white/50">Beneficiario</div>
                 <div className="mt-1 text-sm">{instructions.spei.beneficiary}</div>
-                {instructions.spei.institution && (
+                {instructions.spei.institution ? (
                   <div className="mt-1 text-xs text-white/50">Institución: {instructions.spei.institution}</div>
-                )}
+                ) : null}
               </div>
 
               <div className="text-sm text-white/70">
@@ -396,8 +360,31 @@ export default function WalletClient() {
                 </ol>
               </div>
 
-              {manualReq?.folio && (
-                <div className="text-xs text-white/50">Folio: {manualReq.folio}</div>
+              {manualReq?.folio ? (
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-white/60">
+                  <span>Folio: <b className="text-white">{manualReq.folio}</b></span>
+                  <button
+                    onClick={() => copy(manualReq.folio)}
+                    className="inline-flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-3 py-2"
+                  >
+                    <Copy className="h-4 w-4" /> Copiar folio
+                  </button>
+                </div>
+              ) : null}
+
+              {instructions.whatsapp?.ready && instructions.whatsapp.link ? (
+                <a
+                  href={instructions.whatsapp.link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-2 w-full rounded-xl bg-[#25D366] text-black font-black py-3 hover:opacity-90"
+                >
+                  Enviar comprobante por WhatsApp <ExternalLink className="h-4 w-4" />
+                </a>
+              ) : (
+                <div className="text-xs text-white/45">
+                  Si tu saldo no se refleja, contacta a Soporte y manda tu folio + comprobante.
+                </div>
               )}
             </div>
           )}
@@ -407,6 +394,10 @@ export default function WalletClient() {
           <div className="flex items-center gap-2">
             <ArrowUpFromLine className="h-4 w-4" />
             <div className="text-lg font-black">Retirar</div>
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-black/30 p-4 text-xs text-white/65">
+            Para retirar necesitas <b>KYC aprobado</b>. Si todavía no tienes KYC, pídelo en <b>Soporte</b>.
           </div>
 
           <div className="grid gap-3 md:grid-cols-3">
