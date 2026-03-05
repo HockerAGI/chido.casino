@@ -1,24 +1,25 @@
 "use client";
+
 export const dynamic = "force-dynamic";
 
-import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { useWalletBalance } from "@/lib/useWalletBalance";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
-import { sfx } from "@/lib/sfx";
+import { useWalletBalance } from "@/lib/useWalletBalance";
 import {
-  History,
+  ChevronLeft,
+  Menu,
+  Volume2,
+  VolumeX,
   Zap,
-  Loader2,
+  Sparkles,
   ShieldAlert,
   Ban,
   Info,
-  Volume2,
-  VolumeX,
-  Sparkles,
-  Flame,
+  History,
 } from "lucide-react";
 
 type PromoLimit =
@@ -45,38 +46,15 @@ type CrashApi = {
   maxBet?: number;
 };
 
+function money(n: number) {
+  const x = Number(n || 0);
+  return x.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 function clamp(n: number, a: number, b: number) {
   const x = Number(n);
   if (!Number.isFinite(x)) return a;
   return Math.max(a, Math.min(b, x));
 }
-
-function money(n: number) {
-  const x = Number(n || 0);
-  return x.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function useLocalSetting<T>(key: string, initial: T) {
-  const [value, setValue] = useState<T>(initial);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(key);
-      if (!raw) return;
-      setValue(JSON.parse(raw));
-    } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-    } catch {}
-  }, [key, value]);
-
-  return [value, setValue] as const;
-}
-
 function vibrate(ms: number) {
   try {
     if (typeof navigator !== "undefined" && "vibrate" in navigator) {
@@ -85,24 +63,175 @@ function vibrate(ms: number) {
     }
   } catch {}
 }
+function useLocalSetting<T>(key: string, initial: T) {
+  const [value, setValue] = useState<T>(initial);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return;
+      setValue(JSON.parse(raw));
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch {}
+  }, [key, value]);
+  return [value, setValue] as const;
+}
 
-export default function CrashPro() {
+class SoundKit {
+  private ctx: AudioContext | null = null;
+  private master: GainNode | null = null;
+  private unlocked = false;
+  private tick?: { src: AudioBufferSourceNode; gain: GainNode; filter: BiquadFilterNode };
+
+  async unlock() {
+    if (this.unlocked) return;
+    try {
+      const Ctx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
+      this.ctx = new Ctx();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = 0.9;
+      this.master.connect(this.ctx.destination);
+
+      const o = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      g.gain.value = 0.00001;
+      o.connect(g);
+      g.connect(this.master);
+      o.start();
+      o.stop(this.ctx.currentTime + 0.02);
+
+      this.unlocked = true;
+    } catch {
+      this.unlocked = false;
+    }
+  }
+
+  setMuted(muted: boolean) {
+    if (!this.master) return;
+    this.master.gain.value = muted ? 0 : 0.9;
+  }
+
+  private async tryPlayFile(src: string, vol: number, loop = false) {
+    try {
+      const a = new Audio(src);
+      a.volume = Math.max(0, Math.min(1, vol));
+      a.loop = loop;
+      await a.play();
+      return a;
+    } catch {
+      return null;
+    }
+  }
+
+  private beep(freq: number, durMs: number, vol: number, type: OscillatorType = "sine") {
+    if (!this.ctx || !this.master) return;
+    const t0 = this.ctx.currentTime;
+    const o = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t0);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0001, vol), t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + durMs / 1000);
+    o.connect(g);
+    g.connect(this.master);
+    o.start(t0);
+    o.stop(t0 + durMs / 1000 + 0.02);
+  }
+
+  private noiseLoopStart(turbo: boolean) {
+    if (!this.ctx || !this.master) return;
+    if (this.tick) return;
+
+    const sr = this.ctx.sampleRate;
+    const len = Math.floor(sr * 0.22);
+    const buf = this.ctx.createBuffer(1, len, sr);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * 0.28;
+
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = turbo ? 980 : 820;
+    filter.Q.value = 0.7;
+
+    const g = this.ctx.createGain();
+    g.gain.value = turbo ? 0.045 : 0.04;
+
+    src.connect(filter);
+    filter.connect(g);
+    g.connect(this.master);
+    src.start();
+
+    this.tick = { src, gain: g, filter };
+  }
+
+  private noiseLoopStop() {
+    try {
+      this.tick?.src.stop();
+    } catch {}
+    this.tick = undefined;
+  }
+
+  async click() {
+    if ((await this.tryPlayFile("/sounds/ui-click.mp3", 0.35)) !== null) return;
+    this.beep(520, 40, 0.08, "square");
+  }
+
+  startTick(turbo: boolean) {
+    this.tryPlayFile("/sounds/crash-tick.mp3", turbo ? 0.12 : 0.10, true).then((a) => {
+      if (a) return;
+      this.noiseLoopStart(turbo);
+    });
+  }
+
+  stopTick() {
+    this.noiseLoopStop();
+  }
+
+  async bust() {
+    if ((await this.tryPlayFile("/sounds/crash-bust.mp3", 0.28)) !== null) return;
+    this.beep(220, 90, 0.08, "sawtooth");
+    this.beep(160, 140, 0.07, "sawtooth");
+  }
+
+  async win() {
+    if ((await this.tryPlayFile("/sounds/crash-win.mp3", 0.30)) !== null) return;
+    this.beep(523, 110, 0.10, "triangle");
+    this.beep(659, 140, 0.10, "triangle");
+    this.beep(784, 170, 0.11, "triangle");
+  }
+}
+
+export default function CrashProMexCasino() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { balance, bonusBalance, refresh, formatted, formattedBonus } = useWalletBalance();
   const { toast } = useToast();
-
+  const { balance, bonusBalance, refresh, formatted, formattedBonus } = useWalletBalance();
   const available = (balance || 0) + (bonusBalance || 0);
 
-  const [soundEnabled, setSoundEnabled] = useLocalSetting<boolean>("chido_sound", true);
-  const [turbo, setTurbo] = useLocalSetting<boolean>("chido_crash_turbo", false);
-  const [vfx, setVfx] = useLocalSetting<boolean>("chido_vfx", true);
-  const [haptics, setHaptics] = useLocalSetting<boolean>("chido_haptics", true);
+  const [soundOn, setSoundOn] = useLocalSetting("chido_sound", true);
+  const [turbo, setTurbo] = useLocalSetting("chido_crash_turbo", false);
+  const [vfx, setVfx] = useLocalSetting("chido_vfx", true);
+  const [haptics, setHaptics] = useLocalSetting("chido_haptics", true);
+
+  const sfxRef = useRef<SoundKit | null>(null);
+  if (!sfxRef.current) sfxRef.current = new SoundKit();
+
+  useEffect(() => {
+    sfxRef.current?.setMuted(!soundOn);
+  }, [soundOn]);
 
   const [promo, setPromo] = useState<PromoLimit>({ ok: true, hasRollover: false });
   const [resp, setResp] = useState<ResponsibleStatus>({ ok: true, excluded: false, until: null, reason: null });
 
   const maxBet = promo.ok && promo.hasRollover ? promo.maxBet : Infinity;
-
   const clampBet = (v: number) => {
     let n = Number(v);
     if (!Number.isFinite(n) || n <= 0) n = 10;
@@ -110,16 +239,20 @@ export default function CrashPro() {
     return Math.max(1, Math.floor(n));
   };
 
-  const [gameState, setGameState] = useState<"IDLE" | "RUNNING" | "CRASHED" | "WON">("IDLE");
-  const [multiplier, setMultiplier] = useState(1.0);
   const [bet, setBet] = useState(10);
   const [target, setTarget] = useState(2.0);
+
+  useEffect(() => {
+    setBet((b) => clampBet(b));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [promo.ok, (promo as any).hasRollover, (promo as any).maxBet]);
+
+  const [gameState, setGameState] = useState<"IDLE" | "RUNNING" | "CRASHED" | "WON">("IDLE");
+  const [multiplier, setMultiplier] = useState(1.0);
   const [loading, setLoading] = useState(false);
 
   const [history, setHistory] = useState<{ crash: number; win: boolean }[]>([]);
-  const [lastRound, setLastRound] = useState<{ hash?: string; seed?: string; edge?: number; ref?: string; ts: string } | null>(
-    null
-  );
+  const [lastRound, setLastRound] = useState<{ hash?: string; seed?: string; edge?: number; ref?: string; ts: string } | null>(null);
 
   const loadGates = async () => {
     try {
@@ -127,10 +260,8 @@ export default function CrashPro() {
         fetch("/api/promos/limits", { cache: "no-store" }),
         fetch("/api/responsible/status", { cache: "no-store" }),
       ]);
-
       const pj = (await p.json().catch(() => ({}))) as PromoLimit;
       const rj = (await r.json().catch(() => ({}))) as any;
-
       if (p.ok) setPromo(pj);
       if (r.ok) setResp({ ok: true, excluded: !!rj.excluded, until: rj.until ?? null, reason: rj.reason ?? null });
     } catch {}
@@ -142,30 +273,11 @@ export default function CrashPro() {
     return () => clearInterval(t);
   }, []);
 
-  useEffect(() => {
-    setBet((b) => clampBet(b));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [promo.ok, (promo as any).hasRollover, (promo as any).maxBet]);
-
-  useEffect(() => {
-    sfx.setEnabled(soundEnabled);
-    if (!soundEnabled) sfx.stopAllLoops();
-  }, [soundEnabled]);
-
-  useEffect(() => {
-    return () => {
-      sfx.stopAllLoops();
-    };
-  }, []);
-
   const durations = useMemo(() => {
     return turbo ? { stepMs: 14, curve: 0.0105 } : { stepMs: 22, curve: 0.0082 };
   }, [turbo]);
 
   const startGame = async () => {
-    sfx.setEnabled(soundEnabled);
-    sfx.unlock();
-
     if (resp.ok && resp.excluded) {
       return toast({
         title: "Autoexclusión activa",
@@ -178,11 +290,7 @@ export default function CrashPro() {
     if (safeBet !== bet) setBet(safeBet);
 
     if (safeBet > available) {
-      return toast({
-        title: "Saldo insuficiente",
-        description: "Tu disponible incluye bono si aplica.",
-        variant: "destructive",
-      });
+      return toast({ title: "Saldo insuficiente", description: "Tu disponible incluye bono si aplica.", variant: "destructive" });
     }
 
     setLoading(true);
@@ -191,7 +299,9 @@ export default function CrashPro() {
     setLastRound(null);
 
     if (haptics) vibrate(turbo ? 18 : 28);
-    if (soundEnabled) sfx.uiClick();
+
+    await sfxRef.current?.unlock();
+    await sfxRef.current?.click();
 
     try {
       const res = await fetch("/api/games/crash/play", {
@@ -230,24 +340,23 @@ export default function CrashPro() {
         ts: new Date().toISOString(),
       });
 
-      if (soundEnabled) sfx.crashTickStart(turbo);
+      sfxRef.current?.startTick(turbo);
 
       let currentM = 1.0;
       const stopPoint = userWon ? targetPoint : crashPoint;
 
-      const interval = setInterval(() => {
+      const interval = setInterval(async () => {
         currentM += currentM * durations.curve + 0.0028;
 
         if (currentM >= stopPoint) {
           clearInterval(interval);
           setMultiplier(stopPoint);
-          sfx.stopLoop("crashTick");
+          sfxRef.current?.stopTick();
 
           if (userWon) {
             setGameState("WON");
-            if (soundEnabled) sfx.crashWin();
             if (haptics) vibrate(60);
-
+            await sfxRef.current?.win();
             toast({
               title: "¡Se armó! Cobraste ✅",
               description: `${targetPoint.toFixed(2)}x (+${money(Number(data.payout || 0))} MXN)`,
@@ -255,8 +364,8 @@ export default function CrashPro() {
           } else {
             setGameState("CRASHED");
             setMultiplier(crashPoint);
-            if (soundEnabled) sfx.crashBust();
             if (haptics) vibrate(45);
+            await sfxRef.current?.bust();
           }
 
           setHistory((prev) => [{ crash: crashPoint, win: userWon }, ...prev].slice(0, 10));
@@ -267,17 +376,16 @@ export default function CrashPro() {
         }
       }, durations.stepMs);
     } catch (error: any) {
-      sfx.stopLoop("crashTick");
+      sfxRef.current?.stopTick();
       setLoading(false);
       toast({ title: "No se armó", description: error.message || "Error", variant: "destructive" });
     }
   };
 
-  // Canvas draw
+  // Canvas draw (pro vibe)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
@@ -287,26 +395,25 @@ export default function CrashPro() {
     canvas.height = rect.height * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    let raf = 0;
-
     const draw = () => {
       ctx.clearRect(0, 0, rect.width, rect.height);
 
+      // grid
       ctx.strokeStyle = "rgba(255,255,255,0.04)";
       ctx.lineWidth = 1;
       ctx.beginPath();
-      for (let i = 0; i < rect.width; i += 48) {
+      for (let i = 0; i < rect.width; i += 52) {
         ctx.moveTo(i, 0);
         ctx.lineTo(i, rect.height);
       }
-      for (let i = 0; i < rect.height; i += 48) {
+      for (let i = 0; i < rect.height; i += 52) {
         ctx.moveTo(0, i);
         ctx.lineTo(rect.width, i);
       }
       ctx.stroke();
 
       if (gameState !== "IDLE") {
-        const t = Math.min(1, (multiplier - 1) / 10);
+        const t = Math.min(1, (multiplier - 1) / 12);
         const x = t * rect.width * 0.86;
         const y = rect.height - t * rect.height * 0.82;
 
@@ -325,6 +432,7 @@ export default function CrashPro() {
 
         ctx.lineTo(x, rect.height);
         ctx.lineTo(0, rect.height);
+
         const grad = ctx.createLinearGradient(0, 0, 0, rect.height);
         grad.addColorStop(0, `${color}55`);
         grad.addColorStop(1, "rgba(0,0,0,0)");
@@ -332,7 +440,7 @@ export default function CrashPro() {
         ctx.fill();
 
         ctx.beginPath();
-        ctx.arc(x, y, 5.5, 0, Math.PI * 2);
+        ctx.arc(x, y, 6, 0, Math.PI * 2);
         ctx.fillStyle = color;
         ctx.shadowColor = color;
         ctx.shadowBlur = 18;
@@ -340,126 +448,154 @@ export default function CrashPro() {
         ctx.shadowBlur = 0;
       }
 
-      raf = requestAnimationFrame(draw);
+      requestAnimationFrame(draw);
     };
 
     draw();
-    return () => cancelAnimationFrame(raf);
   }, [gameState, multiplier]);
 
   const showCap = promo.ok && promo.hasRollover;
 
   return (
-    <div className="relative min-h-[calc(100vh-90px)] px-4 pb-24">
+    <div className="relative min-h-[calc(100vh-88px)] pb-24">
+      {/* Background */}
       <div className="absolute inset-0 -z-10">
         <Image src="/hero-bg.jpg" alt="Fondo" fill className="object-cover opacity-20" priority />
         <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/60 to-black/85" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(0,240,255,0.12),transparent_45%),radial-gradient(circle_at_70%_40%,rgba(255,0,153,0.14),transparent_45%),radial-gradient(circle_at_50%_80%,rgba(50,205,50,0.10),transparent_50%)]" />
       </div>
 
-      <div className="mx-auto max-w-7xl pt-6 animate-fade-in">
-        {/* top */}
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="relative h-12 w-12">
-              <Image src="/isotipo-color.png" alt="CHIDO" fill className="object-contain" />
-            </div>
-            <div>
-              <div className="text-2xl font-black tracking-tight">
-                Chido Crash <span className="text-[#00F0FF]">PRO</span>
+      <div className="mx-auto max-w-6xl px-4 pt-4">
+        {/* Top bar */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Link
+              href="/lobby"
+              className="h-11 w-11 grid place-items-center rounded-2xl border border-white/10 bg-black/35 hover:bg-white/5 transition"
+              aria-label="Volver"
+            >
+              <ChevronLeft size={18} />
+            </Link>
+
+            <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/35 px-3 py-2">
+              <div className="relative h-6 w-6">
+                <Image src="/isotipo-color.png" alt="CHIDO" fill className="object-contain" />
               </div>
-              <div className="text-xs text-white/55">Auto-cobro real (tu backend ya opera con target).</div>
+              <div className="leading-tight">
+                <div className="text-white font-black text-sm">Chido Crash</div>
+                <div className="text-white/55 text-[11px]">Auto-cobro real (target)</div>
+              </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
+            <div className="rounded-2xl border border-white/10 bg-black/35 px-3 py-2 text-xs">
+              <div className="text-white/55 font-black uppercase tracking-widest text-[10px]">Saldo</div>
+              <div className="text-white font-black tabular-nums">
+                {formatted} <span className="text-white/45 text-[11px]">+ bono {formattedBonus}</span>
+              </div>
+            </div>
+
+            <Link
+              href="/wallet"
+              className="h-11 px-4 rounded-2xl bg-[#32CD32] text-black font-black inline-flex items-center gap-2 shadow-[0_0_22px_rgba(50,205,50,0.18)] hover:brightness-110 transition"
+            >
+              Depósito
+            </Link>
+
             <button
-              onClick={() => setTurbo((v) => !v)}
-              className={`h-10 px-3 rounded-2xl border text-xs font-black inline-flex items-center gap-2 transition ${
-                turbo ? "bg-[#FFD700] text-black border-[#FFD700]/40" : "bg-black/40 text-white/70 border-white/10 hover:bg-white/5"
+              onClick={() => setSoundOn((v: boolean) => !v)}
+              className="h-11 w-11 grid place-items-center rounded-2xl border border-white/10 bg-black/35 hover:bg-white/5 transition"
+              aria-label="Sonido"
+            >
+              {soundOn ? <Volume2 size={18} /> : <VolumeX size={18} />}
+            </button>
+
+            <button
+              onClick={() => setTurbo((v: boolean) => !v)}
+              className={`h-11 px-3 rounded-2xl border text-xs font-black inline-flex items-center gap-2 transition ${
+                turbo ? "bg-[#FFD700] text-black border-[#FFD700]/45" : "bg-black/35 text-white/70 border-white/10 hover:bg-white/5"
               }`}
               aria-label="Turbo"
             >
-              <Zap size={16} />
-              Turbo
+              <Zap size={16} /> Turbo
             </button>
 
             <button
-              onClick={() => setVfx((v) => !v)}
-              className={`h-10 px-3 rounded-2xl border text-xs font-black inline-flex items-center gap-2 transition ${
-                vfx ? "bg-white text-black border-white/30" : "bg-black/40 text-white/70 border-white/10 hover:bg-white/5"
+              onClick={() => setVfx((v: boolean) => !v)}
+              className={`h-11 px-3 rounded-2xl border text-xs font-black inline-flex items-center gap-2 transition ${
+                vfx ? "bg-white text-black border-white/35" : "bg-black/35 text-white/70 border-white/10 hover:bg-white/5"
               }`}
               aria-label="VFX"
             >
-              <Sparkles size={16} />
-              VFX
+              <Sparkles size={16} /> VFX
             </button>
 
             <button
-              onClick={() => setHaptics((v) => !v)}
-              className={`h-10 px-3 rounded-2xl border text-xs font-black inline-flex items-center gap-2 transition ${
-                haptics ? "bg-white text-black border-white/30" : "bg-black/40 text-white/70 border-white/10 hover:bg-white/5"
-              }`}
-              aria-label="Haptics"
+              className="h-11 w-11 grid place-items-center rounded-2xl border border-white/10 bg-black/35 hover:bg-white/5 transition"
+              aria-label="Menú"
+              onClick={() => toast({ title: "Menú", description: "Luego metemos: historial completo, reglas, tutorial, anti-tilt." })}
             >
-              <Flame size={16} />
-              Vibra
-            </button>
-
-            <button
-              onClick={() => {
-                setSoundEnabled((v) => !v);
-                sfx.unlock();
-                sfx.uiClick();
-              }}
-              className="h-10 w-10 rounded-2xl border border-white/10 bg-black/40 hover:bg-white/5 flex items-center justify-center"
-              aria-label="Sonido"
-            >
-              {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+              <Menu size={18} />
             </button>
           </div>
         </div>
 
-        {/* layout */}
+        {/* Gates */}
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          {resp.ok && resp.excluded ? (
+            <div className="rounded-[24px] border border-red-500/30 bg-red-500/10 p-4 text-sm text-white/85 flex items-start gap-2">
+              <Ban className="mt-0.5 text-red-400" size={18} />
+              <div>
+                <div className="font-black">Autoexclusión activa</div>
+                <div className="text-xs text-white/65">
+                  {resp.until ? `Hasta: ${new Date(resp.until).toLocaleString()}` : "Ahorita no se puede jugar."}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-[24px] border border-white/10 bg-black/30 p-4 text-sm text-white/80 flex items-start gap-2">
+              <Info className="mt-0.5 text-[#00F0FF]" size={18} />
+              <div>
+                <div className="font-black">Tip rápido</div>
+                <div className="text-xs text-white/65">Pon tu target con cabeza. El turbo se siente rico, pero no perdona 😅</div>
+              </div>
+            </div>
+          )}
+
+          {showCap ? (
+            <div className="rounded-[24px] border border-white/10 bg-black/30 p-4 text-sm text-white/85">
+              <div className="flex items-start gap-2">
+                <ShieldAlert className="mt-0.5 text-[#FFD700]" size={18} />
+                <div className="w-full">
+                  <div className="font-black">Bono activo (rollover)</div>
+                  <div className="text-xs text-white/65">Máximo por jugada: <b className="text-white">{promo.maxBet} MXN</b></div>
+                  <div className="mt-2 h-2 rounded-full bg-white/10 overflow-hidden">
+                    <div className="h-full bg-[#32CD32]" style={{ width: `${promo.ok && promo.hasRollover ? promo.pct : 0}%` }} />
+                  </div>
+                  <div className="mt-1 text-[11px] text-white/45">
+                    {promo.ok && promo.hasRollover ? `${Math.round(promo.progress)} / ${Math.round(promo.required)} MXN • ${promo.pct}%` : ""}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-[24px] border border-white/10 bg-black/30 p-4 text-sm text-white/75 flex items-start gap-2">
+              <History className="mt-0.5 text-[#FF0099]" size={18} />
+              <div>
+                <div className="font-black">Sin bono activo</div>
+                <div className="text-xs text-white/65">Sin cap por jugada. Igual no te vayas “all-in” sin razón.</div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Layout */}
         <div className="mt-5 flex flex-col lg:flex-row gap-5">
-          {/* Sidebar */}
+          {/* Left panel */}
           <div className="w-full lg:w-[360px] rounded-[32px] border border-white/10 bg-black/30 p-5 shadow-xl h-fit">
-            {resp.ok && resp.excluded ? (
-              <div className="mb-4 rounded-3xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-white/80 flex items-start gap-2">
-                <Ban className="mt-0.5 text-red-400" size={18} />
-                <div>
-                  <div className="font-black">Autoexclusión activa</div>
-                  <div className="text-xs text-white/65">
-                    {resp.until ? `Hasta: ${new Date(resp.until).toLocaleString()}` : "No puedes jugar por ahora."}
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            {showCap ? (
-              <div className="mb-4 rounded-3xl border border-white/10 bg-black/30 p-4 text-sm text-white/80">
-                <div className="flex items-start gap-2">
-                  <ShieldAlert className="mt-0.5 text-[#FFD700]" size={18} />
-                  <div className="w-full">
-                    <div className="font-black">Bono activo (rollover)</div>
-                    <div className="text-xs text-white/65">
-                      Máximo por jugada: <b className="text-white">{promo.ok && promo.hasRollover ? promo.maxBet : 0} MXN</b>
-                    </div>
-                    <div className="mt-2 h-2 rounded-full bg-white/10 overflow-hidden">
-                      <div className="h-full bg-[#32CD32]" style={{ width: `${promo.ok && promo.hasRollover ? promo.pct : 0}%` }} />
-                    </div>
-                    <div className="mt-1 text-[11px] text-white/45">
-                      {promo.ok && promo.hasRollover
-                        ? `${Math.round(promo.progress)} / ${Math.round(promo.required)} MXN • ${promo.pct}%`
-                        : ""}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
             <div className="rounded-3xl border border-white/10 bg-black/30 p-4">
-              <div className="text-[10px] uppercase tracking-widest text-white/50 font-bold">Disponible</div>
+              <div className="text-[10px] uppercase tracking-widest text-white/50 font-black">Disponible</div>
               <div className="mt-1 text-lg font-black tabular-nums">
                 {formatted} <span className="text-xs text-white/45">+ bono {formattedBonus}</span>
               </div>
@@ -509,7 +645,7 @@ export default function CrashPro() {
                   className="bg-black/40 border-white/10 h-12 font-mono text-white"
                   disabled={gameState === "RUNNING" || (resp.ok && resp.excluded)}
                 />
-                <div className="mt-2 flex gap-2">
+                <div className="mt-2 flex gap-2 flex-wrap">
                   {[1.5, 2, 3, 5].map((x) => (
                     <button
                       key={x}
@@ -532,7 +668,7 @@ export default function CrashPro() {
                     : "bg-[#00F0FF] text-black hover:bg-[#00d6e6] shadow-[0_0_30px_rgba(0,240,255,0.25)] hover:scale-[1.01]"
                 }`}
               >
-                {loading ? <Loader2 className="animate-spin" /> : gameState === "RUNNING" ? "EN JUEGO..." : "APOSTAR"}
+                {loading ? "..." : gameState === "RUNNING" ? "EN JUEGO..." : "APOSTAR"}
               </Button>
 
               <div className="text-[11px] text-white/45 flex items-center gap-2">
@@ -555,9 +691,9 @@ export default function CrashPro() {
             </div>
           </div>
 
-          {/* Game stage */}
+          {/* Stage */}
           <div className="flex-1 flex flex-col gap-4">
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            <div className="flex gap-2 overflow-x-auto pb-1">
               <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full text-xs text-white/55 font-black border border-white/10">
                 <History size={12} /> RECIENTES
               </div>
@@ -615,24 +751,13 @@ export default function CrashPro() {
 
             <div className="flex items-center justify-between gap-3 flex-wrap text-xs text-white/45">
               <div className="inline-flex items-center gap-2">
-                <Flame size={14} className="text-[#FF5E00]" />
-                Tip: si traes bono, juega inteligente y no te pases del cap.
-              </div>
-              <div className="inline-flex items-center gap-2">
                 <Image src="/isotipo-bw.png" alt="CHIDO" width={18} height={18} className="opacity-70" />
-                <span>CHIDO Originals</span>
+                <span>Chido Casino • Juego responsable</span>
               </div>
+              <div>© {new Date().getFullYear()} Hocker AGI Technologies</div>
             </div>
           </div>
         </div>
-
-        <style jsx global>{`
-          @media (prefers-reduced-motion: reduce) {
-            * {
-              scroll-behavior: auto !important;
-            }
-          }
-        `}</style>
       </div>
     </div>
   );
