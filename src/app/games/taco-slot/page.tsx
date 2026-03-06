@@ -1,16 +1,13 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
-import Image from "next/image";
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
 import { useWalletBalance } from "@/lib/useWalletBalance";
+import { useToast } from "@/components/ui/use-toast";
+import { sfx } from "@/lib/sfx";
 import {
-  ChevronLeft,
-  Menu,
+  Loader2,
   Volume2,
   VolumeX,
   Zap,
@@ -20,9 +17,6 @@ import {
   ShieldAlert,
   Ban,
   Info,
-  Minus,
-  Plus,
-  Gift,
 } from "lucide-react";
 
 type PromoLimit =
@@ -51,227 +45,22 @@ type SpinApi =
       reels: Array<{ key: string; img?: string }> | string[];
       level?: { key: string; label: string; badge: string };
       rtp?: number;
-      fair?: { serverSeedHash?: string; serverSeed?: string; nonce?: number };
+      fair?: {
+        serverSeedHash?: string;
+        serverSeed?: string;
+        clientSeed?: string;
+        nonce?: number;
+      };
       message?: string;
     }
   | { ok: false; error: string; message?: string; maxBet?: number };
 
-function money(n: number) {
-  const x = Number(n || 0);
-  return x.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-function clampInt(n: number, min: number, max: number) {
-  const x = Math.floor(Number(n));
-  if (!Number.isFinite(x)) return min;
-  return Math.max(min, Math.min(max, x));
-}
-function safeIso() {
-  return new Date().toISOString();
-}
-function vibrate(ms: number) {
-  try {
-    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-      // @ts-ignore
-      navigator.vibrate(ms);
-    }
-  } catch {}
-}
-function useLocalSetting<T>(key: string, initial: T) {
-  const [value, setValue] = useState<T>(initial);
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(key);
-      if (!raw) return;
-      setValue(JSON.parse(raw));
-    } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  useEffect(() => {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-    } catch {}
-  }, [key, value]);
-  return [value, setValue] as const;
-}
-
-/** ✅ WebAudio “mex-casino” synth (sin MP3). Si luego agregas MP3, lo tomamos primero. */
-class SoundKit {
-  private ctx: AudioContext | null = null;
-  private master: GainNode | null = null;
-  private unlocked = false;
-
-  private spinNoise?: { src: AudioBufferSourceNode; gain: GainNode; filter: BiquadFilterNode };
-
-  async unlock() {
-    if (this.unlocked) return;
-    try {
-      const Ctx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
-      this.ctx = new Ctx();
-      this.master = this.ctx.createGain();
-      this.master.gain.value = 0.9;
-      this.master.connect(this.ctx.destination);
-
-      // “silent tick” para unlock en iOS/Android
-      const o = this.ctx.createOscillator();
-      const g = this.ctx.createGain();
-      g.gain.value = 0.00001;
-      o.connect(g);
-      g.connect(this.master);
-      o.start();
-      o.stop(this.ctx.currentTime + 0.02);
-
-      this.unlocked = true;
-    } catch {
-      this.unlocked = false;
-    }
-  }
-
-  setMuted(muted: boolean) {
-    if (!this.master) return;
-    this.master.gain.value = muted ? 0 : 0.9;
-  }
-
-  private async tryPlayFile(src: string, vol: number, loop = false) {
-    try {
-      const a = new Audio(src);
-      a.volume = Math.max(0, Math.min(1, vol));
-      a.loop = loop;
-      await a.play();
-      return a;
-    } catch {
-      return null;
-    }
-  }
-
-  private beep(freq: number, durMs: number, vol: number, type: OscillatorType = "sine") {
-    if (!this.ctx || !this.master) return;
-    const t0 = this.ctx.currentTime;
-    const o = this.ctx.createOscillator();
-    const g = this.ctx.createGain();
-    o.type = type;
-    o.frequency.setValueAtTime(freq, t0);
-    g.gain.setValueAtTime(0.0001, t0);
-    g.gain.exponentialRampToValueAtTime(Math.max(0.0001, vol), t0 + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + durMs / 1000);
-    o.connect(g);
-    g.connect(this.master);
-    o.start(t0);
-    o.stop(t0 + durMs / 1000 + 0.02);
-  }
-
-  private noise(durMs: number, vol: number, cutoffHz = 1200) {
-    if (!this.ctx || !this.master) return;
-    const sr = this.ctx.sampleRate;
-    const len = Math.max(1, Math.floor((durMs / 1000) * sr));
-    const buf = this.ctx.createBuffer(1, len, sr);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * 0.65;
-
-    const src = this.ctx.createBufferSource();
-    src.buffer = buf;
-
-    const filter = this.ctx.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.value = cutoffHz;
-
-    const g = this.ctx.createGain();
-    g.gain.value = vol;
-
-    src.connect(filter);
-    filter.connect(g);
-    g.connect(this.master);
-    src.start();
-    src.stop(this.ctx.currentTime + durMs / 1000);
-  }
-
-  async click() {
-    // si existe archivo, úsalo; si no, synth
-    if ((await this.tryPlayFile("/sounds/ui-click.mp3", 0.35)) !== null) return;
-    this.beep(520, 40, 0.08, "square");
-  }
-
-  async reelStop() {
-    if ((await this.tryPlayFile("/sounds/slot-stop.mp3", 0.25)) !== null) return;
-    this.noise(60, 0.06, 900);
-    this.beep(210, 50, 0.05, "triangle");
-  }
-
-  async lose() {
-    if ((await this.tryPlayFile("/sounds/slot-lose.mp3", 0.18)) !== null) return;
-    this.beep(210, 90, 0.06, "sine");
-    this.beep(160, 120, 0.05, "sine");
-  }
-
-  async win(kind: "small" | "big" | "mega") {
-    const map: Record<string, string> = {
-      small: "/sounds/win-small.mp3",
-      big: "/sounds/win-big.mp3",
-      mega: "/sounds/win-mega.mp3",
-    };
-    if ((await this.tryPlayFile(map[kind], 0.35)) !== null) return;
-
-    if (kind === "small") {
-      this.beep(660, 90, 0.08, "triangle");
-      this.beep(880, 110, 0.07, "triangle");
-      return;
-    }
-    if (kind === "big") {
-      this.beep(523, 90, 0.08, "triangle");
-      this.beep(659, 120, 0.09, "triangle");
-      this.beep(784, 150, 0.10, "triangle");
-      return;
-    }
-    // mega
-    this.beep(392, 120, 0.10, "sawtooth");
-    this.beep(523, 150, 0.10, "sawtooth");
-    this.beep(659, 180, 0.11, "sawtooth");
-    this.noise(220, 0.05, 2200);
-  }
-
-  startSpinLoop(turbo: boolean) {
-    // intenta archivo loop si existe
-    this.tryPlayFile("/sounds/slot-spin.mp3", turbo ? 0.22 : 0.18, true).then((a) => {
-      if (a) {
-        // si hay archivo, no hacemos noise loop
-        return;
-      }
-      if (!this.ctx || !this.master) return;
-      if (this.spinNoise) return;
-
-      const sr = this.ctx.sampleRate;
-      const len = Math.floor(sr * 0.25);
-      const buf = this.ctx.createBuffer(1, len, sr);
-      const d = buf.getChannelData(0);
-      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * 0.35;
-
-      const src = this.ctx.createBufferSource();
-      src.buffer = buf;
-      src.loop = true;
-
-      const filter = this.ctx.createBiquadFilter();
-      filter.type = "bandpass";
-      filter.frequency.value = turbo ? 900 : 720;
-      filter.Q.value = 0.8;
-
-      const g = this.ctx.createGain();
-      g.gain.value = turbo ? 0.06 : 0.05;
-
-      src.connect(filter);
-      filter.connect(g);
-      g.connect(this.master);
-      src.start();
-
-      this.spinNoise = { src, gain: g, filter };
-    });
-  }
-
-  stopSpinLoop() {
-    try {
-      this.spinNoise?.src.stop();
-    } catch {}
-    this.spinNoise = undefined;
-  }
-}
+const SLOT_SYMBOLS: Record<string, string> = {
+  verde: "/slot-verde.png",
+  jalapeno: "/slot-jalapeno.png",
+  serrano: "/slot-serrano.png",
+  habanero: "/slot-habanero.png",
+};
 
 const LEVEL_BADGES: Record<string, string> = {
   verde: "/badge-verde.png",
@@ -280,123 +69,86 @@ const LEVEL_BADGES: Record<string, string> = {
   habanero: "/badge-habanero.png",
 };
 
-/** ✅ símbolos del slot (NO badges): usa tus 4 + isotipo + logo como wild/scatter */
-const SLOT_SYMBOLS: Record<string, string> = {
-  verde: "/slot-verde.png",
-  jalapeno: "/slot-jalapeno.png",
-  serrano: "/slot-serrano.png",
-  habanero: "/slot-habanero.png",
-  wild: "/isotipo-color.png",
-  scatter: "/chido-logo.png",
-};
-
-const SYMBOL_KEYS = Object.keys(SLOT_SYMBOLS);
-
-function seededRand(seedStr: string) {
-  // xfnv1a + mulberry32 mini
-  let h = 2166136261 >>> 0;
-  for (let i = 0; i < seedStr.length; i++) {
-    h ^= seedStr.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return function () {
-    h += 0x6d2b79f5;
-    let t = Math.imul(h ^ (h >>> 15), 1 | h);
-    t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+function money(n: number) {
+  const x = Number(n || 0);
+  return x.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-type Grid = string[]; // 15 symbols (5x3)
-const COLS = 5;
-const ROWS = 3;
+function clampInt(n: number, min: number, max: number) {
+  const x = Math.floor(Number(n));
+  if (!Number.isFinite(x)) return min;
+  return Math.max(min, Math.min(max, x));
+}
 
-function toGridFromApi(reels: SpinApi extends infer _ ? any : any, spinId: string): Grid {
-  const flat: string[] =
-    Array.isArray(reels) && typeof reels[0] === "string"
-      ? (reels as string[])
-      : Array.isArray(reels)
-        ? (reels as Array<{ key: string }>).map((x) => x.key)
-        : [];
-
-  // si ya vienen 15, perfecto
-  if (flat.length >= COLS * ROWS) return flat.slice(0, COLS * ROWS).map((k) => (SLOT_SYMBOLS[k] ? k : "verde"));
-
-  // si vienen 5, los usamos como centro de cada reel
-  // si vienen 3, los ponemos en 3 reels centrales y rellenamos
-  const rnd = seededRand(spinId || safeIso());
-  const grid: string[] = [];
-  const centers = new Array(COLS).fill("verde");
-
-  if (flat.length === 5) {
-    for (let c = 0; c < COLS; c++) centers[c] = SLOT_SYMBOLS[flat[c]] ? flat[c] : "verde";
-  } else if (flat.length === 3) {
-    centers[1] = SLOT_SYMBOLS[flat[0]] ? flat[0] : "verde";
-    centers[2] = SLOT_SYMBOLS[flat[1]] ? flat[1] : "verde";
-    centers[3] = SLOT_SYMBOLS[flat[2]] ? flat[2] : "verde";
-    centers[0] = SYMBOL_KEYS[Math.floor(rnd() * SYMBOL_KEYS.length)];
-    centers[4] = SYMBOL_KEYS[Math.floor(rnd() * SYMBOL_KEYS.length)];
-  } else if (flat.length > 0) {
-    // lo que sea: repetimos y rellenamos
-    for (let c = 0; c < COLS; c++) centers[c] = SLOT_SYMBOLS[flat[c % flat.length]] ? flat[c % flat.length] : "verde";
-  } else {
-    for (let c = 0; c < COLS; c++) centers[c] = SYMBOL_KEYS[Math.floor(rnd() * SYMBOL_KEYS.length)];
-  }
-
-  // construimos 5x3: fila 0,1,2 por columnas
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
-      if (r === 1) grid.push(centers[c]);
-      else grid.push(SYMBOL_KEYS[Math.floor(rnd() * SYMBOL_KEYS.length)]);
+function vibrate(ms: number) {
+  try {
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      // @ts-ignore
+      navigator.vibrate(ms);
     }
-  }
-  return grid.map((k) => (SLOT_SYMBOLS[k] ? k : "verde"));
+  } catch {}
 }
 
-function classifyWin(payout: number, bet: number) {
-  const ratio = bet > 0 ? payout / bet : 0;
-  if (ratio >= 20) return "mega" as const;
-  if (ratio >= 8) return "big" as const;
-  return "small" as const;
+function useLocalSetting<T>(key: string, initial: T) {
+  const [value, setValue] = useState<T>(initial);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return;
+      setValue(JSON.parse(raw));
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch {}
+  }, [key, value]);
+
+  return [value, setValue] as const;
 }
 
 function SymbolTile({ k, spinning }: { k: string; spinning: boolean }) {
-  const src = SLOT_SYMBOLS[k] || SLOT_SYMBOLS.verde;
+  const [src, setSrc] = useState(SLOT_SYMBOLS[k] || `/slot-${k}.png`);
+  useEffect(() => setSrc(SLOT_SYMBOLS[k] || `/slot-${k}.png`), [k]);
+
   return (
-    <div className="relative w-full h-full grid place-items-center">
-      <div className={`relative w-[86%] h-[86%] ${spinning ? "blur-[1px] opacity-95" : ""}`}>
+    <div className="relative w-full h-full flex items-center justify-center">
+      <div className={`relative w-[86%] h-[86%] ${spinning ? "blur-[1px]" : ""}`}>
         <Image
           src={src}
           alt={k}
           fill
-          className={`object-contain drop-shadow-[0_10px_18px_rgba(0,0,0,0.55)] ${spinning ? "animate-slotJitter" : ""}`}
-          priority={false}
+          className={`object-contain drop-shadow-[0_14px_22px_rgba(0,0,0,0.55)] ${
+            spinning ? "animate-slotJitter" : ""
+          }`}
+          onError={() => setSrc(LEVEL_BADGES[k] || "/badge-verde.png")}
         />
       </div>
     </div>
   );
 }
 
-export default function TacoSlotPragmaticStyle() {
-  const { toast } = useToast();
+export default function TacoSlotProPage() {
   const { balance, bonusBalance, refresh, formatted, formattedBonus } = useWalletBalance();
+  const { toast } = useToast();
 
   const available = (balance || 0) + (bonusBalance || 0);
 
-  const [soundOn, setSoundOn] = useLocalSetting("chido_sound", true);
+  const [soundEnabled, setSoundEnabled] = useLocalSetting("chido_sound", true);
   const [turbo, setTurbo] = useLocalSetting("chido_slot_turbo", false);
   const [vfx, setVfx] = useLocalSetting("chido_vfx", true);
   const [haptics, setHaptics] = useLocalSetting("chido_haptics", true);
 
-  const sfxRef = useRef<SoundKit | null>(null);
-  if (!sfxRef.current) sfxRef.current = new SoundKit();
-
-  useEffect(() => {
-    sfxRef.current?.setMuted(!soundOn);
-  }, [soundOn]);
-
   const [promo, setPromo] = useState<PromoLimit>({ ok: true, hasRollover: false });
-  const [resp, setResp] = useState<ResponsibleStatus>({ ok: true, excluded: false, until: null, reason: null });
+  const [resp, setResp] = useState<ResponsibleStatus>({
+    ok: true,
+    excluded: false,
+    until: null,
+    reason: null,
+  });
 
   const maxBet = promo.ok && promo.hasRollover ? promo.maxBet : Infinity;
 
@@ -409,53 +161,43 @@ export default function TacoSlotPragmaticStyle() {
 
   const [bet, setBet] = useState(10);
 
-  useEffect(() => {
-    setBet((b) => clampBet(b));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [promo.ok, (promo as any).hasRollover, (promo as any).maxBet]);
-
-  const [loadingSplash, setLoadingSplash] = useState(true);
-  useEffect(() => {
-    const t = setTimeout(() => setLoadingSplash(false), 1100);
-    return () => clearTimeout(t);
-  }, []);
-
+  const [phase, setPhase] = useState<"idle" | "spin" | "reveal1" | "reveal2" | "reveal3">("idle");
   const [spinning, setSpinning] = useState(false);
-  const [reelActive, setReelActive] = useState<boolean[]>([false, false, false, false, false]);
-  const [grid, setGrid] = useState<Grid>(() => {
-    // default: centrado bonito
-    return [
-      "verde",
-      "jalapeno",
-      "serrano",
-      "habanero",
-      "wild",
-      "jalapeno",
-      "verde",
-      "serrano",
-      "verde",
-      "scatter",
-      "serrano",
-      "jalapeno",
-      "verde",
-      "habanero",
-      "verde",
-    ].slice(0, 15);
-  });
+
+  const [reels, setReels] = useState<string[]>(["verde", "verde", "verde"]);
+  const [level, setLevel] = useState<{ key: string; label: string; badge: string } | null>(null);
+
+  const [winData, setWinData] = useState<{ payout: number; mult: number; kind: "small" | "big" | "mega" } | null>(
+    null
+  );
+  const [lastFair, setLastFair] = useState<{ hash?: string; nonce?: number } | null>(null);
 
   const [autoLeft, setAutoLeft] = useState(0);
   const autoRef = useRef(0);
   autoRef.current = autoLeft;
 
-  const [level, setLevel] = useState<{ key: string; label: string; badge: string } | null>(null);
-  const [lastFair, setLastFair] = useState<{ hash?: string; seed?: string; nonce?: number; ts: string } | null>(null);
+  const stopSpinLoopRef = useRef<null | (() => void)>(null);
 
-  const [winOverlay, setWinOverlay] = useState<null | { kind: "small" | "big" | "mega"; payout: number; mult: number }>(null);
-  const [anticipation, setAnticipation] = useState(false);
+  const showCap = promo.ok && promo.hasRollover;
 
   const durations = useMemo(() => {
-    return turbo ? { spin: 650, gap: 140 } : { spin: 1180, gap: 240 };
+    return turbo ? { spin: 520, gap: 150 } : { spin: 1100, gap: 260 };
   }, [turbo]);
+
+  const headline = useMemo(() => {
+    const lines = [
+      "A ver si cae algo chilo 👀",
+      "Dale, que hoy se arma.",
+      "Puro CHIDO, puro sabor 🔥",
+      "Échale, patrón…",
+    ];
+    return lines[Math.floor(Math.random() * lines.length)];
+  }, []);
+
+  const randomSymbol = () => {
+    const keys = Object.keys(SLOT_SYMBOLS);
+    return keys[Math.floor(Math.random() * keys.length)];
+  };
 
   const loadGates = async () => {
     try {
@@ -463,12 +205,23 @@ export default function TacoSlotPragmaticStyle() {
         fetch("/api/promos/limits", { cache: "no-store" }),
         fetch("/api/responsible/status", { cache: "no-store" }),
       ]);
-      const pj = (await p.json().catch(() => ({}))) as PromoLimit;
-      const rj = (await r.json().catch(() => ({}))) as any;
-      if (p.ok) setPromo(pj);
-      if (r.ok) setResp({ ok: true, excluded: !!rj.excluded, until: rj.until ?? null, reason: rj.reason ?? null });
+
+      if (p.ok) setPromo((await p.json()) as PromoLimit);
+
+      if (r.ok) {
+        const j = await r.json();
+        setResp({ ok: true, excluded: !!j.excluded, until: j.until ?? null, reason: j.reason ?? null });
+      }
     } catch {}
   };
+
+  useEffect(() => {
+    void sfx.prime();
+  }, []);
+
+  useEffect(() => {
+    sfx.setEnabled(!!soundEnabled);
+  }, [soundEnabled]);
 
   useEffect(() => {
     void loadGates();
@@ -476,29 +229,177 @@ export default function TacoSlotPragmaticStyle() {
     return () => clearInterval(t);
   }, []);
 
-  // reel jitter driver (mientras reelActive[col] = true, actualiza 3 símbolos de esa columna)
   useEffect(() => {
-    if (!reelActive.some(Boolean)) return;
-    const interval = setInterval(() => {
-      setGrid((prev) => {
-        const next = prev.slice();
-        for (let c = 0; c < COLS; c++) {
-          if (!reelActive[c]) continue;
-          const k0 = SYMBOL_KEYS[Math.floor(Math.random() * SYMBOL_KEYS.length)];
-          const k1 = SYMBOL_KEYS[Math.floor(Math.random() * SYMBOL_KEYS.length)];
-          const k2 = SYMBOL_KEYS[Math.floor(Math.random() * SYMBOL_KEYS.length)];
-          // filas: r0,r1,r2 (en nuestro grid: r*COLS + c)
-          next[0 * COLS + c] = k0;
-          next[1 * COLS + c] = k1;
-          next[2 * COLS + c] = k2;
-        }
-        return next;
-      });
-    }, turbo ? 55 : 85);
-    return () => clearInterval(interval);
-  }, [reelActive, turbo]);
+    setBet((b) => clampBet(b));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [promo.ok, (promo as any).hasRollover, (promo as any).maxBet]);
 
-  const canPlay = !(resp.ok && resp.excluded);
+  const classifyWin = (payout: number, betAmount: number) => {
+    const ratio = betAmount > 0 ? payout / betAmount : 0;
+    if (ratio >= 20) return "mega" as const;
+    if (ratio >= 8) return "big" as const;
+    return "small" as const;
+  };
+
+  const stopSpinLoop = () => {
+    stopSpinLoopRef.current?.();
+    stopSpinLoopRef.current = null;
+  };
+
+  const doSpin = async (byAuto = false) => {
+    if (spinning) return;
+
+    if (resp.ok && resp.excluded) {
+      if (!byAuto) {
+        toast({
+          title: "Autoexclusión activa",
+          description: resp.until ? `Hasta: ${new Date(resp.until).toLocaleString()}` : "Por ahora no se puede jugar.",
+          variant: "destructive",
+        });
+      }
+      setAutoLeft(0);
+      return;
+    }
+
+    const safeBet = clampBet(bet);
+    if (safeBet !== bet) setBet(safeBet);
+
+    if (safeBet > available) {
+      if (!byAuto) {
+        toast({
+          title: "Saldo insuficiente",
+          description: "Te falta feria. Tu disponible incluye bono si aplica.",
+          variant: "destructive",
+        });
+      }
+      setAutoLeft(0);
+      return;
+    }
+
+    setSpinning(true);
+    setWinData(null);
+    setPhase("spin");
+
+    if (haptics) vibrate(turbo ? 20 : 35);
+
+    // audio unlock + click + spin loop
+    void sfx.unlock();
+    sfx.play("ui-click", { volume: 0.9 });
+    stopSpinLoop();
+    stopSpinLoopRef.current = sfx.loop("slot-spin", { volume: turbo ? 0.7 : 0.55 });
+
+    // “fake spin” animation
+    const jitter = setInterval(() => {
+      setReels([randomSymbol(), randomSymbol(), randomSymbol()]);
+    }, turbo ? 55 : 90);
+
+    let api: SpinApi | null = null;
+
+    try {
+      const res = await fetch("/api/games/taco-slot/spin", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ bet: safeBet }),
+      });
+
+      api = (await res.json().catch(() => ({}))) as SpinApi;
+
+      if (!res.ok || !("ok" in (api as any)) || (api as any).ok !== true) {
+        const err = (api as any)?.error || "SPIN_FAILED";
+        if (err === "PROMO_MAX_BET") setBet(clampBet(Number((api as any).maxBet || safeBet)));
+        if (err === "SELF_EXCLUDED") await loadGates();
+        throw new Error((api as any)?.message || err);
+      }
+    } catch (e: any) {
+      clearInterval(jitter);
+      stopSpinLoop();
+      setPhase("idle");
+      setSpinning(false);
+      setAutoLeft(0);
+
+      if (!byAuto) {
+        toast({ title: "No se armó", description: e?.message || "Intenta otra vez.", variant: "destructive" });
+      }
+      return;
+    }
+
+    const okApi = api as Extract<SpinApi, { ok: true }>;
+    const finalKeys =
+      Array.isArray(okApi.reels) && typeof (okApi.reels as any)[0] === "string"
+        ? (okApi.reels as string[])
+        : (okApi.reels as Array<{ key: string }>).map((x) => x.key);
+
+    const payout = Number(okApi.payout || 0);
+    const mult = Number(okApi.multiplier || 0);
+
+    const t0 = setTimeout(() => {
+      setPhase("reveal1");
+      setReels([finalKeys[0] || "verde", randomSymbol(), randomSymbol()]);
+      sfx.play("slot-stop", { volume: 0.7 });
+      if (haptics) vibrate(12);
+    }, durations.spin);
+
+    const t1 = setTimeout(() => {
+      setPhase("reveal2");
+      setReels([finalKeys[0] || "verde", finalKeys[1] || "verde", randomSymbol()]);
+      sfx.play("slot-stop", { volume: 0.7 });
+      if (haptics) vibrate(12);
+    }, durations.spin + durations.gap);
+
+    const t2 = setTimeout(() => {
+      clearInterval(jitter);
+      stopSpinLoop();
+
+      setPhase("reveal3");
+      setReels([finalKeys[0] || "verde", finalKeys[1] || "verde", finalKeys[2] || "verde"]);
+
+      if (okApi.level) setLevel(okApi.level);
+      setLastFair({ hash: okApi.fair?.serverSeedHash, nonce: okApi.fair?.nonce });
+
+      if (payout > 0) {
+        const kind = classifyWin(payout, safeBet);
+        setWinData({ payout, mult, kind });
+
+        sfx.play(kind === "mega" ? "win-mega" : kind === "big" ? "win-big" : "win-small", { volume: 0.95 });
+
+        if (haptics) vibrate(kind === "mega" ? 90 : kind === "big" ? 60 : 35);
+
+        toast({
+          title: kind === "mega" ? "MEGA WIN 🔥" : kind === "big" ? "Ganaste chido ✅" : "Pegó 👌",
+          description: `x${mult} (+${money(payout)} MXN)`,
+        });
+      } else {
+        sfx.play("slot-lose", { volume: 0.8 });
+      }
+
+      refresh();
+      void loadGates();
+
+      setTimeout(() => {
+        setPhase("idle");
+        setSpinning(false);
+
+        if (autoRef.current > 0) setAutoLeft((n) => Math.max(0, n - 1));
+      }, turbo ? 120 : 220);
+    }, durations.spin + durations.gap * 2);
+
+    return () => {
+      clearInterval(jitter);
+      clearTimeout(t0);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      stopSpinLoop();
+    };
+  };
+
+  useEffect(() => {
+    if (autoLeft <= 0) return;
+    if (spinning) return;
+
+    const t = setTimeout(() => void doSpin(true), turbo ? 180 : 260);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoLeft, spinning, turbo]);
 
   const toggleAuto = (count = 10) => {
     if (autoLeft > 0) {
@@ -511,698 +412,407 @@ export default function TacoSlotPragmaticStyle() {
     toast({ title: "Auto activado", description: `Se arma con ${c} giros.` });
   };
 
-  const doSpin = async (fromAuto = false) => {
-    if (spinning) return;
-
-    if (resp.ok && resp.excluded) {
-      setAutoLeft(0);
-      if (!fromAuto) {
-        toast({
-          title: "Autoexclusión activa",
-          description: resp.until ? `Hasta: ${new Date(resp.until).toLocaleString()}` : "Ahorita no se arma.",
-          variant: "destructive",
-        });
-      }
-      return;
-    }
-
-    const safeBet = clampBet(bet);
-    if (safeBet !== bet) setBet(safeBet);
-
-    if (safeBet > available) {
-      setAutoLeft(0);
-      if (!fromAuto) toast({ title: "Saldo insuficiente", description: "Te falta feria (incluye bono si aplica).", variant: "destructive" });
-      return;
-    }
-
-    setSpinning(true);
-    setWinOverlay(null);
-    setAnticipation(false);
-    setReelActive([true, true, true, true, true]);
-
-    if (haptics) vibrate(turbo ? 18 : 30);
-
-    // unlock audio por gesto
-    await sfxRef.current?.unlock();
-    await sfxRef.current?.click();
-    sfxRef.current?.startSpinLoop(turbo);
-
-    let api: SpinApi | null = null;
-    try {
-      const res = await fetch("/api/games/taco-slot/spin", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ bet: safeBet }),
-      });
-      api = (await res.json().catch(() => ({}))) as SpinApi;
-
-      if (!res.ok || !api || (api as any).ok !== true) {
-        const err = (api as any)?.error || "SPIN_FAILED";
-        if (err === "PROMO_MAX_BET") setBet(clampBet(Number((api as any).maxBet || safeBet)));
-        if (err === "SELF_EXCLUDED") await loadGates();
-        throw new Error((api as any)?.message || err);
-      }
-    } catch (e: any) {
-      sfxRef.current?.stopSpinLoop();
-      setReelActive([false, false, false, false, false]);
-      setSpinning(false);
-      setAutoLeft(0);
-      if (!fromAuto) toast({ title: "No se armó", description: e?.message || "Intenta otra vez.", variant: "destructive" });
-      return;
-    }
-
-    const okApi = api as Extract<SpinApi, { ok: true }>;
-    const flat =
-      Array.isArray(okApi.reels) && typeof okApi.reels[0] === "string"
-        ? (okApi.reels as string[])
-        : (okApi.reels as Array<{ key: string }>).map((x) => x.key);
-
-    const finalGrid = toGridFromApi(flat, okApi.spinId);
-    const payout = Number(okApi.payout || 0);
-    const mult = Number(okApi.multiplier || 0);
-
-    // revelado por reels tipo casino (uno por uno)
-    const timers: any[] = [];
-    const stopReel = async (col: number) => {
-      // set columna a valores finales
-      setGrid((prev) => {
-        const next = prev.slice();
-        next[0 * COLS + col] = finalGrid[0 * COLS + col];
-        next[1 * COLS + col] = finalGrid[1 * COLS + col];
-        next[2 * COLS + col] = finalGrid[2 * COLS + col];
-        return next;
-      });
-      setReelActive((prev) => {
-        const next = prev.slice();
-        next[col] = false;
-        return next;
-      });
-      if (haptics) vibrate(12);
-      await sfxRef.current?.reelStop();
-    };
-
-    // anticipación: si los 2 primeros centros coinciden, prende glow en los demás
-    const center0 = finalGrid[1 * COLS + 0];
-    const center1 = finalGrid[1 * COLS + 1];
-    const willAnticipate = center0 === center1;
-
-    timers.push(
-      setTimeout(() => {
-        void stopReel(0);
-      }, durations.spin),
-    );
-    timers.push(
-      setTimeout(() => {
-        void stopReel(1);
-        if (willAnticipate) setAnticipation(true);
-      }, durations.spin + durations.gap),
-    );
-    timers.push(setTimeout(() => void stopReel(2), durations.spin + durations.gap * 2));
-    timers.push(setTimeout(() => void stopReel(3), durations.spin + durations.gap * 3));
-    timers.push(
-      setTimeout(async () => {
-        await stopReel(4);
-
-        sfxRef.current?.stopSpinLoop();
-
-        if (okApi.level) setLevel(okApi.level);
-        setLastFair({ hash: okApi.fair?.serverSeedHash, seed: okApi.fair?.serverSeed, nonce: okApi.fair?.nonce, ts: safeIso() });
-
-        refresh();
-        void loadGates();
-
-        if (payout > 0) {
-          const kind = classifyWin(payout, safeBet);
-          setWinOverlay({ kind, payout, mult });
-          await sfxRef.current?.win(kind);
-          if (haptics) vibrate(kind === "mega" ? 95 : kind === "big" ? 65 : 40);
-
-          toast({
-            title: kind === "mega" ? "MEGA WIN 🔥" : kind === "big" ? "¡Qué chido! Ganaste" : "Pegó 👌",
-            description: `x${mult} (+${money(payout)} MXN)`,
-          });
-        } else {
-          await sfxRef.current?.lose();
-        }
-
-        setTimeout(() => {
-          setAnticipation(false);
-          setSpinning(false);
-          // auto decrement
-          if (autoRef.current > 0) setAutoLeft((n) => Math.max(0, n - 1));
-        }, turbo ? 120 : 220);
-      }, durations.spin + durations.gap * 4),
-    );
-
-    return () => timers.forEach(clearTimeout);
-  };
-
-  useEffect(() => {
-    if (autoLeft <= 0) return;
-    if (spinning) return;
-    const t = setTimeout(() => void doSpin(true), turbo ? 200 : 280);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoLeft, spinning, turbo]);
-
-  const showCap = promo.ok && promo.hasRollover;
-  const capText = showCap ? `Max por giro: $${promo.maxBet} MXN` : "Sin límite por bono";
-
-  const headline = useMemo(() => {
-    const lines = [
-      "Dale al giro, a ver si cae chido 😮‍💨",
-      "Aguas… hoy puede caer el premio 👀",
-      "Puro sabor, puro CHIDO 🔥",
-      "Se armó, compa. Tú dale.",
-    ];
-    return lines[Math.floor(Math.random() * lines.length)];
-  }, []);
-
-  // UI helper: tile border for anticipation reels
-  const reelFrameClass = (col: number) => {
-    const isActive = reelActive[col];
-    const ant = anticipation && isActive && col >= 2;
-    return [
-      "relative rounded-[18px] overflow-hidden border",
-      ant ? "border-[#FFD700]/45 shadow-[0_0_34px_rgba(255,215,0,0.22)]" : "border-white/10",
-      isActive ? "shadow-[0_0_26px_rgba(0,240,255,0.10)]" : "shadow-[0_16px_50px_rgba(0,0,0,0.45)]",
-      ant ? "animate-anticipatePulse" : "",
-    ].join(" ");
-  };
-
   return (
-    <div className="relative min-h-[calc(100vh-88px)] pb-24">
-      {/* Background */}
+    <div className="relative min-h-[calc(100vh-90px)] w-full pb-24">
+      {/* BG */}
       <div className="absolute inset-0 -z-10">
         <Image src="/hero-bg.jpg" alt="Fondo" fill className="object-cover opacity-25" priority />
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/55 to-black/85" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_25%,rgba(255,0,153,0.14),transparent_45%),radial-gradient(circle_at_75%_35%,rgba(0,240,255,0.12),transparent_45%),radial-gradient(circle_at_50%_85%,rgba(50,205,50,0.10),transparent_50%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_25%,rgba(255,0,153,0.16),transparent_45%),radial-gradient(circle_at_75%_35%,rgba(0,240,255,0.14),transparent_45%),radial-gradient(circle_at_50%_80%,rgba(50,205,50,0.10),transparent_55%)]" />
       </div>
 
-      {/* Splash (como casinos reales) */}
-      {loadingSplash ? (
-        <div className="fixed inset-0 z-[80] grid place-items-center bg-black">
-          <div className="relative w-full max-w-[520px] px-5">
-            <div className="relative aspect-[9/16] w-full overflow-hidden rounded-[32px] border border-white/10 bg-black">
-              <Image src="/hero-bg.jpg" alt="Cargando" fill className="object-cover opacity-60" priority />
-              <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/40 to-black/85" />
-
-              <div className="absolute top-6 left-6 flex items-center gap-3">
-                <div className="relative h-12 w-12">
-                  <Image src="/isotipo-color.png" alt="CHIDO" fill className="object-contain drop-shadow-[0_10px_18px_rgba(0,0,0,0.7)]" />
-                </div>
-                <div>
-                  <div className="text-white font-black text-xl tracking-tight">Taco Slot</div>
-                  <div className="text-white/60 text-xs">Cargando… (se arma en corto)</div>
-                </div>
-              </div>
-
-              <div className="absolute inset-x-6 bottom-7">
-                <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
-                  <div className="h-full w-[62%] bg-gradient-to-r from-[#FF0099] via-[#00F0FF] to-[#32CD32] animate-loadingBar" />
-                </div>
-                <div className="mt-3 text-center text-white/55 text-xs">“El que no gira, no gana” 😈</div>
-              </div>
+      <div className="mx-auto max-w-6xl px-4 pt-6 animate-fade-in">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className="relative h-11 w-11">
+              <Image src="/isotipo-color.png" alt="CHIDO" fill className="object-contain" />
             </div>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Top Bar */}
-      <div className="mx-auto max-w-6xl px-4 pt-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Link
-              href="/lobby"
-              className="h-11 w-11 grid place-items-center rounded-2xl border border-white/10 bg-black/35 hover:bg-white/5 transition"
-              aria-label="Volver"
-            >
-              <ChevronLeft size={18} />
-            </Link>
-
-            <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/35 px-3 py-2">
-              <div className="relative h-6 w-6">
-                <Image src="/isotipo-color.png" alt="CHIDO" fill className="object-contain" />
-              </div>
-              <div className="leading-tight">
-                <div className="text-white font-black text-sm">Taco Slot</div>
-                <div className="text-white/55 text-[11px]">{headline}</div>
-              </div>
+            <div>
+              <div className="text-2xl font-black tracking-tight text-white">Taco Slot</div>
+              <div className="text-xs text-white/60">{headline}</div>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="rounded-2xl border border-white/10 bg-black/35 px-3 py-2 text-xs">
-              <div className="text-white/55 font-black uppercase tracking-widest text-[10px]">Saldo</div>
-              <div className="text-white font-black tabular-nums">
-                {formatted} <span className="text-white/45 text-[11px]">+ bono {formattedBonus}</span>
-              </div>
-            </div>
-
-            <Link
-              href="/wallet"
-              className="h-11 px-4 rounded-2xl bg-[#32CD32] text-black font-black inline-flex items-center gap-2 shadow-[0_0_22px_rgba(50,205,50,0.18)] hover:brightness-110 transition"
-            >
-              Depósito
-            </Link>
-
             <button
-              onClick={() => setSoundOn((v: boolean) => !v)}
-              className="h-11 w-11 grid place-items-center rounded-2xl border border-white/10 bg-black/35 hover:bg-white/5 transition"
-              aria-label="Sonido"
-            >
-              {soundOn ? <Volume2 size={18} /> : <VolumeX size={18} />}
-            </button>
-
-            <button
-              onClick={() => setTurbo((v: boolean) => !v)}
-              className={`h-11 px-3 rounded-2xl border text-xs font-black inline-flex items-center gap-2 transition ${
-                turbo ? "bg-[#FFD700] text-black border-[#FFD700]/45" : "bg-black/35 text-white/70 border-white/10 hover:bg-white/5"
+              onClick={() => setTurbo((v) => !v)}
+              className={`h-10 px-3 rounded-2xl border text-xs font-black inline-flex items-center gap-2 transition ${
+                turbo ? "bg-[#FFD700] text-black border-[#FFD700]/40" : "bg-black/40 text-white/75 border-white/10 hover:bg-white/5"
               }`}
-              aria-label="Turbo"
             >
               <Zap size={16} /> Turbo
             </button>
 
             <button
-              onClick={() => setVfx((v: boolean) => !v)}
-              className={`h-11 px-3 rounded-2xl border text-xs font-black inline-flex items-center gap-2 transition ${
-                vfx ? "bg-white text-black border-white/35" : "bg-black/35 text-white/70 border-white/10 hover:bg-white/5"
+              onClick={() => setVfx((v) => !v)}
+              className={`h-10 px-3 rounded-2xl border text-xs font-black inline-flex items-center gap-2 transition ${
+                vfx ? "bg-white text-black border-white/30" : "bg-black/40 text-white/75 border-white/10 hover:bg-white/5"
               }`}
-              aria-label="VFX"
             >
               <Sparkles size={16} /> VFX
             </button>
 
             <button
-              onClick={() => setHaptics((v: boolean) => !v)}
-              className={`h-11 px-3 rounded-2xl border text-xs font-black inline-flex items-center gap-2 transition ${
-                haptics ? "bg-white text-black border-white/35" : "bg-black/35 text-white/70 border-white/10 hover:bg-white/5"
+              onClick={() => setHaptics((v) => !v)}
+              className={`h-10 px-3 rounded-2xl border text-xs font-black transition ${
+                haptics ? "bg-white text-black border-white/30" : "bg-black/40 text-white/75 border-white/10 hover:bg-white/5"
               }`}
-              aria-label="Vibración"
+              title="Vibración"
             >
               Vibra
             </button>
 
             <button
-              className="h-11 w-11 grid place-items-center rounded-2xl border border-white/10 bg-black/35 hover:bg-white/5 transition"
-              aria-label="Menú"
-              onClick={() =>
-                toast({
-                  title: "Menú",
-                  description: "Aquí luego metemos: paytable full, historial, reglas, soporte y ajustes finos.",
-                })
-              }
+              onClick={() => setSoundEnabled((v) => !v)}
+              className="h-10 w-10 rounded-2xl border border-white/10 bg-black/40 hover:bg-white/5 flex items-center justify-center"
+              title="Sonido"
             >
-              <Menu size={18} />
+              {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
             </button>
           </div>
         </div>
 
-        {/* Gates: autoexclusión + cap */}
-        <div className="mt-4 grid gap-3 lg:grid-cols-2">
-          {resp.ok && resp.excluded ? (
-            <div className="rounded-[24px] border border-red-500/30 bg-red-500/10 p-4 text-sm text-white/85 flex items-start gap-2">
-              <Ban className="mt-0.5 text-red-400" size={18} />
-              <div>
-                <div className="font-black">Autoexclusión activa</div>
+        {/* Gates */}
+        {resp.ok && resp.excluded ? (
+          <div className="mt-4 rounded-3xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-white/80 flex items-start gap-2">
+            <Ban className="mt-0.5 text-red-400" size={18} />
+            <div>
+              <div className="font-black">Autoexclusión activa</div>
+              <div className="text-xs text-white/65">
+                {resp.until ? `Hasta: ${new Date(resp.until).toLocaleString()}` : "Por ahora no se puede jugar."}
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {showCap ? (
+          <div className="mt-4 rounded-3xl border border-white/10 bg-black/30 p-4 text-sm text-white/85">
+            <div className="flex items-start gap-2">
+              <ShieldAlert className="mt-0.5 text-[#FFD700]" size={18} />
+              <div className="w-full">
+                <div className="font-black">Bono activo (rollover)</div>
                 <div className="text-xs text-white/65">
-                  {resp.until ? `Hasta: ${new Date(resp.until).toLocaleString()}` : "Ahorita no se puede jugar."}
+                  Máximo por giro: <b className="text-white">{promo.ok && promo.hasRollover ? promo.maxBet : 0} MXN</b>
+                </div>
+                <div className="mt-2 h-2 rounded-full bg-white/10 overflow-hidden">
+                  <div className="h-full bg-[#32CD32]" style={{ width: `${promo.ok && promo.hasRollover ? promo.pct : 0}%` }} />
+                </div>
+                <div className="mt-1 text-[11px] text-white/45">
+                  {promo.ok && promo.hasRollover ? `${Math.round(promo.progress)} / ${Math.round(promo.required)} MXN • ${promo.pct}%` : ""}
                 </div>
               </div>
             </div>
-          ) : (
-            <div className="rounded-[24px] border border-white/10 bg-black/30 p-4 text-sm text-white/80 flex items-start gap-2">
-              <Info className="mt-0.5 text-[#00F0FF]" size={18} />
-              <div>
-                <div className="font-black">Regla rápida</div>
-                <div className="text-xs text-white/65">
-                  Si traes bono activo, respeta el <b>cap por jugada</b> pa’ que todo sea limpio.
-                </div>
-              </div>
-            </div>
-          )}
+          </div>
+        ) : null}
 
-          {showCap ? (
-            <div className="rounded-[24px] border border-white/10 bg-black/30 p-4 text-sm text-white/85">
-              <div className="flex items-start gap-2">
-                <ShieldAlert className="mt-0.5 text-[#FFD700]" size={18} />
-                <div className="w-full">
-                  <div className="font-black">Bono activo (rollover)</div>
-                  <div className="text-xs text-white/65">{capText}</div>
-                  <div className="mt-2 h-2 rounded-full bg-white/10 overflow-hidden">
-                    <div className="h-full bg-[#32CD32]" style={{ width: `${promo.ok && promo.hasRollover ? promo.pct : 0}%` }} />
-                  </div>
-                  <div className="mt-1 text-[11px] text-white/45">
-                    {promo.ok && promo.hasRollover ? `${Math.round(promo.progress)} / ${Math.round(promo.required)} MXN • ${promo.pct}%` : ""}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="rounded-[24px] border border-white/10 bg-black/30 p-4 text-sm text-white/75 flex items-start gap-2">
-              <Gift className="mt-0.5 text-[#FF0099]" size={18} />
-              <div>
-                <div className="font-black">Sin bono activo</div>
-                <div className="text-xs text-white/65">Apuesta libre (igual juega con cabeza, pa’ no llorar luego).</div>
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Slot layout */}
+        <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_320px]">
+          {/* Machine */}
+          <div className="relative overflow-hidden rounded-[34px] border border-white/10 bg-black/35 p-4 sm:p-6 shadow-[0_30px_120px_rgba(0,0,0,0.55)]">
+            {/* gold-ish frame vibe */}
+            <div className="absolute -inset-10 bg-[radial-gradient(circle_at_50%_20%,rgba(255,215,0,0.14),transparent_55%),radial-gradient(circle_at_60%_80%,rgba(255,0,153,0.16),transparent_55%),radial-gradient(circle_at_30%_70%,rgba(0,240,255,0.12),transparent_55%)]" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/35 to-black/70" />
 
-        {/* Game Frame */}
-        <div className="mt-5 relative overflow-hidden rounded-[34px] border border-white/10 bg-black/35">
-          {/* chrome */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,0,153,0.14),transparent_50%),radial-gradient(circle_at_80%_30%,rgba(0,240,255,0.12),transparent_50%),radial-gradient(circle_at_50%_90%,rgba(255,215,0,0.10),transparent_55%)]" />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/35 to-black/65" />
-
-          <div className="relative z-10 p-4 sm:p-6">
-            {/* Title row inside frame */}
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-3">
-                <div className="relative h-10 w-10">
-                  <Image src="/isotipo-color.png" alt="CHIDO" fill className="object-contain drop-shadow-[0_10px_18px_rgba(0,0,0,0.65)]" />
+            <div className="relative z-10">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="text-sm font-black text-white/90">
+                  Reels{" "}
+                  <span className="text-[11px] text-white/50 font-bold">
+                    {turbo ? "• turbo" : "• normal"} {autoLeft > 0 ? `• auto ${autoLeft}` : ""}
+                  </span>
                 </div>
-                <div>
-                  <div className="text-white font-black text-lg leading-tight">Gira y cae premio</div>
-                  <div className="text-white/55 text-xs">5 reels • 3 filas • turbo/auto • VFX</div>
-                </div>
-              </div>
 
-              <div className="flex items-center gap-2">
                 {level ? (
                   <div className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-black/30 px-3 py-2">
                     <div className="relative h-7 w-7">
                       <Image src={LEVEL_BADGES[level.key] || level.badge} alt={level.label} fill className="object-contain" />
                     </div>
-                    <div className="text-xs text-white/70">
+                    <div className="text-xs text-white/75">
                       Nivel: <b className="text-white">{level.label}</b>
                     </div>
                   </div>
                 ) : (
-                  <div className="text-xs text-white/50">Nivel: se ajusta con tu juego</div>
+                  <div className="text-xs text-white/55">Nivel: se calcula por apuesta</div>
                 )}
               </div>
-            </div>
 
-            {/* Reels */}
-            <div className="mt-4 relative rounded-[26px] border border-white/10 bg-[#0b0b0e] p-3 sm:p-4 overflow-hidden shadow-[0_30px_100px_rgba(0,0,0,0.55)]">
-              <div className="absolute inset-0 opacity-[0.10] bg-[url('/opengraph-image.jpg')] bg-cover mix-blend-overlay" />
-              <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-transparent to-black/55" />
+              {/* Reels stage */}
+              <div className="mt-4 relative rounded-3xl border border-white/10 bg-[#0b0b0e] p-4 sm:p-5 overflow-hidden">
+                <div className="absolute inset-0 opacity-[0.10] bg-[url('/opengraph-image.jpg')] bg-cover mix-blend-overlay" />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-transparent to-black/55" />
 
-              {/* paylines subtle glow */}
-              <div className="absolute inset-0 pointer-events-none opacity-50">
-                <div className="absolute left-0 right-0 top-[33.3%] h-[1px] bg-[#00F0FF]/20" />
-                <div className="absolute left-0 right-0 top-[66.6%] h-[1px] bg-[#FF0099]/18" />
+                <div className="relative z-10 grid grid-cols-3 gap-3 sm:gap-4">
+                  {reels.map((k, i) => (
+                    <div
+                      key={i}
+                      className={`relative aspect-[3/4] rounded-2xl border border-white/10 bg-black/35 overflow-hidden ${
+                        phase === "spin" ? "shadow-[0_0_50px_rgba(0,240,255,0.10)]" : ""
+                      }`}
+                    >
+                      <div className={`absolute inset-0 ${phase === "spin" ? "animate-reelShine" : ""}`} />
+                      <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-transparent to-black/55 pointer-events-none" />
+                      <SymbolTile k={k} spinning={phase === "spin"} />
+                      <div className={`absolute top-2 right-2 h-2 w-2 rounded-full ${phase === "spin" ? "bg-[#00F0FF]/70 animate-pulse" : "bg-white/15"}`} />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Win overlay */}
+                {winData && vfx ? (
+                  <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                    <div className="text-center px-6">
+                      <div
+                        className={`text-6xl sm:text-7xl font-black drop-shadow-2xl ${
+                          winData.kind === "mega"
+                            ? "text-[#FFD700]"
+                            : winData.kind === "big"
+                            ? "text-[#00F0FF]"
+                            : "text-[#32CD32]"
+                        }`}
+                      >
+                        {winData.kind === "mega" ? "MEGA WIN" : winData.kind === "big" ? "BIG WIN" : "WIN"}
+                      </div>
+                      <div className="mt-2 text-white text-xl font-black">
+                        +{money(winData.payout)} <span className="text-white/60 text-base">MXN</span>
+                      </div>
+                      <div className="mt-1 text-white/70 text-sm">x{winData.mult}</div>
+                    </div>
+                    <div className={`absolute inset-0 pointer-events-none ${winData.kind !== "small" ? "animate-confetti" : "animate-sparks"}`} />
+                  </div>
+                ) : null}
               </div>
 
-              <div className="relative z-10 grid grid-cols-5 gap-2 sm:gap-3">
-                {new Array(COLS).fill(0).map((_, col) => (
-                  <div key={col} className={reelFrameClass(col)}>
-                    {/* shine */}
-                    <div className={`absolute inset-0 ${reelActive[col] ? "animate-reelShine" : ""}`} />
-                    <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-transparent to-black/55 pointer-events-none" />
+              {/* Controls */}
+              <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto] items-center">
+                <div className="rounded-3xl border border-white/10 bg-black/30 p-4">
+                  <div className="flex items-end justify-between gap-3">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-widest text-white/50 font-bold">Saldo</div>
+                      <div className="text-lg font-black tabular-nums">
+                        {formatted} <span className="text-xs text-white/45">+ bono {formattedBonus}</span>
+                      </div>
+                    </div>
 
-                    <div className="relative z-10 grid grid-rows-3 gap-2 p-2">
-                      {new Array(ROWS).fill(0).map((__, r) => {
-                        const idx = r * COLS + col;
+                    <div className="text-right">
+                      <div className="text-[10px] uppercase tracking-widest text-white/50 font-bold">Apuesta</div>
+                      <div className="text-lg font-black tabular-nums">
+                        ${bet}
+                        {Number.isFinite(maxBet) && maxBet !== Infinity ? (
+                          <span className="text-xs text-white/45"> / max {maxBet}</span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    <div className="flex gap-2">
+                      {[10, 20, 50, 100].map((v) => {
+                        const disabled =
+                          spinning || (resp.ok && resp.excluded) || (promo.ok && promo.hasRollover && v > promo.maxBet);
                         return (
-                          <div
-                            key={r}
-                            className={`relative aspect-[1/1] rounded-[14px] border border-white/10 bg-black/35 overflow-hidden ${
-                              reelActive[col] ? "shadow-[0_0_24px_rgba(0,240,255,0.10)]" : ""
-                            }`}
+                          <button
+                            key={v}
+                            onClick={() => setBet(clampBet(v))}
+                            disabled={disabled}
+                            className="px-3 py-2 rounded-2xl bg-white/5 border border-white/10 text-xs font-black text-white/80 hover:bg-white/10 disabled:opacity-40 disabled:hover:bg-white/5 transition"
                           >
-                            <SymbolTile k={grid[idx]} spinning={reelActive[col]} />
-                          </div>
+                            {v}
+                          </button>
                         );
                       })}
                     </div>
 
-                    {/* tiny indicator */}
-                    <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-white/12">
-                      <div className={`h-full w-full rounded-full ${reelActive[col] ? "bg-[#00F0FF]/60 animate-pulse" : "bg-white/10"}`} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Win Overlay */}
-              {winOverlay && vfx ? (
-                <div className="absolute inset-0 z-30 grid place-items-center bg-black/60 backdrop-blur-sm animate-in fade-in zoom-in duration-200">
-                  <div className="text-center px-5">
-                    <div
-                      className={`text-6xl sm:text-7xl font-black drop-shadow-2xl ${
-                        winOverlay.kind === "mega" ? "text-[#FFD700]" : winOverlay.kind === "big" ? "text-[#00F0FF]" : "text-[#32CD32]"
-                      }`}
-                    >
-                      {winOverlay.kind === "mega" ? "MEGA WIN" : winOverlay.kind === "big" ? "BIG WIN" : "WIN"}
-                    </div>
-                    <div className="mt-2 text-white text-xl font-black">
-                      +{money(winOverlay.payout)} <span className="text-white/60 text-base">MXN</span>
-                    </div>
-                    <div className="mt-1 text-white/70 text-sm">x{winOverlay.mult}</div>
-                    <div className="mt-4 text-[11px] text-white/55">
-                      Tip: turbo + auto se siente brutal, pero no te aceleres de más 😅
-                    </div>
-                  </div>
-
-                  <div className={`absolute inset-0 pointer-events-none ${winOverlay.kind !== "small" ? "animate-confetti" : "animate-sparks"}`} />
-                </div>
-              ) : null}
-            </div>
-
-            {/* Bottom Controls (Pragmatic-like layout vibe) */}
-            <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_340px]">
-              {/* Left panel: bet + cap + auto */}
-              <div className="rounded-[26px] border border-white/10 bg-black/30 p-4">
-                <div className="flex items-end justify-between gap-4 flex-wrap">
-                  <div>
-                    <div className="text-[10px] uppercase tracking-widest text-white/50 font-black">Apuesta</div>
-                    <div className="text-white font-black text-2xl tabular-nums">
-                      ${bet} <span className="text-white/45 text-sm">MXN</span>
-                    </div>
-                    <div className="text-[11px] text-white/55 mt-1">
-                      {showCap ? (
-                        <>
-                          Cap activo: <b className="text-white">${promo.maxBet}</b> MXN
-                        </>
-                      ) : (
-                        <>Cap: <b className="text-white">OFF</b></>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setBet((b) => clampBet(b - 10))}
-                      disabled={spinning || !canPlay}
-                      className="h-12 w-12 grid place-items-center rounded-2xl border border-white/10 bg-black/35 hover:bg-white/5 disabled:opacity-40 transition"
-                      aria-label="Bajar apuesta"
-                    >
-                      <Minus size={18} />
-                    </button>
-                    <button
-                      onClick={() => setBet((b) => clampBet(b + 10))}
-                      disabled={spinning || !canPlay}
-                      className="h-12 w-12 grid place-items-center rounded-2xl border border-white/10 bg-black/35 hover:bg-white/5 disabled:opacity-40 transition"
-                      aria-label="Subir apuesta"
-                    >
-                      <Plus size={18} />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mt-3 flex gap-2 flex-wrap">
-                  {[10, 20, 50, 100, 200, 500].map((v) => {
-                    const disabled = spinning || !canPlay || (promo.ok && promo.hasRollover && v > promo.maxBet);
-                    return (
+                    <div className="flex items-center gap-2">
                       <button
-                        key={v}
-                        onClick={() => setBet(clampBet(v))}
-                        disabled={disabled}
-                        className="px-3 py-2 rounded-2xl bg-white/5 border border-white/10 text-xs font-black text-white/85 hover:bg-white/10 disabled:opacity-40 transition"
+                        onClick={() => setBet(clampBet(bet - 10))}
+                        disabled={spinning || (resp.ok && resp.excluded)}
+                        className="h-10 w-10 rounded-2xl bg-black/40 border border-white/10 text-white font-black hover:bg-white/5 disabled:opacity-40 transition"
                       >
-                        {v}
+                        -
                       </button>
-                    );
-                  })}
+                      <button
+                        onClick={() => setBet(clampBet(bet + 10))}
+                        disabled={spinning || (resp.ok && resp.excluded)}
+                        className="h-10 w-10 rounded-2xl bg-black/40 border border-white/10 text-white font-black hover:bg-white/5 disabled:opacity-40 transition"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="mt-4 flex items-center justify-between gap-2 flex-wrap">
+                <div className="grid gap-2">
+                  <Button
+                    onClick={() => void doSpin(false)}
+                    disabled={spinning || (resp.ok && resp.excluded)}
+                    className={`h-14 rounded-3xl font-black text-lg uppercase tracking-widest transition-all ${
+                      spinning
+                        ? "bg-zinc-700 text-white/70 cursor-not-allowed"
+                        : "bg-gradient-to-b from-[#00F0FF] to-[#0099FF] text-black hover:scale-[1.01] shadow-[0_0_30px_rgba(0,240,255,0.25)]"
+                    }`}
+                  >
+                    {spinning ? <Loader2 className="animate-spin" /> : "GIRAR"}
+                  </Button>
+
                   <button
                     onClick={() => toggleAuto(10)}
-                    disabled={spinning || !canPlay}
-                    className={`h-12 px-4 rounded-2xl border text-sm font-black inline-flex items-center justify-center gap-2 transition ${
+                    disabled={spinning || (resp.ok && resp.excluded)}
+                    className={`h-12 rounded-3xl border text-sm font-black inline-flex items-center justify-center gap-2 transition ${
                       autoLeft > 0
-                        ? "bg-[#FF0099] text-white border-[#FF0099]/40 shadow-[0_0_22px_rgba(255,0,153,0.18)]"
-                        : "bg-black/35 text-white/75 border-white/10 hover:bg-white/5"
+                        ? "bg-[#FF0099] text-white border-[#FF0099]/40 shadow-[0_0_20px_rgba(255,0,153,0.22)]"
+                        : "bg-black/40 text-white/75 border-white/10 hover:bg-white/5"
                     }`}
                   >
                     {autoLeft > 0 ? <Pause size={18} /> : <Play size={18} />}
-                    {autoLeft > 0 ? `DETENER AUTO (${autoLeft})` : "AUTO x10"}
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      toast({
-                        title: "Paytable",
-                        description: "Aquí luego ponemos tabla completa + líneas + símbolos (nivel PRO).",
-                      })
-                    }
-                    className="h-12 px-4 rounded-2xl border border-white/10 bg-black/35 hover:bg-white/5 text-sm font-black text-white/75 inline-flex items-center gap-2 transition"
-                  >
-                    <Info size={16} /> Info
+                    {autoLeft > 0 ? "DETENER AUTO" : "AUTO x10"}
                   </button>
                 </div>
               </div>
 
-              {/* Right panel: Spin button big */}
-              <div className="rounded-[26px] border border-white/10 bg-black/30 p-4 grid gap-3">
-                <Button
-                  onClick={() => void doSpin(false)}
-                  disabled={spinning || !canPlay}
-                  className={`h-16 rounded-[22px] font-black text-lg uppercase tracking-widest transition-all ${
-                    spinning
-                      ? "bg-zinc-700 text-white/70 cursor-not-allowed"
-                      : "bg-gradient-to-b from-[#00F0FF] to-[#0099FF] text-black hover:scale-[1.01] shadow-[0_0_34px_rgba(0,240,255,0.22)]"
-                  }`}
-                >
-                  {spinning ? "GIRANDO..." : "GIRAR"}
-                </Button>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setTurbo((v: boolean) => !v)}
-                    className={`h-12 rounded-2xl border text-sm font-black inline-flex items-center justify-center gap-2 transition ${
-                      turbo ? "bg-[#FFD700] text-black border-[#FFD700]/45" : "bg-black/35 text-white/75 border-white/10 hover:bg-white/5"
-                    }`}
-                  >
-                    <Zap size={18} /> Turbo
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      toast({
-                        title: "Ajustes",
-                        description: "Luego metemos: auto avanzado (stop-win/stop-loss), quick bet, música ambiente.",
-                      })
-                    }
-                    className="h-12 rounded-2xl border border-white/10 bg-black/35 hover:bg-white/5 text-sm font-black text-white/75 transition"
-                  >
-                    Menú
-                  </button>
+              {/* Provably fair */}
+              <div className="mt-4 rounded-3xl border border-white/10 bg-black/25 p-4 text-xs text-white/70">
+                <div className="flex items-center gap-2 font-black text-white/85">
+                  <Info size={14} /> Provably Fair
                 </div>
-
-                <div className="text-[11px] text-white/50">
-                  Disponible: <b className="text-white">{formatted}</b> + bono <b className="text-white">{formattedBonus}</b>
-                </div>
+                {lastFair?.hash ? (
+                  <div className="mt-2 font-mono break-all text-[11px] text-white/65">
+                    hash: {lastFair.hash}
+                    {typeof lastFair.nonce === "number" ? <> • nonce: {lastFair.nonce}</> : null}
+                  </div>
+                ) : (
+                  <div className="mt-2 text-[11px] text-white/55">Se muestra después de un giro.</div>
+                )}
               </div>
             </div>
+          </div>
 
-            {/* Provably fair */}
-            <div className="mt-4 rounded-[26px] border border-white/10 bg-black/25 p-4 text-xs text-white/70">
-              <div className="flex items-center gap-2 font-black text-white/85">
-                <Info size={14} /> Provably Fair
-              </div>
-              {lastFair?.hash ? (
-                <div className="mt-2 font-mono break-all text-[11px] text-white/65">
-                  hash: {lastFair.hash}
-                  {lastFair.nonce != null ? <> • nonce: {lastFair.nonce}</> : null}
-                </div>
-              ) : (
-                <div className="mt-2 text-[11px] text-white/55">Se muestra después de un giro.</div>
-              )}
+          {/* Side panel */}
+          <div className="rounded-[34px] border border-white/10 bg-black/30 p-5 h-fit">
+            <div className="text-sm font-black text-white/85">Ajustes rápidos</div>
+
+            <div className="mt-4 grid gap-2">
+              <button
+                onClick={() => {
+                  setBet((b) => clampBet(b));
+                  toast({ title: "Listo", description: "Apuesta ajustada al cap si aplica." });
+                }}
+                className="h-11 rounded-2xl border border-white/10 bg-black/40 hover:bg-white/5 text-xs font-black text-white/80 transition"
+              >
+                Ajustar apuesta al cap
+              </button>
             </div>
 
-            {/* Footer brand (info importante -> lenguaje neutro) */}
-            <div className="mt-5 flex items-center justify-between gap-3 flex-wrap text-xs text-white/45">
-              <div className="inline-flex items-center gap-2">
-                <Image src="/isotipo-bw.png" alt="CHIDO" width={18} height={18} className="opacity-70" />
-                <span>Chido Casino • Juego responsable • Soporte en /support</span>
+            <div className="mt-4 rounded-3xl border border-white/10 bg-black/30 p-4">
+              <div className="text-xs font-black text-white/80">Paytable (simple)</div>
+              <div className="mt-2 text-[11px] text-white/60 leading-relaxed">
+                3 iguales paga por “pico”: verde (x3), jalapeño (x5), serrano (x10), habanero (x20).
+                <br />
+                RTP target ~94% (server-side).
               </div>
-              <div className="inline-flex items-center gap-2">
-                <span>© {new Date().getFullYear()} Hocker AGI Technologies</span>
+              <div className="mt-3 text-[11px] text-white/45">
+                Tip: Turbo + Auto es el “modo máquina” (como slots comerciales), pero sin saturar la UI.
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Global anims */}
+      {/* Animations */}
       <style jsx global>{`
         @media (prefers-reduced-motion: reduce) {
           .animate-slotJitter,
           .animate-reelShine,
           .animate-confetti,
-          .animate-sparks,
-          .animate-loadingBar,
-          .animate-anticipatePulse {
+          .animate-sparks {
             animation: none !important;
           }
         }
 
         @keyframes slotJitter {
-          0% { transform: translateY(0) scale(1); }
-          25% { transform: translateY(-2px) scale(1.01); }
-          50% { transform: translateY(1px) scale(0.99); }
-          75% { transform: translateY(-1px) scale(1.005); }
-          100% { transform: translateY(0) scale(1); }
+          0% {
+            transform: translateY(0) scale(1);
+          }
+          25% {
+            transform: translateY(-2px) scale(1.01);
+          }
+          50% {
+            transform: translateY(1px) scale(0.99);
+          }
+          75% {
+            transform: translateY(-1px) scale(1.005);
+          }
+          100% {
+            transform: translateY(0) scale(1);
+          }
         }
-        .animate-slotJitter { animation: slotJitter 220ms linear infinite; }
+        .animate-slotJitter {
+          animation: slotJitter 220ms linear infinite;
+        }
 
         @keyframes reelShine {
-          0% { transform: translateX(-140%) rotate(12deg); opacity: 0; }
-          10% { opacity: 0.15; }
-          45% { opacity: 0.10; }
-          100% { transform: translateX(140%) rotate(12deg); opacity: 0; }
+          0% {
+            transform: translateX(-140%) rotate(12deg);
+            opacity: 0;
+          }
+          10% {
+            opacity: 0.15;
+          }
+          45% {
+            opacity: 0.1;
+          }
+          100% {
+            transform: translateX(140%) rotate(12deg);
+            opacity: 0;
+          }
         }
         .animate-reelShine {
-          background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,0.16) 50%, transparent 65%);
+          background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.16) 50%, transparent 65%);
           animation: reelShine 700ms ease-in-out infinite;
-          pointer-events: none;
         }
 
         @keyframes confetti {
-          0% { background-position: 0 0; opacity: 0.0; }
-          10% { opacity: 1; }
-          100% { background-position: 0 900px; opacity: 0; }
+          0% {
+            background-position: 0 0;
+            opacity: 0;
+          }
+          10% {
+            opacity: 1;
+          }
+          100% {
+            background-position: 0 900px;
+            opacity: 0;
+          }
         }
         .animate-confetti {
-          background-image:
-            radial-gradient(circle, rgba(255,0,153,0.9) 0 2px, transparent 3px),
-            radial-gradient(circle, rgba(0,240,255,0.9) 0 2px, transparent 3px),
-            radial-gradient(circle, rgba(255,215,0,0.9) 0 2px, transparent 3px),
-            radial-gradient(circle, rgba(50,205,50,0.9) 0 2px, transparent 3px);
+          background-image: radial-gradient(circle, rgba(255, 0, 153, 0.9) 0 2px, transparent 3px),
+            radial-gradient(circle, rgba(0, 240, 255, 0.9) 0 2px, transparent 3px),
+            radial-gradient(circle, rgba(255, 215, 0, 0.9) 0 2px, transparent 3px),
+            radial-gradient(circle, rgba(50, 205, 50, 0.9) 0 2px, transparent 3px);
           background-size: 140px 140px;
           animation: confetti 900ms linear infinite;
         }
 
         @keyframes sparks {
-          0% { opacity: 0; transform: scale(0.98); }
-          30% { opacity: 1; transform: scale(1); }
-          100% { opacity: 0; transform: scale(1.02); }
+          0% {
+            opacity: 0;
+            transform: scale(0.98);
+          }
+          30% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: scale(1.02);
+          }
         }
         .animate-sparks {
-          background:
-            radial-gradient(circle at 30% 40%, rgba(0,240,255,0.25), transparent 55%),
-            radial-gradient(circle at 70% 50%, rgba(255,0,153,0.22), transparent 55%),
-            radial-gradient(circle at 50% 70%, rgba(50,205,50,0.18), transparent 55%);
+          background: radial-gradient(circle at 30% 40%, rgba(0, 240, 255, 0.25), transparent 55%),
+            radial-gradient(circle at 70% 50%, rgba(255, 0, 153, 0.22), transparent 55%),
+            radial-gradient(circle at 50% 70%, rgba(50, 205, 50, 0.18), transparent 55%);
           animation: sparks 520ms ease-in-out infinite;
         }
-
-        @keyframes loadingBar {
-          0% { transform: translateX(-40%); }
-          100% { transform: translateX(70%); }
-        }
-        .animate-loadingBar { animation: loadingBar 1.1s ease-in-out infinite; }
-
-        @keyframes anticipatePulse {
-          0% { transform: translateY(0); filter: brightness(1); }
-          50% { transform: translateY(-1px); filter: brightness(1.12); }
-          100% { transform: translateY(0); filter: brightness(1); }
-        }
-        .animate-anticipatePulse { animation: anticipatePulse 520ms ease-in-out infinite; }
       `}</style>
     </div>
   );
