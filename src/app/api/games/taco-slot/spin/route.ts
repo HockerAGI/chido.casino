@@ -1,234 +1,116 @@
-export const runtime = "nodejs";
-
 import { NextResponse } from "next/server";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
+import { getServerSession } from "@/lib/getServerSession";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { walletApplyDelta } from "@/lib/walletApplyDelta";
-import { fairFloat, generateServerSeed, serverSeedHash } from "@/lib/provablyFair";
-import { promoWageringProgress } from "@/lib/promoWagering";
-import { getPromoLimitState } from "@/lib/promoLimits";
+import { logFraudEvent } from "@/lib/fraudLogger";
+import { guardPromoMaxBet } from "@/lib/promoMaxBet";
+import { enforceResponsibleGate } from "@/lib/responsibleGate";
 
 type SymbolKey = "verde" | "jalapeno" | "serrano" | "habanero";
 
-const SYMBOLS: { key: SymbolKey; img: string; weight: number }[] = [
-  { key: "verde", img: "/badge-verde.png", weight: 42 },
-  { key: "jalapeno", img: "/badge-jalapeno.png", weight: 30 },
-  { key: "serrano", img: "/badge-serrano.png", weight: 20 },
-  { key: "habanero", img: "/badge-habanero.png", weight: 8 },
+const SYMBOLS: Array<{ key: SymbolKey; img: string; weight: number; payoutMult: number }> = [
+  { key: "verde", img: "/slot-verde.png", weight: 52, payoutMult: 3 },
+  { key: "jalapeno", img: "/slot-jalapeno.png", weight: 28, payoutMult: 5 },
+  { key: "serrano", img: "/slot-serrano.png", weight: 15, payoutMult: 10 },
+  { key: "habanero", img: "/slot-habanero.png", weight: 5, payoutMult: 20 },
 ];
 
-// RTP esperado ≈ 94.7376%
-const PAIR_MULTIPLIER = 0.82;
-
-function pickWeighted(serverSeed: string, clientSeed: string, nonce: number, round: number) {
-  const total = SYMBOLS.reduce((s, x) => s + x.weight, 0);
-  const r = fairFloat(serverSeed, clientSeed, nonce, round) * total;
-
-  let acc = 0;
+function pickSymbol(): (typeof SYMBOLS)[number] {
+  const total = SYMBOLS.reduce((a, b) => a + b.weight, 0);
+  let r = Math.random() * total;
   for (const s of SYMBOLS) {
-    acc += s.weight;
-    if (r <= acc) return { key: s.key, img: s.img };
+    r -= s.weight;
+    if (r <= 0) return s;
   }
-  return { key: SYMBOLS[0].key, img: SYMBOLS[0].img };
+  return SYMBOLS[0];
 }
 
-function calcMultiplier(reels: { key: SymbolKey }[]) {
-  const [a, b, c] = reels.map((x) => x.key);
-
-  if (a === b && b === c) {
-    if (a === "habanero") return 20;
-    if (a === "serrano") return 10;
-    if (a === "jalapeno") return 5;
-    return 3;
-  }
-
-  if (a === b || b === c || a === c) return PAIR_MULTIPLIER;
-  return 0;
-}
-
-function levelFromBet(bet: number) {
-  if (bet <= 20) return { key: "verde" as const, label: "Nivel Verde", badge: "/badge-verde.png" };
-  if (bet <= 50) return { key: "jalapeno" as const, label: "Nivel Jalapeño", badge: "/badge-jalapeno.png" };
-  if (bet <= 120) return { key: "serrano" as const, label: "Nivel Serrano", badge: "/badge-serrano.png" };
-  return { key: "habanero" as const, label: "Nivel Habanero", badge: "/badge-habanero.png" };
-}
-
-function isInsufficient(msg: string) {
-  const m = (msg || "").toLowerCase();
-  return m.includes("insufficient") || m.includes("saldo") || m.includes("balance") || m.includes("not enough");
-}
-function isMissingTable(msg: string) {
-  const m = (msg || "").toLowerCase();
-  return m.includes("relation") && m.includes("does not exist");
-}
-function round2(n: number) {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
-}
-
-async function spendBet(userId: string, bet: number, refId: string) {
-  // balance primero
-  const a = await walletApplyDelta(supabaseAdmin as any, {
-    userId,
-    deltaBalance: -bet,
-    deltaBonus: 0,
-    deltaLocked: 0,
-    reason: "taco_slot_bet_balance",
-    refId,
-  });
-  if (!a.error) return { source: "balance" as const };
-
-  if (!isInsufficient(String(a.error || ""))) return { source: "error" as const, error: "WALLET_ERROR" };
-
-  // bonus después
-  const b = await walletApplyDelta(supabaseAdmin as any, {
-    userId,
-    deltaBalance: 0,
-    deltaBonus: -bet,
-    deltaLocked: 0,
-    reason: "taco_slot_bet_bonus",
-    refId,
-  });
-  if (!b.error) return { source: "bonus" as const };
-
-  if (isInsufficient(String(b.error || ""))) return { source: "error" as const, error: "Saldo insuficiente" };
-  return { source: "error" as const, error: "WALLET_ERROR" };
+function computeLevel(bet: number) {
+  if (bet >= 500) return { key: "habanero", label: "Habanero", badge: "/badge-habanero.png" };
+  if (bet >= 200) return { key: "serrano", label: "Serrano", badge: "/badge-serrano.png" };
+  if (bet >= 50) return { key: "jalapeno", label: "Jalapeño", badge: "/badge-jalapeno.png" };
+  return { key: "verde", label: "Verde", badge: "/badge-verde.png" };
 }
 
 export async function POST(req: Request) {
-  try {
-    const supabase = createRouteHandlerClient({ cookies });
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+  const session = await getServerSession();
+  if (!session) return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
 
-    if (!session) return NextResponse.json({ ok: false, error: "No autorizado" }, { status: 401 });
+  const userId = session.user.id;
 
-    const body = await req.json().catch(() => ({} as any));
-    const bet = Number(body?.bet);
+  const body = await req.json().catch(() => ({}));
+  const bet = Number(body?.bet || 0);
 
-    if (!Number.isFinite(bet) || bet <= 0) {
-      return NextResponse.json({ ok: false, error: "Apuesta inválida" }, { status: 400 });
-    }
-
-    // ✅ CAP si hay rollover activo
-    const promoState = await getPromoLimitState(supabaseAdmin as any, session.user.id);
-    if (promoState.ok && promoState.hasRollover) {
-      if (bet > promoState.maxBet) {
-        return NextResponse.json(
-          {
-            ok: false,
-            error: "PROMO_MAX_BET",
-            message: `Con bono activo (rollover), la apuesta máxima por jugada es ${promoState.maxBet} MXN.`,
-            maxBet: promoState.maxBet,
-            required: promoState.required,
-            progress: promoState.progress,
-          },
-          { status: 400 }
-        );
-      }
-    }
-
-    // nonce global best-effort
-    const { data: maxRow, error: maxErr } = await supabaseAdmin
-      .from("slot_spins")
-      .select("nonce")
-      .order("nonce", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    let nonce = 0;
-    if (!maxErr && maxRow?.nonce != null) nonce = Number(maxRow.nonce) + 1;
-    if (maxErr && isMissingTable(String((maxErr as any)?.message || ""))) nonce = Date.now();
-
-    const spinId = `ts_${session.user.id}_${Date.now()}`;
-
-    // debitar bet (balance o bonus)
-    const spent = await spendBet(session.user.id, bet, `${spinId}:bet`);
-    if (spent.source === "error") {
-      return NextResponse.json({ ok: false, error: spent.error }, { status: 400 });
-    }
-
-    // provably fair
-    const serverSeed = generateServerSeed(32);
-    const serverSeedHashHex = serverSeedHash(serverSeed);
-    const clientSeed = String(body?.clientSeed || session.user.id);
-
-    const reels = [0, 1, 2].map((i) => pickWeighted(serverSeed, clientSeed, Number(nonce), i));
-
-    const multiplier = calcMultiplier(reels);
-    const payout = multiplier > 0 ? round2(bet * multiplier) : 0;
-
-    // payout SIEMPRE a balance real
-    if (payout > 0) {
-      const credit = await walletApplyDelta(supabaseAdmin as any, {
-        userId: session.user.id,
-        deltaBalance: +payout,
-        deltaBonus: 0,
-        deltaLocked: 0,
-        reason: "taco_slot_payout",
-        refId: `${spinId}:payout`,
-      });
-
-      if (credit.error) {
-        // rollback best-effort: devuelve bet al mismo bucket
-        await walletApplyDelta(supabaseAdmin as any, {
-          userId: session.user.id,
-          deltaBalance: spent.source === "balance" ? +bet : 0,
-          deltaBonus: spent.source === "bonus" ? +bet : 0,
-          deltaLocked: 0,
-          reason: "taco_slot_rollback",
-          refId: `${spinId}:rb`,
-        });
-        return NextResponse.json({ ok: false, error: "PAYOUT_ERROR" }, { status: 500 });
-      }
-    }
-
-    // log spin (si existe tabla)
-    const ins = await supabaseAdmin.from("slot_spins").insert({
-      user_id: session.user.id,
-      bet_amount: bet,
-      payout_amount: payout,
-      multiplier,
-      reels,
-      server_seed_hash: serverSeedHashHex,
-      server_seed: serverSeed,
-      client_seed: clientSeed,
-      nonce: Number(nonce),
-      metadata: { pair_multiplier: PAIR_MULTIPLIER, expected_rtp: 0.947376 },
-    });
-
-    if (ins.error && !isMissingTable(String((ins.error as any)?.message || ""))) {
-      console.error("slot_spins insert error:", ins.error);
-    }
-
-    // Avanza rollover promo
-    await promoWageringProgress(supabaseAdmin as any, {
-      userId: session.user.id,
-      wagerAmount: bet,
-      wagerRef: `slot:${spinId}`,
-      game: "taco_slot",
-    });
-
-    return NextResponse.json({
-      ok: true,
-      spinId,
-      bet,
-      payout,
-      multiplier,
-      reels,
-      level: levelFromBet(bet),
-      rtp: 0.947376,
-      fair: {
-        serverSeedHash: serverSeedHashHex,
-        serverSeed,
-        clientSeed,
-        nonce: Number(nonce),
-      },
-      message: payout > 0 ? `Ganaste x${multiplier} 🔥` : "No pegó… otra 🔁",
-    });
-  } catch (e: any) {
-    console.error(e);
-    return NextResponse.json({ ok: false, error: e?.message || "Error interno" }, { status: 500 });
+  if (!Number.isFinite(bet) || bet <= 0) {
+    return NextResponse.json({ ok: false, error: "INVALID_BET" }, { status: 400 });
   }
+
+  // Responsible gate (autoexclusión, etc.)
+  const gate = await enforceResponsibleGate(userId);
+  if (!gate.ok) {
+    return NextResponse.json({ ok: false, error: gate.error, message: gate.message }, { status: 403 });
+  }
+
+  // Promo cap gate (si hay rollover)
+  const cap = await guardPromoMaxBet(userId, bet);
+  if (!cap.ok) {
+    return NextResponse.json(
+      { ok: false, error: cap.error, message: cap.message, maxBet: cap.maxBet },
+      { status: 400 }
+    );
+  }
+
+  // Simulación reels
+  const r1 = pickSymbol();
+  const r2 = pickSymbol();
+  const r3 = pickSymbol();
+  const reels = [r1, r2, r3];
+
+  const same3 = r1.key === r2.key && r2.key === r3.key;
+
+  const multiplier = same3 ? r1.payoutMult : 0;
+  const payout = multiplier > 0 ? bet * multiplier : 0;
+
+  const spinId = crypto.randomUUID();
+  const level = computeLevel(bet);
+
+  // Anti-abuse / fraud log (simple)
+  await logFraudEvent({
+    user_id: userId,
+    event_type: "slot_spin",
+    severity: same3 && multiplier >= 10 ? "medium" : "low",
+    details: { bet, payout, multiplier, reels: reels.map((x) => x.key), spinId },
+  });
+
+  // Ledger: aplica delta (bet sale, payout entra)
+  // Nota: tu RPC wallet_apply_delta ya quedó en DB.
+  const delta = payout - bet;
+
+  const { error: rpcErr } = await supabaseAdmin.rpc("wallet_apply_delta", {
+    p_user_id: userId,
+    p_delta_cash: delta,
+    p_delta_bonus: 0,
+    p_lock_bonus: 0,
+    p_ref_type: "slot",
+    p_ref_id: spinId,
+    p_note: "Taco Slot spin",
+  });
+
+  if (rpcErr) {
+    return NextResponse.json({ ok: false, error: "LEDGER_FAILED", message: rpcErr.message }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    spinId,
+    bet,
+    payout,
+    multiplier,
+    reels: reels.map((x) => ({ key: x.key, img: x.img })),
+    level,
+    fair: {
+      // aquí tu backend puede meter seeds reales si ya los manejas
+      serverSeedHash: null,
+      nonce: null,
+    },
+  });
 }
