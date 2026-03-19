@@ -1,0 +1,131 @@
+{
+  "colorScheme": "light",
+  "fonts": [
+    {
+      "family": "-apple-system",
+      "count": 11
+    },
+    {
+      "family": "BlinkMacSystemFont",
+      "count": 11
+    },
+    {
+      "family": "Segoe UI",
+      "count": 11
+    },
+    {
+      "family": "Roboto",
+      "count": 11
+    },
+    {
+      "family": "Oxygen",
+      "count": 11
+    },
+    {
+      "family": "Ubuntu",
+      "count": 11
+    },
+    {
+      "family": "Helvetica Neue",
+      "count": 11
+    },
+    {
+      "family": "Arial",
+      "count": 11
+    },
+    {
+      "family": "sans-serif",
+      "count": 11
+    },
+    {
+      "family": "Times New Roman",
+      "count": 1
+    }
+  ],
+  "colors": {
+    "primary": "#0051C3",
+    "accent": "#62A1D8",
+    "background": "#FFFFFF",
+    "textPrimary": "#404040",
+    "link": "#62A1D8"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "Times New Roman",
+      "heading": "-apple-system"
+    },
+    "fontStacks": {
+      "body": [
+        "Times New Roman"
+      ],
+      "heading": [
+        "-apple-system",
+        "BlinkMacSystemFont",
+        "Segoe UI",
+        "Roboto",
+        "Oxygen",
+        "Ubuntu",
+        "Helvetica Neue",
+        "Arial",
+        "sans-serif"
+      ],
+      "paragraph": [
+        "-apple-system",
+        "BlinkMacSystemFont",
+        "Segoe UI",
+        "Roboto",
+        "Oxygen",
+        "Ubuntu",
+        "Helvetica Neue",
+        "Arial",
+        "sans-serif"
+      ]
+    },
+    "fontSizes": {
+      "h1": "60px",
+      "h2": "30px",
+      "body": "15px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 4,
+    "borderRadius": "2px"
+  },
+  "components": {},
+  "images": {
+    "logo": null,
+    "favicon": null,
+    "ogImage": null
+  },
+  "personality": {
+    "tone": "professional",
+    "energy": "medium",
+    "targetAudience": "unknown"
+  },
+  "designSystem": {
+    "framework": "unknown",
+    "componentLibrary": ""
+  },
+  "confidence": {
+    "buttons": 0,
+    "colors": 0,
+    "overall": 0
+  },
+  "__llm_metadata": {
+    "logoSelection": {
+      "llmCalled": false,
+      "llmSucceeded": false,
+      "finalSource": "none",
+      "rawLogoSelection": {
+        "selectedLogoIndex": -1,
+        "selectedLogoReasoning": "LLM failed",
+        "confidence": 0
+      }
+    },
+    "buttonClassification": {
+      "llmCalled": false,
+      "llmSucceeded": false,
+      "error": "LLM call failed or returned fallback values"
+    }
+  }
+}

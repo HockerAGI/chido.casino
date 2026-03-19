@@ -1,0 +1,143 @@
+{
+  "colorScheme": "light",
+  "fonts": [
+    {
+      "family": "Poppins",
+      "role": "body"
+    },
+    {
+      "family": "Helvetica",
+      "role": "body"
+    },
+    {
+      "family": "Tahoma",
+      "role": "body"
+    }
+  ],
+  "colors": {
+    "primary": "#FF800E",
+    "accent": "#FF9233",
+    "background": "#FFFFFF",
+    "textPrimary": "#000000",
+    "link": "#FF9233"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "Poppins",
+      "heading": "Poppins"
+    },
+    "fontStacks": {
+      "heading": [
+        "Poppins",
+        "Helvetica",
+        "Tahoma",
+        "sans-serif"
+      ],
+      "body": [
+        "Poppins",
+        "Helvetica",
+        "Tahoma",
+        "sans-serif"
+      ],
+      "paragraph": [
+        "Poppins",
+        "Helvetica",
+        "Tahoma",
+        "sans-serif"
+      ]
+    },
+    "fontSizes": {
+      "h1": "40px",
+      "h2": "40px",
+      "body": "18px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 4,
+    "borderRadius": "8px"
+  },
+  "components": {
+    "buttonPrimary": {
+      "background": "#FF9233",
+      "textColor": "#FFFFFF",
+      "borderColor": "#FF9233",
+      "borderRadius": "32px",
+      "borderRadiusCorners": {
+        "topLeft": "32px",
+        "topRight": "32px",
+        "bottomRight": "32px",
+        "bottomLeft": "32px"
+      },
+      "shadow": "none"
+    },
+    "buttonSecondary": {
+      "background": "#F6F9FD",
+      "textColor": "#160F1D",
+      "borderColor": "#FF800E",
+      "borderRadius": "25px",
+      "borderRadiusCorners": {
+        "topLeft": "25px",
+        "topRight": "25px",
+        "bottomRight": "25px",
+        "bottomLeft": "25px"
+      },
+      "shadow": "none"
+    }
+  },
+  "images": {
+    "logo": "https://www.pragmaticplay.com/wp-content/themes/gp-theme-basic/libs/dist/images/PP-white-logo.svg",
+    "favicon": "https://www.pragmaticplay.com/apple-touch-icon.png?v=00BERwG0QM",
+    "ogImage": "https://www.pragmaticplay.com/wp-content/uploads/2018/10/PPLogo.jpg",
+    "logoHref": "https://www.pragmaticplay.com/en/",
+    "logoAlt": "Pragmatic Play"
+  },
+  "__llm_logo_reasoning": {
+    "selectedIndex": 0,
+    "reasoning": "Selected #0 because it is visible, medium-sized, located in the header, and the alt text matches the brand name 'Pragmatic Play'.",
+    "confidence": 0.95,
+    "source": "llm"
+  },
+  "__llm_button_reasoning": {
+    "primary": {
+      "index": 0,
+      "text": "Play Demo",
+      "reasoning": "Button #2 'Play Demo' uses a vibrant brand color (#FF9233) and has action-oriented text, making it the primary CTA."
+    },
+    "secondary": {
+      "index": 4,
+      "text": "More News",
+      "reasoning": "Button #5 'More News' has a different background color (#F6F9FD) and serves as a secondary action, fitting the criteria for a secondary button."
+    },
+    "confidence": 0.95
+  },
+  "personality": {
+    "tone": "bold",
+    "energy": "high",
+    "targetAudience": "casino and gaming enthusiasts"
+  },
+  "designSystem": {
+    "framework": "custom",
+    "componentLibrary": ""
+  },
+  "confidence": {
+    "buttons": 0.95,
+    "colors": 0.9,
+    "overall": 0.925
+  },
+  "__llm_metadata": {
+    "logoSelection": {
+      "llmCalled": true,
+      "llmSucceeded": true,
+      "finalSource": "llm",
+      "rawLogoSelection": {
+        "selectedLogoIndex": 0,
+        "selectedLogoReasoning": "Selected #0 because it is visible, medium-sized, located in the header, and the alt text matches the brand name 'Pragmatic Play'.",
+        "confidence": 0.95
+      }
+    },
+    "buttonClassification": {
+      "llmCalled": true,
+      "llmSucceeded": true
+    }
+  }
+}

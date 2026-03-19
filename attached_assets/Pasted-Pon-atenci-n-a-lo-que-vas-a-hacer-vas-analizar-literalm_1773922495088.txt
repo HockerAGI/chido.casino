@@ -1,0 +1,30 @@
+Pon atención a lo que vas a hacer, vas analizar literalmente y absolutamente todos los archivos que te estoy enviando, topologia completa de zips, apk, hasta la última partícula de ellos.
+
+Quiero unifiques el repo actual que esta desplegado actualmente y el repo en el zip como uno solo, respetando arquitectura y estructura actual pero corregido, mejorado y listo para producción real, sin simulaciones hoy mismo.
+
+El dominio oficial es chidocasino.com y está desplegado en Vercel. investiga la documentacion oficial de Vercel, Supabase, Github,etc.
+
+Quiero que respetes respetes el diseño del lobby del repo actual y las rutas de los assets, en el zip están mal las rutas de los assets.
+
+Quiero que ya no queden incompletas secciones, módulos, información, funciones, botones, enlaces, integraciones, diseño, UX/UI , de literalmente nada. todo completo y real.
+
+De los APK integra lo mejor de ellos a Chido Casino pero personalizado, con nuestro branding y mejorado con un Valor Único agregado. También analiza a afun.mx a7x.mx , pinup.mx 
+
+Lo que haga falta de la documentación integralo.
+
+Quiero que la redacción o lenguaje sea más Comercil, marketing,  etc no palabras como "Boveda" es "Chido walllet"  y tiene que haber frases, palabras, modismos, etc mexicanos como ¡Que curado!, No hay falla,, si ya te la guau para que te la miau, esa seria la temática. Excepto en footer.
+
+Los juegos del casino tienen que ser a nivel de proveedores como pragmatic.com . Si es posible dejame el casino listo con los juegos suficientes para poder lanzar y listo para futuras entenderlo integrar APIs de proveedores
+
+Quiero que ya me entregues todo listo solo para publicar , promocionar y ganar.
+
+No quiero nada genérico o básico. También analiza e formato de los assets para que vean de buen tamaño y estéticos.
+
+
+Tené.os que tener PWA, APK y app en play store y app store
+
+
+Toma en cuenta a las AGIs como Chidowins, Chido Gerente, Curvewind, etc, aunque no estén creadas, ya tomarlas en cuenta.
+
+
+Debemos de tener un modos de negocio único que genere ganancias pero también beneficios al usuario.

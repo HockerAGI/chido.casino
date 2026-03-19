@@ -30,7 +30,7 @@ export default function Home() {
 
         <main className="flex-1 flex flex-col justify-center items-start max-w-4xl">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-chido-pink/30 bg-chido-pink/10 text-chido-pink text-xs font-black tracking-widest uppercase mb-6 backdrop-blur-md animate-fade-in shadow-lg">
-            <Flame size={12} className="animate-pulse" /> Originals + Bonos + Bóveda
+            <Flame size={12} className="animate-pulse" /> Originals + Bonos + Chido Wallet
           </div>
 
           <h1 className="text-6xl md:text-9xl font-black tracking-tighter leading-[0.9] mb-8 animate-fade-in drop-shadow-2xl">
@@ -39,7 +39,7 @@ export default function Home() {
           </h1>
 
           <p className="text-xl md:text-2xl text-zinc-300 mb-10 max-w-xl leading-relaxed animate-fade-in font-medium drop-shadow-md">
-            Juegos originales (Crash / Taco Slot), promos activables y una bóveda clara para depósitos y retiros.
+            Juegos originales, bonos que sí aplican y Chido Wallet para depositar y retirar sin rollos. ¡No hay falla!
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 animate-fade-in w-full sm:w-auto">

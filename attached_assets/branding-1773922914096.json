@@ -1,0 +1,97 @@
+{
+  "colorScheme": "dark",
+  "fonts": [
+    {
+      "family": "Montserrat",
+      "role": "body"
+    }
+  ],
+  "colors": {
+    "primary": "#22CEA8",
+    "accent": "#FC281C",
+    "background": "#3F3F3F",
+    "textPrimary": "#757575",
+    "link": "#FC281C"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "Montserrat",
+      "heading": "Montserrat"
+    },
+    "fontStacks": {
+      "heading": [
+        "Montserrat",
+        "Arial",
+        "Helvetica Neue",
+        "Helvetica",
+        "sans-serif"
+      ],
+      "body": [
+        "Montserrat",
+        "Arial",
+        "Helvetica Neue",
+        "Helvetica",
+        "sans-serif"
+      ],
+      "paragraph": [
+        "Montserrat",
+        "Arial",
+        "Helvetica Neue",
+        "Helvetica",
+        "sans-serif"
+      ]
+    },
+    "fontSizes": {
+      "h1": "39px",
+      "h2": "31px",
+      "body": "16px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 4,
+    "borderRadius": "3px"
+  },
+  "components": {},
+  "images": {
+    "logo": "https://pinupcasino-mx.mx/wp-content/uploads/2022/04/logotip-pin-up-chernyj.jpg",
+    "favicon": "https://pinupcasino-mx.mx/wp-content/uploads/2022/04/cropped-favicon-32x32.png",
+    "ogImage": "https://pinupcasino-mx.mx/wp-content/uploads/2022/05/sitio-oficial-del-casino-1.jpg",
+    "logoAlt": "pinup.mx"
+  },
+  "__llm_logo_reasoning": {
+    "selectedIndex": 0,
+    "reasoning": "Selected #0 because it is visible, located in the header, and matches the brand name 'pinup.mx'. The size is appropriate for a primary logo.",
+    "confidence": 0.95,
+    "source": "llm"
+  },
+  "personality": {
+    "tone": "bold",
+    "energy": "high",
+    "targetAudience": "gamblers and casino enthusiasts"
+  },
+  "designSystem": {
+    "framework": "custom",
+    "componentLibrary": ""
+  },
+  "confidence": {
+    "buttons": 0,
+    "colors": 0.9,
+    "overall": 0.45
+  },
+  "__llm_metadata": {
+    "logoSelection": {
+      "llmCalled": true,
+      "llmSucceeded": true,
+      "finalSource": "llm",
+      "rawLogoSelection": {
+        "selectedLogoIndex": 0,
+        "selectedLogoReasoning": "Selected #0 because it is visible, located in the header, and matches the brand name 'pinup.mx'. The size is appropriate for a primary logo.",
+        "confidence": 0.95
+      }
+    },
+    "buttonClassification": {
+      "llmCalled": false,
+      "llmSucceeded": false
+    }
+  }
+}

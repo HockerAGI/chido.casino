@@ -12,6 +12,12 @@ import {
   MessageCircle,
   Wallet,
   ExternalLink,
+  TrendingUp,
+  ShieldCheck,
+  CheckCircle2,
+  AlertCircle,
+  Sparkles,
+  Zap,
 } from "lucide-react";
 
 type TxRow = {
@@ -97,7 +103,7 @@ export default function WalletClient() {
 
       const { data: userRes } = await supabase.auth.getUser();
       if (!userRes?.user) {
-        setMessage("Inicia sesión para ver tu bóveda.");
+        setMessage("Inicia sesión para ver tu Chido Wallet.");
         setLoading(false);
         return;
       }
@@ -233,88 +239,113 @@ export default function WalletClient() {
     return (
       <div className="flex items-center gap-2 text-sm text-neutral-400">
         <Loader2 className="h-4 w-4 animate-spin" />
-        Cargando bóveda…
+        Cargando Chido Wallet…
       </div>
     );
   }
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6">
-      <div className="rounded-2xl border border-white/10 bg-black/30 p-5">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-white/5 p-3">
-              <Wallet className="h-5 w-5" />
+      {/* BALANCE CARD */}
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#0d1a0d] via-[#121214] to-black p-6">
+        <div className="absolute top-0 right-0 w-40 h-40 bg-[#32CD32]/10 blur-3xl rounded-full pointer-events-none" />
+        <div className="relative">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-[#32CD32]/15 border border-[#32CD32]/20 flex items-center justify-center">
+              <Wallet className="h-5 w-5 text-[#32CD32]" />
             </div>
             <div>
-              <div className="text-xs uppercase tracking-wider text-white/50">Total disponible</div>
-              <div className="text-2xl font-black tabular-nums">{total.toFixed(2)} MXN</div>
-              <div className="text-xs text-white/50">
-                Saldo: {balance.toFixed(2)} • Bono: {bonusBalance.toFixed(2)} • Bloqueado: {lockedBalance.toFixed(2)}
-              </div>
+              <div className="text-xs uppercase tracking-widest text-white/50 font-bold">Chido Wallet</div>
+              <div className="text-[10px] text-white/30">Tu tesoro chido 🤑</div>
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="text-4xl font-black tabular-nums text-white mb-1">${total.toFixed(2)} <span className="text-lg text-white/50">MXN</span></div>
+          <div className="text-xs text-white/45 mb-5">
+            Saldo real: <b className="text-white">${balance.toFixed(2)}</b> • Bono: <b className="text-[#FFD700]">${bonusBalance.toFixed(2)}</b> • Procesando: <b className="text-white/60">${lockedBalance.toFixed(2)}</b>
+          </div>
+
+          <div className="flex gap-3">
             <button
               onClick={() => setSelectedTab("deposit")}
-              className={`rounded-full px-4 py-2 text-sm font-bold ${
-                selectedTab === "deposit" ? "bg-white text-black" : "bg-white/5 text-white"
+              className={`flex-1 flex items-center justify-center gap-2 rounded-2xl py-3 text-sm font-black transition-all ${
+                selectedTab === "deposit"
+                  ? "bg-white text-black"
+                  : "bg-white/8 border border-white/10 text-white hover:bg-white/12"
               }`}
             >
-              Depósito
+              <ArrowDownToLine className="h-4 w-4" /> Depositar
             </button>
             <button
               onClick={() => setSelectedTab("withdraw")}
-              className={`rounded-full px-4 py-2 text-sm font-bold ${
-                selectedTab === "withdraw" ? "bg-white text-black" : "bg-white/5 text-white"
+              className={`flex-1 flex items-center justify-center gap-2 rounded-2xl py-3 text-sm font-black transition-all ${
+                selectedTab === "withdraw"
+                  ? "bg-white text-black"
+                  : "bg-white/8 border border-white/10 text-white hover:bg-white/12"
               }`}
             >
-              Retiro
+              <ArrowUpFromLine className="h-4 w-4" /> Retirar
             </button>
           </div>
         </div>
 
-        {message && <div className="mt-4 text-sm text-white/70">{message}</div>}
+        {message && (
+          <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm font-medium flex items-start gap-2 ${
+            message.includes("✅") || message.includes("Listo") || message.includes("solicitado")
+              ? "bg-[#32CD32]/10 border-[#32CD32]/20 text-[#32CD32]"
+              : "bg-[#FF0099]/10 border-[#FF0099]/20 text-[#FF0099]"
+          }`}>
+            {message.includes("✅") ? <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" /> : <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />}
+            {message}
+          </div>
+        )}
       </div>
 
       {selectedTab === "deposit" ? (
-        <div className="rounded-2xl border border-white/10 bg-black/30 p-5 space-y-4">
-          <div className="flex items-center gap-2">
-            <ArrowDownToLine className="h-4 w-4" />
-            <div className="text-lg font-black">Depositar (SPEI)</div>
+        <div className="rounded-3xl border border-white/10 bg-black/30 p-6 space-y-5">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#00F0FF]/10 border border-[#00F0FF]/20 flex items-center justify-center">
+              <ArrowDownToLine className="h-4 w-4 text-[#00F0FF]" />
+            </div>
+            <div>
+              <div className="text-base font-black">Depósito vía SPEI</div>
+              <div className="text-xs text-white/45">Rápido, seguro y sin comisión por nuestra parte</div>
+            </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-3">
-            <div className="rounded-xl border border-white/10 bg-black/30 p-3">
-              <div className="text-xs text-white/50 mb-2 flex items-center gap-2">
-                <Landmark className="h-4 w-4" /> Método
-              </div>
-              <div className="w-full rounded-lg bg-black/40 border border-white/10 px-3 py-2 text-sm">
-                SPEI (transferencia)
-              </div>
-            </div>
+          <div className="grid grid-cols-3 gap-2">
+            {[100, 200, 500, 1000, 2000, 5000].map((v) => (
+              <button
+                key={v}
+                onClick={() => setAmount(String(v))}
+                className={`rounded-2xl border py-3 text-sm font-black transition-all ${
+                  amount === String(v)
+                    ? "bg-white text-black border-white"
+                    : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                ${v}
+              </button>
+            ))}
+          </div>
 
-            <div className="rounded-xl border border-white/10 bg-black/30 p-3 md:col-span-2">
-              <div className="text-xs text-white/50 mb-2">Monto</div>
-              <input
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="Ej: 500"
-                className="w-full rounded-lg bg-black/40 border border-white/10 px-3 py-2 text-sm"
-              />
-              <div className="text-[11px] text-white/45 mt-2">
-                Tip: usa múltiplos simples (100/200/500) para conciliación rápida.
-              </div>
-            </div>
+          <div className="space-y-2">
+            <label className="text-xs text-white/50 font-bold uppercase tracking-widest">Monto personalizado (MXN)</label>
+            <input
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="Ej: 750"
+              className="w-full rounded-2xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/25 transition"
+            />
+            <div className="text-[11px] text-white/35">Mínimo $50 MXN. Tip: usa cantidades redondas para conciliación más rápida.</div>
           </div>
 
           <button
             onClick={handleDeposit}
             disabled={depositLoading}
-            className="w-full rounded-xl bg-white text-black font-black py-3 hover:bg-white/90 disabled:opacity-60"
+            className="w-full rounded-2xl bg-white text-black font-black py-3.5 hover:bg-white/90 disabled:opacity-50 transition text-sm"
           >
-            {depositLoading ? "Generando..." : "Generar depósito"}
+            {depositLoading ? "Generando instrucciones..." : "¡Quiero depositar!"}
           </button>
 
           {instructions && (
@@ -390,44 +421,54 @@ export default function WalletClient() {
           )}
         </div>
       ) : (
-        <div className="rounded-2xl border border-white/10 bg-black/30 p-5 space-y-4">
-          <div className="flex items-center gap-2">
-            <ArrowUpFromLine className="h-4 w-4" />
-            <div className="text-lg font-black">Retirar</div>
+        <div className="rounded-3xl border border-white/10 bg-black/30 p-6 space-y-5">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#FFD700]/10 border border-[#FFD700]/20 flex items-center justify-center">
+              <ArrowUpFromLine className="h-4 w-4 text-[#FFD700]" />
+            </div>
+            <div>
+              <div className="text-base font-black">Retiro a CLABE</div>
+              <div className="text-xs text-white/45">Solo saldo real (no bono). KYC obligatorio.</div>
+            </div>
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-black/30 p-4 text-xs text-white/65">
-            Para retirar necesitas <b>KYC aprobado</b>. Si todavía no tienes KYC, pídelo en <b>Soporte</b>.
+          <div className="rounded-2xl border border-[#FFD700]/15 bg-[#FFD700]/5 p-4 flex items-start gap-3">
+            <ShieldCheck className="h-4 w-4 text-[#FFD700] shrink-0 mt-0.5" />
+            <div className="text-xs text-white/65 leading-relaxed">
+              Para retirar necesitas <b className="text-white">KYC aprobado</b>. Tarda 1–3 días hábiles. Sin comisión por parte de Chido Casino. Si no tienes KYC o tu retiro tarda, ve a <b className="text-[#25D366]">Soporte</b>.
+            </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-3">
-            <div className="rounded-xl border border-white/10 bg-black/30 p-3 md:col-span-1">
-              <div className="text-xs text-white/50 mb-2">Monto</div>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs text-white/50 font-bold uppercase tracking-widest mb-2 block">Monto (MXN)</label>
               <input
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder="Ej: 300"
-                className="w-full rounded-lg bg-black/40 border border-white/10 px-3 py-2 text-sm"
+                placeholder="Ej: 500"
+                className="w-full rounded-2xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/25 transition"
               />
+              <div className="text-[11px] text-white/30 mt-1">Saldo disponible para retiro: ${balance.toFixed(2)} MXN</div>
             </div>
 
-            <div className="rounded-xl border border-white/10 bg-black/30 p-3 md:col-span-2">
-              <div className="text-xs text-white/50 mb-2">CLABE (18 dígitos)</div>
+            <div>
+              <label className="text-xs text-white/50 font-bold uppercase tracking-widest mb-2 block">CLABE (18 dígitos)</label>
               <input
                 value={clabe}
                 onChange={(e) => setClabe(e.target.value)}
                 placeholder="000000000000000000"
-                className="w-full rounded-lg bg-black/40 border border-white/10 px-3 py-2 text-sm font-mono"
+                className="w-full rounded-2xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/25 transition font-mono tracking-widest"
+                maxLength={18}
               />
             </div>
 
-            <div className="rounded-xl border border-white/10 bg-black/30 p-3 md:col-span-3">
-              <div className="text-xs text-white/50 mb-2">Beneficiario</div>
+            <div>
+              <label className="text-xs text-white/50 font-bold uppercase tracking-widest mb-2 block">Nombre del titular</label>
               <input
                 value={beneficiary}
                 onChange={(e) => setBeneficiary(e.target.value)}
-                placeholder="Nombre del titular"
-                className="w-full rounded-lg bg-black/40 border border-white/10 px-3 py-2 text-sm"
+                placeholder="Como aparece en tu cuenta bancaria"
+                className="w-full rounded-2xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/25 transition"
               />
             </div>
           </div>
@@ -435,33 +476,55 @@ export default function WalletClient() {
           <button
             onClick={handleWithdraw}
             disabled={withdrawLoading}
-            className="w-full rounded-xl bg-white text-black font-black py-3 hover:bg-white/90 disabled:opacity-60"
+            className="w-full rounded-2xl bg-white text-black font-black py-3.5 hover:bg-white/90 disabled:opacity-50 transition text-sm"
           >
-            {withdrawLoading ? "Enviando..." : "Solicitar retiro"}
+            {withdrawLoading ? "Procesando retiro..." : "Solicitar retiro"}
           </button>
 
-          <div className="text-xs text-white/50 flex items-center gap-2">
-            <MessageCircle className="h-4 w-4" />
-            Si tu retiro tarda, soporte te ayuda por el canal oficial.
+          <div className="text-xs text-white/35 flex items-center gap-2">
+            <MessageCircle className="h-3.5 w-3.5 shrink-0" />
+            Si tu retiro tarda más de 3 días, comunícate al Soporte con tu folio.
           </div>
         </div>
       )}
 
-      <div className="rounded-2xl border border-white/10 bg-black/30 p-5">
-        <div className="text-lg font-black mb-3">Movimientos</div>
+      <div className="rounded-3xl border border-white/10 bg-black/30 p-6">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+            <TrendingUp className="h-4 w-4 text-white/60" />
+          </div>
+          <div className="text-base font-black">Historial de movimientos</div>
+        </div>
         <div className="space-y-2">
           {txs.length === 0 ? (
-            <div className="text-sm text-white/60">Aún no hay movimientos.</div>
+            <div className="text-center py-10">
+              <div className="text-3xl mb-3">💸</div>
+              <div className="text-sm text-white/40 font-medium">Todavía no hay movimientos.</div>
+              <div className="text-xs text-white/25 mt-1">¡Haz tu primer depósito y empieza a rifarte!</div>
+            </div>
           ) : (
-            txs.map((t) => (
-              <div key={t.id} className="flex items-center justify-between rounded-xl bg-black/30 border border-white/10 p-3">
-                <div>
-                  <div className="text-sm font-bold">{t.type}</div>
-                  <div className="text-xs text-white/50">{new Date(t.created_at).toLocaleString()}</div>
+            txs.map((t) => {
+              const amt = Number(t.amount ?? 0);
+              const isPositive = ["deposit", "bonus", "win", "commission"].includes(t.type);
+              return (
+                <div key={t.id} className="flex items-center justify-between rounded-2xl bg-black/30 border border-white/8 px-4 py-3 gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm ${
+                      isPositive ? "bg-[#32CD32]/10 text-[#32CD32]" : "bg-[#FF0099]/10 text-[#FF0099]"
+                    }`}>
+                      {isPositive ? "+" : "-"}
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold capitalize">{t.type.replace(/_/g, " ")}</div>
+                      <div className="text-xs text-white/40">{new Date(t.created_at).toLocaleString("es-MX")}</div>
+                    </div>
+                  </div>
+                  <div className={`font-mono text-sm font-black tabular-nums ${isPositive ? "text-[#32CD32]" : "text-white/70"}`}>
+                    {isPositive ? "+" : "-"}${Math.abs(amt).toFixed(2)}
+                  </div>
                 </div>
-                <div className="font-mono text-sm tabular-nums">{Number(t.amount ?? 0).toFixed(2)} MXN</div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

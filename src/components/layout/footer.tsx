@@ -18,11 +18,14 @@ export function Footer() {
         </div>
 
         <div className="text-sm">
-          <div className="text-xs uppercase tracking-widest text-white/45 font-black">Secciones</div>
+          <div className="text-xs uppercase tracking-widest text-white/45 font-black">Navegación</div>
           <div className="mt-3 grid gap-2 text-white/70">
             <Link href="/lobby" className="hover:text-white">Lobby</Link>
-            <Link href="/promos" className="hover:text-white">Bonos</Link>
+            <Link href="/promos" className="hover:text-white">Bonos y Promos</Link>
+            <Link href="/vip" className="hover:text-white">VIP Club</Link>
+            <Link href="/tournaments" className="hover:text-white">Torneos</Link>
             <Link href="/wallet" className="hover:text-white">Chido Wallet</Link>
+            <Link href="/affiliates" className="hover:text-white">Afiliados</Link>
             <Link href="/support" className="hover:text-white">Soporte</Link>
           </div>
         </div>

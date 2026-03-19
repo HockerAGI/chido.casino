@@ -176,13 +176,13 @@ export default function ProfilePage() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="text-3xl font-black">Mi perfil</div>
-          <div className="text-white/60 text-sm">Cuenta, seguridad, bóveda e historial real.</div>
+          <div className="text-white/60 text-sm">Cuenta, seguridad, Chido Wallet e historial real.</div>
         </div>
 
         <div className="flex gap-2">
           <Link href="/wallet">
             <Button variant="secondary" className="font-black">
-              <Wallet size={16} /> Bóveda
+              <Wallet size={16} /> Chido Wallet
             </Button>
           </Link>
           <Button variant="destructive" onClick={logout} className="font-black">
@@ -259,11 +259,11 @@ export default function ProfilePage() {
           </div>
         </Card>
 
-        {/* Bóveda + Afiliados + Seguridad */}
+        {/* Chido Wallet + Afiliados + Seguridad */}
         <Card className="bg-black/30 border-white/10 p-6 rounded-3xl md:col-span-2">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
-              <div className="text-lg font-black">Bóveda</div>
+              <div className="text-lg font-black">Chido Wallet</div>
               <div className="text-xs text-white/55">Saldo real, bono y bloqueado.</div>
             </div>
             <div className="flex gap-2">

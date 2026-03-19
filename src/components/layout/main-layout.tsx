@@ -18,19 +18,24 @@ import {
   Users,
   LogOut,
   ShieldCheck,
+  Trophy,
+  Zap,
+  Star,
 } from "lucide-react";
 
 type NavItem = { href: string; label: string; icon: any };
 
 const primaryNav: NavItem[] = [
   { href: "/lobby", label: "Lobby", icon: LayoutGrid },
-  { href: "/games/crash", label: "Crash", icon: Gamepad2 },
+  { href: "/games/crash", label: "Crash", icon: Zap },
   { href: "/promos", label: "Bonos", icon: Gift },
-  { href: "/profile", label: "Perfil", icon: UserCircle },
+  { href: "/profile", label: "Mi Cuenta", icon: UserCircle },
 ];
 
 const drawerNav: NavItem[] = [
   { href: "/wallet", label: "Chido Wallet", icon: Wallet },
+  { href: "/tournaments", label: "Torneos", icon: Trophy },
+  { href: "/vip", label: "VIP Club", icon: Star },
   { href: "/affiliates", label: "Afiliados", icon: Users },
   { href: "/support", label: "Soporte", icon: Headphones },
   { href: "/legal", label: "Legal", icon: ShieldCheck },
