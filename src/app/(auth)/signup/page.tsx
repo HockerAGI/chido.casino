@@ -7,9 +7,17 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Logo } from "@/components/ui/logo";
 import { Lock, Mail, AlertCircle, Loader2, CheckCircle2, Ticket } from "lucide-react";
 
+const SUPABASE_CONFIGURED =
+  typeof process !== "undefined" &&
+  !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
+  !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
 export default function SignupPage() {
   const router = useRouter();
-  const supabase = useMemo(() => createClientComponentClient(), []);
+  const supabase = useMemo(() => {
+    if (!SUPABASE_CONFIGURED) return null as any;
+    try { return createClientComponentClient(); } catch { return null as any; }
+  }, []);
 
   // ⚠️ No usamos useSearchParams() para evitar el error de Next
   // "missing suspense boundary" durante prerender/build.
@@ -38,6 +46,10 @@ export default function SignupPage() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!supabase) {
+      setError("El casino aún no está conectado a la base de datos. Configura las variables de entorno primero.");
+      return;
+    }
     setLoading(true);
     setError(null);
 

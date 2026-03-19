@@ -9,8 +9,16 @@ import { useToast } from "@/components/ui/use-toast";
 import { Logo } from "@/components/ui/logo";
 import { Loader2, Lock, Mail } from "lucide-react";
 
+const SUPABASE_CONFIGURED =
+  typeof process !== "undefined" &&
+  !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
+  !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
 export default function LoginPage() {
-  const supabase = useMemo(() => createClientComponentClient(), []);
+  const supabase = useMemo(() => {
+    if (!SUPABASE_CONFIGURED) return null as any;
+    try { return createClientComponentClient(); } catch { return null as any; }
+  }, []);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -20,6 +28,10 @@ export default function LoginPage() {
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
+    if (!supabase) {
+      toast({ title: "Config pendiente", description: "Falta configurar las variables de entorno de Supabase. Ver guía en Replit.", variant: "destructive" });
+      return;
+    }
     setLoading(true);
 
     try {
@@ -73,6 +85,12 @@ export default function LoginPage() {
         <div className="mb-6 flex items-center justify-center">
           <Logo variant="full" size={160} />
         </div>
+
+        {!SUPABASE_CONFIGURED && (
+          <div className="mb-4 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-xs text-yellow-400 font-medium leading-relaxed">
+            ⚠️ <b>Configuración pendiente:</b> Añade <code>NEXT_PUBLIC_SUPABASE_URL</code> y <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> en las variables de entorno de Replit para activar el login.
+          </div>
+        )}
 
         <h1 className="text-2xl font-black">Iniciar sesión</h1>
         <p className="mt-1 text-sm text-white/60">Accede a tu cuenta.</p>

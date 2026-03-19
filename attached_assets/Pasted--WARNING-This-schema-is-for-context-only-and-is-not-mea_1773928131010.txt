@@ -1,0 +1,351 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.affiliate_clicks (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  affiliate_user_id uuid,
+  code text,
+  ip_hash text,
+  user_agent text,
+  referer text,
+  metadata jsonb,
+  CONSTRAINT affiliate_clicks_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.affiliate_commissions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  affiliate_user_id uuid,
+  referred_user_id uuid,
+  amount numeric NOT NULL DEFAULT 0,
+  reason text NOT NULL DEFAULT 'commission'::text,
+  ref_id text CHECK (ref_id IS NULL OR btrim(ref_id) <> ''::text),
+  status text NOT NULL DEFAULT 'credited'::text,
+  metadata jsonb,
+  CONSTRAINT affiliate_commissions_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.affiliate_profiles (
+  user_id uuid NOT NULL,
+  kind text NOT NULL DEFAULT 'player'::text,
+  status text NOT NULL DEFAULT 'pending'::text,
+  commission_rate numeric NOT NULL DEFAULT 0.05,
+  referral_code text NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  CONSTRAINT affiliate_profiles_pkey PRIMARY KEY (user_id),
+  CONSTRAINT affiliate_profiles_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.affiliate_referrals (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  referrer_id uuid NOT NULL,
+  referred_user_id uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  first_deposit_amount numeric,
+  first_deposit_at timestamp with time zone,
+  status text NOT NULL DEFAULT 'tracked'::text,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  affiliate_user_id uuid,
+  total_deposited numeric NOT NULL DEFAULT 0,
+  total_commission numeric NOT NULL DEFAULT 0,
+  CONSTRAINT affiliate_referrals_pkey PRIMARY KEY (id),
+  CONSTRAINT affiliate_referrals_referrer_id_fkey FOREIGN KEY (referrer_id) REFERENCES public.profiles(id),
+  CONSTRAINT affiliate_referrals_referred_user_id_fkey FOREIGN KEY (referred_user_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.affiliates (
+  user_id uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  code text,
+  status text NOT NULL DEFAULT 'active'::text,
+  CONSTRAINT affiliates_pkey PRIMARY KEY (user_id),
+  CONSTRAINT affiliates_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.balances (
+  user_id uuid NOT NULL,
+  balance numeric NOT NULL DEFAULT 0,
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  bonus_balance numeric NOT NULL DEFAULT 0,
+  locked_balance numeric NOT NULL DEFAULT 0,
+  currency text NOT NULL DEFAULT 'MXN'::text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT balances_pkey PRIMARY KEY (user_id),
+  CONSTRAINT balances_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.bets (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  game_id uuid,
+  amount numeric NOT NULL,
+  cashout_point numeric,
+  profit numeric,
+  status text DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'won'::text, 'lost'::text])),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT bets_pkey PRIMARY KEY (id),
+  CONSTRAINT bets_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT bets_game_id_fkey FOREIGN KEY (game_id) REFERENCES public.game_history(id)
+);
+CREATE TABLE public.cashback_events (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  loss_amount numeric NOT NULL,
+  rate numeric NOT NULL,
+  cashback_amount numeric NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  ref_id text,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  CONSTRAINT cashback_events_pkey PRIMARY KEY (id),
+  CONSTRAINT cashback_events_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.cashback_tiers (
+  id bigint NOT NULL DEFAULT nextval('cashback_tiers_id_seq'::regclass),
+  min_deposit numeric NOT NULL,
+  rate numeric NOT NULL,
+  label text NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT cashback_tiers_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.casino_settings (
+  id integer NOT NULL DEFAULT 1,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  cashback_daily_cap numeric NOT NULL DEFAULT 200,
+  cashback_weekly_cap numeric NOT NULL DEFAULT 700,
+  cashback_lookback_days integer NOT NULL DEFAULT 7,
+  cashback_wager_multiplier numeric NOT NULL DEFAULT 10,
+  free_rounds_wager_multiplier numeric NOT NULL DEFAULT 35,
+  promo_bonus_wager_multiplier numeric NOT NULL DEFAULT 35,
+  CONSTRAINT casino_settings_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.crash_bets (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  bet_amount numeric NOT NULL,
+  target_multiplier numeric NOT NULL,
+  crash_multiplier numeric NOT NULL,
+  did_cashout boolean NOT NULL DEFAULT false,
+  payout numeric NOT NULL DEFAULT 0,
+  ref_id text,
+  server_seed_hash text,
+  server_seed text,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT crash_bets_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.deposit_intents (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  provider text NOT NULL DEFAULT 'manual'::text,
+  method text,
+  amount numeric NOT NULL,
+  currency text NOT NULL DEFAULT 'MXN'::text,
+  status text NOT NULL DEFAULT 'created'::text,
+  external_id text,
+  checkout_url text,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  intent_id text,
+  provider_payload jsonb,
+  bonus_applied boolean NOT NULL DEFAULT false,
+  free_spins_awarded integer NOT NULL DEFAULT 0,
+  CONSTRAINT deposit_intents_pkey PRIMARY KEY (id),
+  CONSTRAINT deposit_intents_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.fraud_events (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  event_type text NOT NULL,
+  ip_hash text,
+  device_hash text,
+  user_agent text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  CONSTRAINT fraud_events_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.free_round_entitlements (
+  id bigint NOT NULL DEFAULT nextval('free_round_entitlements_id_seq'::regclass),
+  user_id uuid NOT NULL,
+  game text NOT NULL DEFAULT 'crash'::text,
+  remaining integer NOT NULL DEFAULT 0,
+  source text NOT NULL DEFAULT 'deposit'::text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  expires_at timestamp with time zone,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  CONSTRAINT free_round_entitlements_pkey PRIMARY KEY (id),
+  CONSTRAINT free_round_entitlements_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.free_round_tiers (
+  id bigint NOT NULL DEFAULT nextval('free_round_tiers_id_seq'::regclass),
+  min_deposit numeric NOT NULL,
+  free_rounds integer NOT NULL,
+  label text NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT free_round_tiers_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.game_history (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  game_type text NOT NULL,
+  crash_point numeric,
+  server_seed text NOT NULL,
+  client_seed text,
+  hash text NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT game_history_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.kyc_requests (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  status text NOT NULL DEFAULT 'pending'::text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  submitted_at timestamp with time zone NOT NULL DEFAULT now(),
+  reviewed_at timestamp with time zone,
+  review_note text,
+  id_front_path text,
+  id_back_path text,
+  selfie_path text,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  CONSTRAINT kyc_requests_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.manual_deposit_requests (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  folio text NOT NULL DEFAULT generate_folio('MD'::text) UNIQUE,
+  amount numeric NOT NULL,
+  currency text NOT NULL DEFAULT 'MXN'::text,
+  method text NOT NULL DEFAULT 'spei'::text,
+  status text NOT NULL DEFAULT 'pending'::text,
+  receipt_url text,
+  instructions jsonb NOT NULL DEFAULT '{}'::jsonb,
+  reviewed_at timestamp with time zone,
+  reviewed_by text,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT manual_deposit_requests_pkey PRIMARY KEY (id),
+  CONSTRAINT manual_deposit_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.profiles (
+  id uuid NOT NULL,
+  email text UNIQUE,
+  role text DEFAULT 'user'::text CHECK (role = ANY (ARRAY['user'::text, 'admin'::text])),
+  balance numeric DEFAULT 0.00 CHECK (balance >= 0::numeric),
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  user_id uuid,
+  username text,
+  avatar_url text,
+  kyc_status text NOT NULL DEFAULT 'unverified'::text,
+  vip_level text NOT NULL DEFAULT 'verde'::text,
+  xp integer NOT NULL DEFAULT 0,
+  cashback_day date,
+  cashback_day_total numeric NOT NULL DEFAULT 0,
+  cashback_week_start date,
+  cashback_week_total numeric NOT NULL DEFAULT 0,
+  last_deposit_amount numeric NOT NULL DEFAULT 0,
+  last_deposit_at timestamp with time zone,
+  wager_required numeric NOT NULL DEFAULT 0,
+  wager_progress numeric NOT NULL DEFAULT 0,
+  referral_code text,
+  referred_by uuid,
+  crash_nonce bigint NOT NULL DEFAULT 0,
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  free_spins integer NOT NULL DEFAULT 0,
+  full_name text,
+  self_excluded_until timestamp with time zone,
+  self_excluded_at timestamp with time zone,
+  self_excluded_reason text,
+  CONSTRAINT profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id),
+  CONSTRAINT profiles_referred_by_fkey FOREIGN KEY (referred_by) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.promo_claims (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  offer_id uuid NOT NULL,
+  status text NOT NULL DEFAULT 'active'::text,
+  claimed_at timestamp with time zone NOT NULL DEFAULT now(),
+  expires_at timestamp with time zone,
+  bonus_awarded numeric NOT NULL DEFAULT 0,
+  free_rounds_awarded integer NOT NULL DEFAULT 0,
+  wagering_required numeric NOT NULL DEFAULT 0,
+  wagering_progress numeric NOT NULL DEFAULT 0,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  CONSTRAINT promo_claims_pkey PRIMARY KEY (id),
+  CONSTRAINT promo_claims_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
+  CONSTRAINT promo_claims_offer_id_fkey FOREIGN KEY (offer_id) REFERENCES public.promo_offers(id)
+);
+CREATE TABLE public.promo_offers (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  slug text NOT NULL,
+  title text NOT NULL,
+  description text NOT NULL,
+  active boolean NOT NULL DEFAULT true,
+  starts_at timestamp with time zone,
+  ends_at timestamp with time zone,
+  min_deposit numeric NOT NULL DEFAULT 0,
+  bonus_percent numeric NOT NULL DEFAULT 0,
+  max_bonus numeric NOT NULL DEFAULT 0,
+  free_rounds integer NOT NULL DEFAULT 0,
+  wagering_multiplier numeric,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT promo_offers_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.slot_spins (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  bet_amount numeric NOT NULL,
+  payout_amount numeric NOT NULL DEFAULT 0,
+  multiplier numeric NOT NULL DEFAULT 0,
+  reels jsonb,
+  server_seed_hash text,
+  server_seed text,
+  client_seed text,
+  nonce bigint,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT slot_spins_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.transactions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  amount numeric NOT NULL,
+  provider_id text,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  type USER-DEFINED,
+  status USER-DEFINED,
+  method USER-DEFINED,
+  reason text,
+  ref_id text,
+  metadata jsonb,
+  CONSTRAINT transactions_pkey PRIMARY KEY (id),
+  CONSTRAINT transactions_new_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.transactions_audit (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  transaction_id uuid,
+  changed_by text,
+  action text,
+  payload jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT transactions_audit_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.withdraw_requests (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  amount numeric NOT NULL,
+  currency text NOT NULL DEFAULT 'MXN'::text,
+  method text NOT NULL DEFAULT 'spei'::text,
+  destination text NOT NULL,
+  status text NOT NULL DEFAULT 'pending'::text,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  provider text NOT NULL DEFAULT 'manual'::text,
+  external_id text,
+  clabe text,
+  beneficiary text,
+  provider_payload jsonb NOT NULL DEFAULT '{}'::jsonb,
+  CONSTRAINT withdraw_requests_pkey PRIMARY KEY (id),
+  CONSTRAINT withdraw_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
