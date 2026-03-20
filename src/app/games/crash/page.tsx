@@ -25,7 +25,7 @@ export default function CrashPro() {
 
   const [gameState, setGameState] = useState<"IDLE" | "RUNNING" | "CRASHED" | "WON">("IDLE");
   const [multiplier, setMultiplier] = useState(1.0);
-  const [bet, setBet] = useState(10);
+  const [bet, setBet] = useState(1);
   const [target, setTarget] = useState(2.0);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<{ crash: number; win: boolean }[]>([]);
@@ -37,9 +37,9 @@ export default function CrashPro() {
 
   const clampBet = (v: number) => {
     let n = Number(v);
-    if (!Number.isFinite(n) || n <= 0) n = 10;
+    if (!Number.isFinite(n) || n <= 0) n = 1;
     if (promo.ok && promo.hasRollover) n = Math.min(n, promo.maxBet);
-    return Math.max(1, Math.floor(n));
+    return Math.max(0.10, Math.round(n * 100) / 100);
   };
 
   const loadGates = async () => {
@@ -267,13 +267,15 @@ export default function CrashPro() {
             <Input
               type="number"
               value={bet}
+              step="0.10"
+              min="0.10"
               onChange={(e) => setBet(clampBet(Number(e.target.value)))}
               className="bg-black border-white/10 h-12 pl-8 font-mono text-white focus:ring-[#00F0FF]"
               disabled={gameState === "RUNNING" || (resp.ok && resp.excluded)}
             />
           </div>
           <div className="grid grid-cols-4 gap-2">
-            {[10, 50, 100, 500].map((v) => {
+            {[0.10, 1, 10, 50].map((v) => {
               const disabled = (promo.ok && promo.hasRollover && v > promo.maxBet) || (resp.ok && resp.excluded) || gameState === "RUNNING";
               return (
                 <button
@@ -282,7 +284,7 @@ export default function CrashPro() {
                   disabled={disabled}
                   className="bg-white/5 text-xs py-2 rounded hover:bg-white/10 transition disabled:opacity-40"
                 >
-                  {v}
+                  ${v}
                 </button>
               );
             })}

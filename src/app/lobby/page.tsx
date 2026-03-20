@@ -12,6 +12,7 @@ import {
   Radio, Dices, CircleDot, Swords,
 } from "lucide-react";
 import { GAMES, CATEGORY_LABELS, type GameCategory } from "@/lib/games";
+import { DailyStreakBar } from "@/components/ui/daily-streak-bar";
 
 type WinFeedItem = {
   id: string;
@@ -153,6 +154,9 @@ export default function LobbyPage() {
             </div>
           </div>
         </div>
+
+        {/* DAILY STREAK BONUS */}
+        <DailyStreakBar />
 
         {/* VIP LEVEL BAR */}
         {profile && (

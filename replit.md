@@ -32,6 +32,19 @@ Chido Casino (chidocasino.com) — plataforma de entretenimiento de juegos de az
 | `/support` | Soporte (WhatsApp, FAQ) |
 | `/legal` | Términos y privacidad |
 
+## Critical Resilience — No Supabase Crash
+All Supabase-dependent code guards against missing env vars:
+- `src/lib/supabaseClient.ts` — returns `null` if vars missing
+- `src/lib/session.ts` — returns `null` if vars missing (no crash)
+- `src/lib/useProfile.ts` — handles null client gracefully
+- `src/app/(auth)/login/page.tsx` — shows config banner, doesn't crash
+- `src/app/(auth)/signup/page.tsx` — shows config banner, doesn't crash
+- `src/middleware.ts` — resilient to missing vars
+
+## Engagement Mechanics
+- `src/components/ui/daily-streak-bar.tsx` — Daily 7-day streak bonus widget (lobby)
+- Betting from `$0.10 MXN` on Crash and Taco Slot
+
 ## Design System
 - **Primary accent**: #FF0099 (pink)
 - **Secondary accents**: #FF5E00 (orange), #00F0FF (cyan), #32CD32 (green), #FFD700 (gold)
