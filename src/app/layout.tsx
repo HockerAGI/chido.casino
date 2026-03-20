@@ -3,6 +3,7 @@ import "./globals.css";
 import AppShell from "./_components/AppShell";
 import PWARegister from "./_components/PWARegister";
 import Providers from "./_components/Providers";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://chido.casino"),
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <PWARegister />
           <AppShell>{children}</AppShell>
         </Providers>
+        <SpeedInsights />
       </body>
     </html>
   );
