@@ -3,7 +3,16 @@ import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
+const SUPABASE_CONFIGURED =
+  !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
+  !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
 export async function POST(req: Request) {
+  if (!SUPABASE_CONFIGURED) {
+    console.error("Supabase backend not configured for /api/promos/redeem");
+    return NextResponse.json({ error: "El backend no está configurado para manejar esta acción." }, { status: 500 });
+  }
+
   const supabase = createRouteHandlerClient({ cookies });
 
   const {

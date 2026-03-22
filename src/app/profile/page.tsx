@@ -100,7 +100,7 @@ export default function ProfilePage() {
     kyc === "approved" || kyc === "verified" ? "KYC aprobado" : kyc ? `KYC: ${kyc}` : "KYC pendiente";
 
   const saveUsername = async () => {
-    if (!profile) return;
+    if (!supabase || !profile) return;
     const u = username.trim();
     if (u.length < 3) {
       setMsg("El username debe tener al menos 3 caracteres.");
@@ -138,6 +138,7 @@ export default function ProfilePage() {
   };
 
   const resetPassword = async () => {
+    if (!supabase) return;
     setMsg(null);
     try {
       const { data } = await supabase.auth.getUser();
@@ -157,6 +158,10 @@ export default function ProfilePage() {
   };
 
   const logout = async () => {
+    if (!supabase) {
+      location.href = "/login";
+      return;
+    }
     await supabase.auth.signOut().catch(() => {});
     location.href = "/login";
   };

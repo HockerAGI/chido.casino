@@ -20,6 +20,7 @@ function okType(file: File) {
 
 export async function uploadAvatar(file: File) {
   const supabase = createClient();
+  if (!supabase) throw new Error("Supabase client is not available");
 
   if (!file) throw new Error("Selecciona una imagen.");
   if (!okType(file)) throw new Error("Formato inválido. Usa imagen (png/jpg/webp).");
