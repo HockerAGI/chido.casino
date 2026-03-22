@@ -392,3 +392,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+// Trigger new Vercel deployment
