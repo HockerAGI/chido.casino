@@ -100,7 +100,13 @@ export default function ProfilePage() {
     kyc === "approved" || kyc === "verified" ? "¡Verificado, qué chido!" : kyc ? `KYC: ${kyc}` : "Verificación pendiente";
 
   const saveUsername = async () => {
-    if (!supabase || !profile) return;
+    // REFUERZO DE LA GUARDA
+    if (!supabase) {
+      setMsg("Error de conexión. No se pudo guardar el alias.");
+      return;
+    }
+    if (!profile) return;
+    
     const u = username.trim();
     if (u.length < 3) {
       setMsg("Tu alias debe tener al menos 3 letras, ¿no?");
@@ -138,7 +144,10 @@ export default function ProfilePage() {
   };
 
   const resetPassword = async () => {
-    if (!supabase) return;
+    if (!supabase) {
+        setMsg("Error de conexión. No se pudo reiniciar la contraseña.");
+        return;
+    }
     setMsg(null);
     try {
       const { data } = await supabase.auth.getUser();
