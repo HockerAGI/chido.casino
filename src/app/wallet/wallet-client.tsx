@@ -99,6 +99,11 @@ export default function WalletClient() {
 
   useEffect(() => {
     const load = async () => {
+      if (!supabase) {
+        setMessage("Error: No se pudo conectar con el backend.");
+        setLoading(false);
+        return;
+      }
       setLoading(true);
 
       const { data: userRes } = await supabase.auth.getUser();
@@ -138,10 +143,10 @@ export default function WalletClient() {
   const copy = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      setMessage("Copiado ✅");
+      setMessage("¡Órale! Copiado ✅");
       setTimeout(() => setMessage(null), 1200);
     } catch {
-      setMessage("No se pudo copiar.");
+      setMessage("No se pudo copiar, qué mala onda.");
       setTimeout(() => setMessage(null), 1200);
     }
   };
@@ -152,7 +157,7 @@ export default function WalletClient() {
     setManualReq(null);
 
     if (!Number.isFinite(amt) || amt <= 0) {
-      setMessage("Monto inválido.");
+      setMessage("Ese monto no está chido. Intenta de nuevo.");
       return;
     }
 
@@ -167,15 +172,15 @@ export default function WalletClient() {
       const data = (await res.json()) as CreateDepositResponse;
 
       if (!data.ok) {
-        setMessage(data.error || "Error al crear depósito.");
+        setMessage(data.error || "No se armó el depósito. Algo falló.");
         return;
       }
 
-      setMessage(data.message || "Listo.");
+      setMessage(data.message || "¡A huevo! Instrucciones generadas.");
       setInstructions((data as any).instructions);
       setManualReq((data as any).request);
     } catch (e: any) {
-      setMessage(e?.message || "Error al crear depósito.");
+      setMessage(e?.message || "No se armó el depósito. Algo falló.");
     } finally {
       setDepositLoading(false);
     }
@@ -185,19 +190,19 @@ export default function WalletClient() {
     setMessage(null);
 
     if (!Number.isFinite(amt) || amt <= 0) {
-      setMessage("Monto inválido.");
+      setMessage("Ese monto no está chido.");
       return;
     }
     if (amt > balance) {
-      setMessage("Saldo insuficiente (solo saldo real, no bono).");
+      setMessage("No te alcanza, compa. Solo puedes retirar saldo real.");
       return;
     }
     if (!/^[0-9]{18}$/.test(clabe.trim())) {
-      setMessage("CLABE inválida (18 dígitos).");
+      setMessage("Esa CLABE parece más chueca que un plátano. Deben ser 18 dígitos.");
       return;
     }
     if (beneficiary.trim().length < 3) {
-      setMessage("Beneficiario inválido.");
+      setMessage("Pon el nombre del beneficiario, no seas gacho.");
       return;
     }
 
@@ -217,19 +222,19 @@ export default function WalletClient() {
 
       if (!res.ok) {
         if (data?.error === "KYC_REQUIRED") {
-          setMessage("Para retirar necesitas KYC aprobado. Pídelo en Soporte.");
+          setMessage("¡Aguas! Necesitas KYC aprobado para retirar. Pídelo en Soporte.");
           return;
         }
-        setMessage(data?.error || "Error al solicitar retiro.");
+        setMessage(data?.error || "No se pudo solicitar el retiro. Qué bajón.");
         return;
       }
 
-      setMessage("Retiro solicitado. Tu saldo quedó bloqueado mientras se procesa ✅");
+      setMessage("¡Ya estás! Tu retiro se está procesando. Tu saldo se bloqueará un ratito. ✅");
       setAmount("");
       setClabe("");
       setBeneficiary("");
     } catch (e: any) {
-      setMessage(e?.message || "Error al solicitar retiro.");
+      setMessage(e?.message || "No se pudo solicitar el retiro. Qué bajón.");
     } finally {
       setWithdrawLoading(false);
     }
@@ -239,7 +244,7 @@ export default function WalletClient() {
     return (
       <div className="flex items-center gap-2 text-sm text-neutral-400">
         <Loader2 className="h-4 w-4 animate-spin" />
-        Cargando Chido Wallet…
+        Cargando el Chido Wallet... ¡Aguanta la carnita!
       </div>
     );
   }
@@ -256,7 +261,7 @@ export default function WalletClient() {
             </div>
             <div>
               <div className="text-xs uppercase tracking-widest text-white/50 font-bold">Chido Wallet</div>
-              <div className="text-[10px] text-white/30">Tu tesoro chido 🤑</div>
+              <div className="text-[10px] text-white/30">Aquí guardas tu lana para la acción 🤑</div>
             </div>
           </div>
 
@@ -274,7 +279,7 @@ export default function WalletClient() {
                   : "bg-white/8 border border-white/10 text-white hover:bg-white/12"
               }`}
             >
-              <ArrowDownToLine className="h-4 w-4" /> Depositar
+              <ArrowDownToLine className="h-4 w-4" /> Meter feria
             </button>
             <button
               onClick={() => setSelectedTab("withdraw")}
@@ -284,7 +289,7 @@ export default function WalletClient() {
                   : "bg-white/8 border border-white/10 text-white hover:bg-white/12"
               }`}
             >
-              <ArrowUpFromLine className="h-4 w-4" /> Retirar
+              <ArrowUpFromLine className="h-4 w-4" /> Sacar lana
             </button>
           </div>
         </div>
@@ -309,7 +314,7 @@ export default function WalletClient() {
             </div>
             <div>
               <div className="text-base font-black">Depósito vía SPEI</div>
-              <div className="text-xs text-white/45">Rápido, seguro y sin comisión por nuestra parte</div>
+              <div className="text-xs text-white/45">Rápido, seguro y sin comisión de nuestra parte. ¡Así de fácil!</div>
             </div>
           </div>
 
@@ -330,14 +335,14 @@ export default function WalletClient() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs text-white/50 font-bold uppercase tracking-widest">Monto personalizado (MXN)</label>
+            <label className="text-xs text-white/50 font-bold uppercase tracking-widest">OTRA CANTIDAD (MXN)</label>
             <input
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="Ej: 750"
               className="w-full rounded-2xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/25 transition"
             />
-            <div className="text-[11px] text-white/35">Mínimo $50 MXN. Tip: usa cantidades redondas para conciliación más rápida.</div>
+            <div className="text-[11px] text-white/35">Mínimo $50 MXN. Tip: usa cantidades sin centavos para que caiga más rápido.</div>
           </div>
 
           <button
@@ -345,7 +350,7 @@ export default function WalletClient() {
             disabled={depositLoading}
             className="w-full rounded-2xl bg-white text-black font-black py-3.5 hover:bg-white/90 disabled:opacity-50 transition text-sm"
           >
-            {depositLoading ? "Generando instrucciones..." : "¡Quiero depositar!"}
+            {depositLoading ? "Generando instrucciones..." : "¡A depositar se ha dicho!"}
           </button>
 
           {instructions && (
@@ -378,12 +383,12 @@ export default function WalletClient() {
                 <div className="text-xs text-white/50">Beneficiario</div>
                 <div className="mt-1 text-sm">{instructions.spei.beneficiary}</div>
                 {instructions.spei.institution ? (
-                  <div className="mt-1 text-xs text-white/50">Institución: {instructions.spei.institution}</div>
+                  <div className="mt-1 text-xs text-white/50">Banco: {instructions.spei.institution}</div>
                 ) : null}
               </div>
 
               <div className="text-sm text-white/70">
-                <div className="font-bold mb-1">Pasos</div>
+                <div className="font-bold mb-1">Sigue los pasos, es pan comido:</div>
                 <ol className="list-decimal list-inside space-y-1">
                   {instructions.steps.map((s, i) => (
                     <li key={i}>{s}</li>
@@ -414,7 +419,7 @@ export default function WalletClient() {
                 </a>
               ) : (
                 <div className="text-xs text-white/45">
-                  Si tu saldo no se refleja, contacta a Soporte y manda tu folio + comprobante.
+                  Si tu saldo no cae, manda tu folio y comprobante a Soporte.
                 </div>
               )}
             </div>
@@ -428,14 +433,14 @@ export default function WalletClient() {
             </div>
             <div>
               <div className="text-base font-black">Retiro a CLABE</div>
-              <div className="text-xs text-white/45">Solo saldo real (no bono). KYC obligatorio.</div>
+              <div className="text-xs text-white/45">Solo saldo real (no bono). KYC a la mano.</div>
             </div>
           </div>
 
           <div className="rounded-2xl border border-[#FFD700]/15 bg-[#FFD700]/5 p-4 flex items-start gap-3">
             <ShieldCheck className="h-4 w-4 text-[#FFD700] shrink-0 mt-0.5" />
             <div className="text-xs text-white/65 leading-relaxed">
-              Para retirar necesitas <b className="text-white">KYC aprobado</b>. Tarda 1–3 días hábiles. Sin comisión por parte de Chido Casino. Si no tienes KYC o tu retiro tarda, ve a <b className="text-[#25D366]">Soporte</b>.
+             Para sacar tu lana necesitas <b className="text-white">KYC aprobado</b>. Tarda de 1 a 3 días hábiles. Chido Casino no te cobra comisión. Si no tienes KYC o tu retiro se atora, manda mensaje a <b className="text-[#25D366]">Soporte</b>.
             </div>
           </div>
 
@@ -448,7 +453,7 @@ export default function WalletClient() {
                 placeholder="Ej: 500"
                 className="w-full rounded-2xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/25 transition"
               />
-              <div className="text-[11px] text-white/30 mt-1">Saldo disponible para retiro: ${balance.toFixed(2)} MXN</div>
+              <div className="text-[11px] text-white/30 mt-1">Tu saldo para retirar: ${balance.toFixed(2)} MXN</div>
             </div>
 
             <div>
@@ -467,7 +472,7 @@ export default function WalletClient() {
               <input
                 value={beneficiary}
                 onChange={(e) => setBeneficiary(e.target.value)}
-                placeholder="Como aparece en tu cuenta bancaria"
+                placeholder="Como sale en tu estado de cuenta"
                 className="w-full rounded-2xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/25 transition"
               />
             </div>
@@ -478,12 +483,12 @@ export default function WalletClient() {
             disabled={withdrawLoading}
             className="w-full rounded-2xl bg-white text-black font-black py-3.5 hover:bg-white/90 disabled:opacity-50 transition text-sm"
           >
-            {withdrawLoading ? "Procesando retiro..." : "Solicitar retiro"}
+            {withdrawLoading ? "Procesando el retiro..." : "¡Sacar mi lana!"}
           </button>
 
           <div className="text-xs text-white/35 flex items-center gap-2">
             <MessageCircle className="h-3.5 w-3.5 shrink-0" />
-            Si tu retiro tarda más de 3 días, comunícate al Soporte con tu folio.
+            Si tu retiro tarda más de 3 días, échale un grito a Soporte con tu folio.
           </div>
         </div>
       )}
@@ -499,8 +504,8 @@ export default function WalletClient() {
           {txs.length === 0 ? (
             <div className="text-center py-10">
               <div className="text-3xl mb-3">💸</div>
-              <div className="text-sm text-white/40 font-medium">Todavía no hay movimientos.</div>
-              <div className="text-xs text-white/25 mt-1">¡Haz tu primer depósito y empieza a rifarte!</div>
+              <div className="text-sm text-white/40 font-medium">Acá verás toda tu actividad.</div>
+              <div className="text-xs text-white/25 mt-1">¡Haz tu primer depósito y que empiece la fiesta!</div>
             </div>
           ) : (
             txs.map((t) => {

@@ -1,7 +1,18 @@
-node_modules
-.next
-out
-.env
-.env.*
-.DS_Store
-*.log
+# Dependencies
+/node_modules
+
+# Build directory
+/.next/
+/out/
+
+# Environment variables
+.env*.local
+
+# IDE specific
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+.idx/

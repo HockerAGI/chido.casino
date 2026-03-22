@@ -97,13 +97,13 @@ export default function ProfilePage() {
 
   const kyc = String((profile as any)?.kyc_status || "").toLowerCase();
   const kycLabel =
-    kyc === "approved" || kyc === "verified" ? "KYC aprobado" : kyc ? `KYC: ${kyc}` : "KYC pendiente";
+    kyc === "approved" || kyc === "verified" ? "¡Verificado, qué chido!" : kyc ? `KYC: ${kyc}` : "Verificación pendiente";
 
   const saveUsername = async () => {
     if (!supabase || !profile) return;
     const u = username.trim();
     if (u.length < 3) {
-      setMsg("El username debe tener al menos 3 caracteres.");
+      setMsg("Tu alias debe tener al menos 3 letras, ¿no?");
       return;
     }
 
@@ -112,10 +112,10 @@ export default function ProfilePage() {
     try {
       const { error } = await supabase.from("profiles").update({ username: u }).eq("user_id", (profile as any).user_id);
       if (error) throw error;
-      setMsg("Perfil actualizado ✅");
+      setMsg("¡Alias guardado! Así te verán los compas. ✅");
       await refresh();
     } catch (e: any) {
-      setMsg(e?.message || "No se pudo guardar.");
+      setMsg(e?.message || "No se pudo guardar. Intenta de nuevo.");
     } finally {
       setSaving(false);
     }
@@ -127,11 +127,11 @@ export default function ProfilePage() {
     setMsg(null);
     try {
       await uploadAvatar(avatarFile);
-      setMsg("Avatar actualizado ✅");
+      setMsg("¡Qué buena foto! Avatar actualizado. ✅");
       setAvatarFile(null);
       await refresh();
     } catch (e: any) {
-      setMsg(e?.message || "No se pudo subir.");
+      setMsg(e?.message || "No se pudo subir la foto. ¿Está muy pesada?");
     } finally {
       setUploading(false);
     }
@@ -144,16 +144,16 @@ export default function ProfilePage() {
       const { data } = await supabase.auth.getUser();
       const email = data?.user?.email;
       if (!email) {
-        setMsg("No se detectó tu correo. Re-inicia sesión.");
+        setMsg("No encontramos tu correo. Vuelve a iniciar sesión, porfa.");
         return;
       }
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${location.origin}/login`,
       });
       if (error) throw error;
-      setMsg("Te mandé un correo para cambiar tu contraseña ✅");
+      setMsg("Te mandé un correo para que cambies tu contraseña. ¡Ponte buzo! ✅");
     } catch (e: any) {
-      setMsg(e?.message || "No se pudo enviar el correo.");
+      setMsg(e?.message || "No se pudo mandar el correo. Qué raro.");
     }
   };
 
@@ -169,29 +169,29 @@ export default function ProfilePage() {
   const profitSum = hist.slice(0, 20).reduce((s, x) => s + Number(x.profit || 0), 0);
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center text-white/60">Cargando perfil…</div>;
+    return <div className="min-h-screen flex items-center justify-center text-white/60">Cargando tu cantón…</div>;
   }
 
   if (!profile) {
-    return <div className="min-h-screen flex items-center justify-center text-white/60">Necesitas iniciar sesión.</div>;
+    return <div className="min-h-screen flex items-center justify-center text-white/60">Primero necesitas entrar a tu cuenta, ¿no?</div>;
   }
 
   return (
     <div className="min-h-screen pb-24 max-w-5xl mx-auto px-6 pt-6 space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <div className="text-3xl font-black">Mi perfil</div>
-          <div className="text-white/60 text-sm">Cuenta, seguridad, Chido Wallet e historial real.</div>
+          <div className="text-3xl font-black">Mi Cantón</div>
+          <div className="text-white/60 text-sm">Aquí controlas tu cuenta, seguridad y ves tu historial de campeón.</div>
         </div>
 
         <div className="flex gap-2">
           <Link href="/wallet">
             <Button variant="secondary" className="font-black">
-              <Wallet size={16} /> Chido Wallet
+              <Wallet size={16} /> Ir al Chido Wallet
             </Button>
           </Link>
           <Button variant="destructive" onClick={logout} className="font-black">
-            <LogOut size={16} /> Salir
+            <LogOut size={16} /> ¡Ahí nos vemos!
           </Button>
         </div>
       </div>
@@ -208,7 +208,7 @@ export default function ProfilePage() {
               <UserCircle />
             </div>
             <div>
-              <div className="text-sm font-black">Identidad</div>
+              <div className="text-sm font-black">Tu Identidad Chida</div>
               <div className="text-xs text-white/55">{kycLabel}</div>
             </div>
           </div>
@@ -231,20 +231,20 @@ export default function ProfilePage() {
               </label>
             </div>
 
-            <div className="mt-4 text-xs text-white/55">User ID</div>
+            <div className="mt-4 text-xs text-white/55">Tu ID de Jugador</div>
             <div className="font-mono text-xs text-white/75 break-all">{(profile as any).user_id}</div>
 
             {avatarFile ? (
               <Button onClick={doUploadAvatar} disabled={uploading} className="mt-4 w-full font-black">
-                {uploading ? "Subiendo…" : "Guardar avatar"}
+                {uploading ? "Subiendo foto…" : "Guardar Avatar"}
               </Button>
             ) : null}
 
             <div className="mt-5 w-full">
-              <div className="text-xs text-white/55 mb-2">Username</div>
-              <Input value={username} onChange={(e) => setUsername(e.target.value)} />
+              <div className="text-xs text-white/55 mb-2">Tu Alias</div>
+              <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Ej: El_Chingon_77" />
               <Button onClick={saveUsername} disabled={saving} className="mt-3 w-full font-black">
-                {saving ? "Guardando…" : "Guardar"}
+                {saving ? "Guardando…" : "¡Órale!"}
               </Button>
             </div>
 
@@ -252,12 +252,12 @@ export default function ProfilePage() {
               {kyc === "approved" || kyc === "verified" ? (
                 <div className="flex items-start gap-2 text-xs text-white/75">
                   <ShieldCheck size={16} className="text-[#32CD32] mt-0.5" />
-                  KYC aprobado. Puedes solicitar retiros.
+                  ¡Estás verificado! Ya puedes sacar tu lana cuando quieras.
                 </div>
               ) : (
                 <div className="flex items-start gap-2 text-xs text-white/75">
                   <ShieldAlert size={16} className="text-[#FFD700] mt-0.5" />
-                  Para retirar necesitas KYC aprobado. Pídelo en <Link className="underline" href="/support">Soporte</Link>.
+                  Para retirar necesitas estar verificado (KYC). Pídelo en <Link className="underline" href="/support">Soporte</Link>.
                 </div>
               )}
             </div>
@@ -268,18 +268,18 @@ export default function ProfilePage() {
         <Card className="bg-black/30 border-white/10 p-6 rounded-3xl md:col-span-2">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
-              <div className="text-lg font-black">Chido Wallet</div>
-              <div className="text-xs text-white/55">Saldo real, bono y bloqueado.</div>
+              <div className="text-lg font-black">Resumen de tu Cuenta</div>
+              <div className="text-xs text-white/55">Tu feria, tus compas y tus juegos.</div>
             </div>
             <div className="flex gap-2">
               <Link href="/games/crash">
                 <Button variant="secondary" className="font-black">
-                  <Gamepad2 size={16} /> Crash
+                  <Gamepad2 size={16} /> Jugar Crash
                 </Button>
               </Link>
               <Link href="/games/taco-slot">
                 <Button className="font-black">
-                  <Gamepad2 size={16} /> Taco Slot
+                  <Gamepad2 size={16} /> Jugar Taco Slot
                 </Button>
               </Link>
             </div>
@@ -287,15 +287,15 @@ export default function ProfilePage() {
 
           <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-              <div className="text-xs text-white/55">Saldo real</div>
+              <div className="text-xs text-white/55">Tu Saldo</div>
               <div className="mt-1 text-lg font-black tabular-nums">{wallet.formatted}</div>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-              <div className="text-xs text-white/55">Bono</div>
+              <div className="text-xs text-white/55">Tu Bono</div>
               <div className="mt-1 text-lg font-black tabular-nums text-[#FF0099]">{wallet.formattedBonus}</div>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-              <div className="text-xs text-white/55">Bloqueado</div>
+              <div className="text-xs text-white/55">Retiros en Proceso</div>
               <div className="mt-1 text-lg font-black tabular-nums text-white/70">{wallet.formattedLocked}</div>
             </div>
           </div>
@@ -305,18 +305,18 @@ export default function ProfilePage() {
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-2">
                 <Users size={18} />
-                <div className="font-black">Afiliados</div>
+                <div className="font-black">Programa de Compas</div>
               </div>
               <Link href="/affiliates">
-                <Button variant="secondary" className="font-black">Ver panel</Button>
+                <Button variant="secondary" className="font-black">Ver mi panel</Button>
               </Link>
             </div>
 
             <div className="mt-3 text-sm text-white/65">
               {aff?.ok && aff.link ? (
-                <>Tu link: <span className="font-mono text-white/80 break-all">{aff.link}</span></>
+                <>Pásale tu link a tus compas: <span className="font-mono text-white/80 break-all">{aff.link}</span></>
               ) : (
-                "Tu link se genera en el panel de afiliados."
+                "Tu link para invitar compas se genera en el panel."
               )}
             </div>
           </div>
@@ -325,13 +325,13 @@ export default function ProfilePage() {
           <div className="mt-6 rounded-3xl border border-white/10 bg-black/30 p-5">
             <div className="flex items-center gap-2">
               <KeyRound size={18} />
-              <div className="font-black">Seguridad</div>
+              <div className="font-black">Seguridad de la Cuenta</div>
             </div>
             <div className="mt-2 text-sm text-white/65">
-              Te mandamos un correo para cambiar tu contraseña.
+              ¿Se te olvidó tu contraseña? Te mandamos un correo para que la cambies.
             </div>
             <Button onClick={resetPassword} className="mt-4 font-black">
-              Enviar correo para cambiar contraseña
+              Cambiar mi contraseña
             </Button>
           </div>
 
@@ -340,7 +340,7 @@ export default function ProfilePage() {
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-2">
                 <History size={18} />
-                <div className="font-black">Historial (real)</div>
+                <div className="font-black">Historial de Jugadas</div>
               </div>
               <div className="text-xs text-white/60 flex items-center gap-2">
                 <TrendingUp size={14} />
@@ -349,9 +349,9 @@ export default function ProfilePage() {
             </div>
 
             {histLoading ? (
-              <div className="mt-3 text-sm text-white/60">Cargando…</div>
+              <div className="mt-3 text-sm text-white/60">Cargando tus hazañas...</div>
             ) : hist.length === 0 ? (
-              <div className="mt-3 text-sm text-white/60">Aún no hay jugadas registradas.</div>
+              <div className="mt-3 text-sm text-white/60">¡Aún no te rifas! Échate una partida.</div>
             ) : (
               <div className="mt-4 space-y-2">
                 {hist.slice(0, 12).map((x) => (
@@ -362,7 +362,7 @@ export default function ProfilePage() {
                         <span className="text-xs text-white/45 font-mono">({new Date(x.created_at).toLocaleString()})</span>
                       </div>
                       <div className="text-xs text-white/60">
-                        Apostaste <span className="font-mono">{x.bet.toFixed(2)}</span> • Cobraste{" "}
+                        Apostaste <span className="font-mono">{x.bet.toFixed(2)}</span> • Ganaste{" "}
                         <span className="font-mono">{x.payout.toFixed(2)}</span>
                       </div>
                     </div>
@@ -375,7 +375,7 @@ export default function ProfilePage() {
             )}
 
             <div className="mt-4 text-[11px] text-white/45">
-              *Esto sale directo de tus tablas (Crash/Slot) vía API autenticada.
+              *Tu historial de jugadas se actualiza en vivo desde la acción.
             </div>
           </div>
         </Card>
