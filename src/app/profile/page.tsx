@@ -100,11 +100,6 @@ export default function ProfilePage() {
     kyc === "approved" || kyc === "verified" ? "¡Verificado, qué chido!" : kyc ? `KYC: ${kyc}` : "Verificación pendiente";
 
   const saveUsername = async () => {
-    // REFUERZO DE LA GUARDA
-    if (!supabase) {
-      setMsg("Error de conexión. No se pudo guardar el alias.");
-      return;
-    }
     if (!profile) return;
     
     const u = username.trim();
@@ -116,6 +111,10 @@ export default function ProfilePage() {
     setSaving(true);
     setMsg(null);
     try {
+      // PARCHE DE FUERZA BRUTA
+      if (!supabase) {
+        throw new Error("Conexión con la base de datos perdida. Imposible guardar.");
+      }
       const { error } = await supabase.from("profiles").update({ username: u }).eq("user_id", (profile as any).user_id);
       if (error) throw error;
       setMsg("¡Alias guardado! Así te verán los compas. ✅");
@@ -392,5 +391,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-// Trigger new Vercel deployment
