@@ -1,9 +1,8 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { walletApplyDelta } from "@/lib/walletApplyDelta";
 import { fairFloat, generateServerSeed, serverSeedHash } from "@/lib/provablyFair";
 import { promoWageringProgress } from "@/lib/promoWagering";
@@ -67,7 +66,6 @@ function round2(n: number) {
 }
 
 async function spendBet(userId: string, bet: number, refId: string) {
-  // balance primero
   const a = await walletApplyDelta(supabaseAdmin as any, {
     userId,
     deltaBalance: -bet,
@@ -80,7 +78,6 @@ async function spendBet(userId: string, bet: number, refId: string) {
 
   if (!isInsufficient(String(a.error || ""))) return { source: "error" as const, error: "WALLET_ERROR" };
 
-  // bonus después
   const b = await walletApplyDelta(supabaseAdmin as any, {
     userId,
     deltaBalance: 0,
@@ -97,7 +94,7 @@ async function spendBet(userId: string, bet: number, refId: string) {
 
 export async function POST(req: Request) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createServerSupabaseClient();
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -111,7 +108,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Apuesta inválida" }, { status: 400 });
     }
 
-    // ✅ CAP si hay rollover activo
     const promoState = await getPromoLimitState(supabaseAdmin as any, session.user.id);
     if (promoState.ok && promoState.hasRollover) {
       if (bet > promoState.maxBet) {
@@ -129,7 +125,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // nonce global best-effort
     const { data: maxRow, error: maxErr } = await supabaseAdmin
       .from("slot_spins")
       .select("nonce")
@@ -143,13 +138,11 @@ export async function POST(req: Request) {
 
     const spinId = `ts_${session.user.id}_${Date.now()}`;
 
-    // debitar bet (balance o bonus)
     const spent = await spendBet(session.user.id, bet, `${spinId}:bet`);
     if (spent.source === "error") {
       return NextResponse.json({ ok: false, error: spent.error }, { status: 400 });
     }
 
-    // provably fair
     const serverSeed = generateServerSeed(32);
     const serverSeedHashHex = serverSeedHash(serverSeed);
     const clientSeed = String(body?.clientSeed || session.user.id);
@@ -159,7 +152,6 @@ export async function POST(req: Request) {
     const multiplier = calcMultiplier(reels);
     const payout = multiplier > 0 ? round2(bet * multiplier) : 0;
 
-    // payout SIEMPRE a balance real
     if (payout > 0) {
       const credit = await walletApplyDelta(supabaseAdmin as any, {
         userId: session.user.id,
@@ -171,7 +163,6 @@ export async function POST(req: Request) {
       });
 
       if (credit.error) {
-        // rollback best-effort: devuelve bet al mismo bucket
         await walletApplyDelta(supabaseAdmin as any, {
           userId: session.user.id,
           deltaBalance: spent.source === "balance" ? +bet : 0,
@@ -184,7 +175,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // log spin (si existe tabla)
     const ins = await supabaseAdmin.from("slot_spins").insert({
       user_id: session.user.id,
       bet_amount: bet,
@@ -202,7 +192,6 @@ export async function POST(req: Request) {
       console.error("slot_spins insert error:", ins.error);
     }
 
-    // Avanza rollover promo
     await promoWageringProgress(supabaseAdmin as any, {
       userId: session.user.id,
       wagerAmount: bet,
