@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 const SUPABASE_CONFIGURED =
@@ -10,18 +9,25 @@ const SUPABASE_CONFIGURED =
 export async function POST(req: Request) {
   if (!SUPABASE_CONFIGURED) {
     console.error("Supabase backend not configured for /api/promos/redeem");
-    return NextResponse.json({ error: "El backend no está configurado para manejar esta acción." }, { status: 500 });
+    return NextResponse.json(
+      { error: "El backend no está configurado para manejar esta acción." },
+      { status: 500 }
+    );
   }
 
-  const supabase = createRouteHandlerClient({ cookies });
+  const supabase = createServerSupabaseClient();
 
   const {
     data: { user },
     error: userErr,
   } = await supabase.auth.getUser();
 
-  if (userErr) return NextResponse.json({ error: userErr.message }, { status: 401 });
-  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (userErr) {
+    return NextResponse.json({ error: userErr.message }, { status: 401 });
+  }
+  if (!user) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
 
   const body = await req.json().catch(() => ({}));
   const codeRaw = String(body?.code ?? body?.slug ?? "").trim();
@@ -31,7 +37,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Falta el código (slug)" }, { status: 400 });
   }
 
-  // Validar oferta (RLS solo devuelve ofertas activas en ventana)
   const { data: offer, error: offerErr } = await supabase
     .from("promo_offers")
     .select(
@@ -40,12 +45,13 @@ export async function POST(req: Request) {
     .eq("slug", slug)
     .maybeSingle();
 
-  if (offerErr) return NextResponse.json({ error: offerErr.message }, { status: 500 });
+  if (offerErr) {
+    return NextResponse.json({ error: offerErr.message }, { status: 500 });
+  }
   if (!offer) {
     return NextResponse.json({ error: "Código inválido o promo no disponible" }, { status: 404 });
   }
 
-  // Regla simple: 1 promo activa por usuario.
   const { data: existingActive, error: existErr } = await supabaseAdmin
     .from("promo_claims")
     .select("id, offer_id, status")
@@ -55,14 +61,15 @@ export async function POST(req: Request) {
     .limit(1)
     .maybeSingle();
 
-  if (existErr) return NextResponse.json({ error: existErr.message }, { status: 500 });
+  if (existErr) {
+    return NextResponse.json({ error: existErr.message }, { status: 500 });
+  }
 
   if (existingActive?.status === "active") {
     return NextResponse.json(
       {
         ok: true,
-        message:
-          "Ya tienes una promo activa. Úsala con tu próximo depósito y después activas otra.",
+        message: "Ya tienes una promo activa. Úsala con tu próximo depósito y después activas otra.",
       },
       { status: 200 }
     );
@@ -84,7 +91,9 @@ export async function POST(req: Request) {
     .select("id, offer_id, status, claimed_at, expires_at")
     .single();
 
-  if (insErr) return NextResponse.json({ error: insErr.message }, { status: 500 });
+  if (insErr) {
+    return NextResponse.json({ error: insErr.message }, { status: 500 });
+  }
 
   return NextResponse.json({
     ok: true,
