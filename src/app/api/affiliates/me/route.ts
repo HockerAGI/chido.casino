@@ -1,97 +1,93 @@
-
 import { NextResponse } from "next/server";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const dynamic = "force-dynamic";
 
-// Helper para sumarizar y contar
-const count = (arr: any[], key: string, value: any) => arr.filter(x => x && x[key] === value).length;
-const sum = (arr: any[], key: ojbect) => arr.reduce((s, x) => s + (Number(x[key]) || 0), 0);
-
 export async function GET() {
-  const supabase = createRouteHandlerClient({ cookies });
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  try {
+    const supabase = createServerSupabaseClient();
 
-  if (!session) {
-    return NextResponse.json({ ok: false, error: "NO_AUTH" }, { status: 401 });
-  }
+    const {
+      data: { user },
+      error: userErr,
+    } = await supabase.auth.getUser();
 
-  const userId = session.user.id;
+    if (userErr || !user) {
+      return NextResponse.json({ ok: false, error: "NO_AUTH" }, { status: 401 });
+    }
 
-  // 1. Obtener el estado del afiliado
-  const { data: aff, error: affErr } = await supabaseAdmin
-    .from("affiliates")
-    .select("code, status, created_at")
-    .eq("user_id", userId)
-    .single();
+    const userId = user.id;
 
-  if (affErr) {
-    // Si no tiene registro de afiliado, se le puede crear uno "al vuelo" o mostrar error.
-    // Por ahora, mostramos error.
-    return NextResponse.json({ ok: false, error: "No eres un afiliado activo." }, { status: 404 });
-  }
+    const { data: aff, error: affErr } = await supabaseAdmin
+      .from("affiliates")
+      .select("code, status, created_at")
+      .eq("user_id", userId)
+      .single();
 
-  // 2. Obtener la lista de usuarios referidos
-  const { data: referrals, error: refErr } = await supabaseAdmin
-    .from("affiliate_referrals")
-    .select("referred_user_id, status")
-    .eq("affiliate_user_id", userId);
+    if (affErr || !aff) {
+      return NextResponse.json({ ok: false, error: "No eres un afiliado activo." }, { status: 404 });
+    }
 
-  if (refErr) {
-    return NextResponse.json({ ok: false, error: refErr.message }, { status: 500 });
-  }
+    const { data: referrals, error: refErr } = await supabaseAdmin
+      .from("affiliate_referrals")
+      .select("referred_user_id, status")
+      .eq("affiliate_user_id", userId);
 
-  // 3. Obtener el saldo de comisiones
-  const { data: balance, error: balErr } = await supabaseAdmin
-    .from("balances")
-    .select("commission_balance")
-    .eq("user_id", userId)
-    .single();
-  
-  if (balErr) {
-    return NextResponse.json({ ok: false, error: balErr.message }, { status: 500 });
-  }
+    if (refErr) {
+      return NextResponse.json({ ok: false, error: refErr.message }, { status: 500 });
+    }
 
-  // 4. Obtener las últimas 10 comisiones para el historial
-  const { data: recentCommissions, error: commErr } = await supabaseAdmin
-    .from("affiliate_earnings")
-    .select("commission_amount, created_at, game, referred_user_id")
-    .eq("affiliate_user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(10);
-  
-  if (commErr) {
-    return NextResponse.json({ ok: false, error: commErr.message }, { status: 500 });
-  }
+    const { data: balance, error: balErr } = await supabaseAdmin
+      .from("balances")
+      .select("commission_balance")
+      .eq("user_id", userId)
+      .single();
 
-  // 5. Ensamblar la respuesta
-  const stats = {
-    clicks: 0, // Aún no implementado
-    registrations: referrals?.length || 0,
-    firstDeposits: 0, // Aún no implementado
-    totalCommission: balance?.commission_balance || 0,
-  };
+    if (balErr) {
+      return NextResponse.json({ ok: false, error: balErr.message }, { status: 500 });
+    }
 
-  // Formatear las comisiones para la UI
-  const formattedCommissions = (recentCommissions || []).map(c => ({
+    const { data: recentCommissions, error: commErr } = await supabaseAdmin
+      .from("affiliate_earnings")
+      .select("commission_amount, created_at, game, referred_user_id")
+      .eq("affiliate_user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    if (commErr) {
+      return NextResponse.json({ ok: false, error: commErr.message }, { status: 500 });
+    }
+
+    const stats = {
+      clicks: 0,
+      registrations: referrals?.length || 0,
+      firstDeposits: 0,
+      totalCommission: Number(balance?.commission_balance || 0),
+    };
+
+    const formattedCommissions = (recentCommissions || []).map((c) => ({
       amount: c.commission_amount,
       status: "accredited",
-      reason: `Comisión por apuesta en ${c.game || 'un juego'}`,
+      reason: `Comisión por apuesta en ${c.game || "un juego"}`,
       created_at: c.created_at,
-      referred_user_id: c.referred_user_id
-  }));
+      referred_user_id: c.referred_user_id,
+    }));
 
-  const link = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://chido.casino'}/?ref=${aff.code}`;
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chido.casino";
+    const link = `${siteUrl.replace(/\/$/, "")}/?ref=${aff.code}`;
 
-  return NextResponse.json({
-    ok: true,
-    affiliate: aff,
-    link: link,
-    stats: stats,
-    recentCommissions: formattedCommissions
-  });
+    return NextResponse.json({
+      ok: true,
+      affiliate: aff,
+      link,
+      stats,
+      recentCommissions: formattedCommissions,
+    });
+  } catch (e: any) {
+    return NextResponse.json(
+      { ok: false, error: e?.message || "AFFILIATES_ME_ERROR" },
+      { status: 500 }
+    );
+  }
 }
