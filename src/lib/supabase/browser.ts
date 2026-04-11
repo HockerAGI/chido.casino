@@ -1,10 +1,16 @@
 "use client";
 
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
-let _client: ReturnType<typeof createClientComponentClient> | null = null;
+let _client: SupabaseClient | null = null;
 
-export function supabaseBrowser() {
-  if (!_client) _client = createClientComponentClient();
+/**
+ * Cliente singleton para browser/client hooks.
+ */
+export function supabaseBrowser(): SupabaseClient {
+  if (!_client) {
+    _client = createClientComponentClient();
+  }
   return _client;
 }
