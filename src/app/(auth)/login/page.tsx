@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClientComponentClient } from "@supabase/ssr";
+import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2, Lock, Mail, Eye, EyeOff, Star, Zap, Shield } from "lucide-react";
 
@@ -20,14 +20,12 @@ const TRUST_BADGES = [
 ];
 
 export default function LoginPage() {
-  const supabase = useMemo(() => {
-    if (!SUPABASE_CONFIGURED) return null as any;
-    try {
-      return createClientComponentClient();
-    } catch {
-      return null as any;
-    }
-  }, []);
+  // FIX GLOBAL: Prevención total de quiebre en SSR
+  const supabase =
+    typeof window !== "undefined" && SUPABASE_CONFIGURED
+      ? createClient()
+      : null;
+      
   const router = useRouter();
   const { toast } = useToast();
 
@@ -39,7 +37,7 @@ export default function LoginPage() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!supabase) {
+    if (!SUPABASE_CONFIGURED) {
       toast({
         title: "Config pendiente",
         description: "Falta configurar las variables de entorno de Supabase.",
@@ -71,8 +69,18 @@ export default function LoginPage() {
         }
       }
 
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      // Conexión a la nueva API controlada (Arquitectura HOCKER)
+      const authRes = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const authData = await authRes.json();
+
+      if (!authRes.ok) {
+        throw new Error(authData.error || "Verifica tu correo y contraseña.");
+      }
 
       await fetch("/api/auth/risk/reset", { method: "POST" }).catch(() => {});
       await fetch("/api/affiliates/attribution", {
@@ -86,7 +94,7 @@ export default function LoginPage() {
     } catch (err: any) {
       toast({
         title: "No se pudo entrar",
-        description: err.message || "Verifica tu correo y contraseña.",
+        description: err.message,
         variant: "destructive",
       });
     } finally {
