@@ -22,7 +22,7 @@ export const GAMES: Game[] = [
   {
     id: "taco-slot",
     title: "Taco Slot",
-    subtitle: "Giros locos con sabor a México ¡pura chida!",
+    subtitle: "Giros locos con sabor a México",
     badge: "HOT",
     category: "slots",
     href: "/games/taco-slot",
@@ -38,7 +38,7 @@ export const GAMES: Game[] = [
   {
     id: "crash",
     title: "Chido Crash",
-    subtitle: "Multiplica hasta 1000x y retira a tiempo, ¡no te confíes!",
+    subtitle: "Multiplica hasta 1000x y retira a tiempo",
     badge: "LIVE",
     category: "crash",
     href: "/games/crash",
@@ -54,7 +54,7 @@ export const GAMES: Game[] = [
   {
     id: "azteca-wild",
     title: "Azteca Wild",
-    subtitle: "Pirámides, wilds en cascada y hasta 5,000x de fortuna",
+    subtitle: "Pirámides, wilds en cascada y fortuna",
     badge: "NUEVO",
     category: "slots",
     href: "/games/azteca-wild",
@@ -70,7 +70,7 @@ export const GAMES: Game[] = [
   {
     id: "lucha-megaways",
     title: "Lucha Libre Megaways",
-    subtitle: "Enmascarados con wilds que vuelan y free spins épicos",
+    subtitle: "Enmascarados con wilds y free spins épicos",
     badge: "NUEVO",
     category: "slots",
     href: "/games/lucha-megaways",
@@ -100,9 +100,9 @@ export const GAMES: Game[] = [
     tags: ["día de muertos", "bonanza"],
   },
   {
-    id: "piñata-fiesta",
+    id: "pinata-fiesta",
     title: "Piñata Fiesta",
-    subtitle: "Rompe la piñata y llueven los bonos ¡que curado!",
+    subtitle: "Rompe la piñata y llueven los bonos",
     badge: "POPULAR",
     category: "slots",
     href: "/games/piñata-fiesta",
@@ -118,7 +118,7 @@ export const GAMES: Game[] = [
   {
     id: "chido-roulette",
     title: "Ruleta Chida",
-    subtitle: "Crupier real, streaming HD — apuesta y que el destino decida",
+    subtitle: "Crupier real, streaming HD",
     badge: "LIVE",
     category: "live",
     href: "/games/ruleta-chida",
@@ -131,7 +131,7 @@ export const GAMES: Game[] = [
   {
     id: "blackjack-vip",
     title: "Blackjack VIP",
-    subtitle: "Mesa privada para Nivel Habanero y Salsa — juega como los grandes",
+    subtitle: "Mesa privada para Nivel Habanero y Salsa",
     badge: "VIP",
     category: "live",
     href: "/games/blackjack-vip",
@@ -144,7 +144,7 @@ export const GAMES: Game[] = [
   {
     id: "baccarat-pro",
     title: "Baccarat Pro",
-    subtitle: "El juego de las altas apuestas — sin complicaciones, pura acción",
+    subtitle: "El juego de las altas apuestas",
     badge: "LIVE",
     category: "live",
     href: "/games/baccarat-pro",
@@ -157,7 +157,7 @@ export const GAMES: Game[] = [
   {
     id: "turbo-plinko",
     title: "Turbo Plinko",
-    subtitle: "Deja caer la bolita y espera los multiplicadores ¡hasta 1,000x!",
+    subtitle: "Suelta la bolita y ve los multiplicadores",
     badge: "NUEVO",
     category: "arcade",
     href: "/games/turbo-plinko",
@@ -173,7 +173,7 @@ export const GAMES: Game[] = [
   {
     id: "futbol-fantasy",
     title: "Predictor Fútbol MX",
-    subtitle: "Predice resultados de la Liga MX y gana bonos reales",
+    subtitle: "Predice resultados y gana bonos",
     badge: "PRONTO",
     category: "sports",
     href: "/games/futbol-mx",
@@ -186,7 +186,7 @@ export const GAMES: Game[] = [
   {
     id: "sweet-bonanza-chida",
     title: "Bonanza Dulce",
-    subtitle: "Cluster pays con multiplicadores locos — pura dulzura explosiva",
+    subtitle: "Cluster pays con multiplicadores locos",
     badge: "POPULAR",
     category: "slots",
     href: "/games/bonanza-dulce",
