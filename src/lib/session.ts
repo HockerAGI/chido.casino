@@ -1,10 +1,6 @@
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
-import type { Session } from "@supabase/supabase-js";
+import "server-only";
 
-const SUPABASE_CONFIGURED =
-  !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
-  !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export type ServerSession = {
   user: {
@@ -12,27 +8,40 @@ export type ServerSession = {
     email: string | null | undefined;
   };
   access_token: string | null;
-  session: Session;
+  session: {
+    user: {
+      id: string;
+      email: string | null | undefined;
+    };
+    access_token: string | null;
+  } | null;
 };
 
 export async function getServerSession(_req?: Request): Promise<ServerSession | null> {
-  if (!SUPABASE_CONFIGURED) return null;
-
   try {
-    const supabase = createRouteHandlerClient({ cookies });
-    const { data, error } = await supabase.auth.getSession();
-    if (error) return null;
+    const supabase = createServerSupabaseClient();
 
-    const session = data.session;
-    if (!session || !session.user) return null;
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError || !userData.user) return null;
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const session = sessionData.session ?? null;
 
     return {
       user: {
-        id: session.user.id,
-        email: session.user.email ?? null,
+        id: userData.user.id,
+        email: userData.user.email ?? null,
       },
-      access_token: session.access_token ?? null,
-      session,
+      access_token: session?.access_token ?? null,
+      session: session
+        ? {
+            user: {
+              id: userData.user.id,
+              email: userData.user.email ?? null,
+            },
+            access_token: session.access_token ?? null,
+          }
+        : null,
     };
   } catch {
     return null;
