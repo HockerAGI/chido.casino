@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export async function GET() {
-  const supabase = createRouteHandlerClient({ cookies });
+  const supabase = createServerSupabaseClient();
 
-  // Ofertas visibles al público (RLS ya filtra por active/starts_at/ends_at)
   const { data: offers, error: offersErr } = await supabase
     .from("promo_offers")
     .select(
@@ -17,7 +15,6 @@ export async function GET() {
     return NextResponse.json({ error: offersErr.message }, { status: 500 });
   }
 
-  // Claim activo (si hay sesión)
   const {
     data: { user },
   } = await supabase.auth.getUser();
