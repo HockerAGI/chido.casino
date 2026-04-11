@@ -1,18 +1,28 @@
 "use client";
 
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createBrowserClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-const CONFIGURED =
-  !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
-  !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+let browserClient: SupabaseClient | null = null;
 
-let _client: SupabaseClient | null = null;
+function getSupabaseUrl() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) throw new Error("SUPABASE_URL_NOT_CONFIGURED");
+  return url;
+}
 
-export function createClient(): SupabaseClient | null {
-  if (!CONFIGURED) return null;
-  if (!_client) {
-    try { _client = createClientComponentClient(); } catch { return null; }
+function getSupabaseKey() {
+  const key =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!key) throw new Error("SUPABASE_KEY_NOT_CONFIGURED");
+  return key;
+}
+
+export function createClient(): SupabaseClient {
+  if (!browserClient) {
+    browserClient = createBrowserClient(getSupabaseUrl(), getSupabaseKey());
   }
-  return _client;
+  return browserClient;
 }
