@@ -1,18 +1,15 @@
-import { createServerClient } from "@supabase/ssr";
-import { NextResponse, type NextRequest } from "next/server";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 function getSupabaseUrl() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!url) return null;
-  return url;
+  return process.env.NEXT_PUBLIC_SUPABASE_URL ?? null;
 }
 
 function getSupabaseKey() {
-  return (
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+  return process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-    null
-  );
+    null;
 }
 
 export async function middleware(req: NextRequest) {
@@ -31,30 +28,33 @@ export async function middleware(req: NextRequest) {
 
   const supabase = createServerClient(supabaseUrl, supabaseKey, {
     cookies: {
-      getAll() {
-        return req.cookies.getAll();
+      get(name: string) {
+        return req.cookies.get(name)?.value;
       },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value, options }) => {
-          req.cookies.set({ name, value, ...options });
-        });
-
+      set(name: string, value: string, options: CookieOptions) {
+        req.cookies.set({ name, value, ...options });
         res = NextResponse.next({
           request: {
             headers: req.headers,
           },
         });
-
-        cookiesToSet.forEach(({ name, value, options }) => {
-          res.cookies.set({ name, value, ...options });
+        res.cookies.set({ name, value, ...options });
+      },
+      remove(name: string, options: CookieOptions) {
+        req.cookies.set({ name, value: "", ...options });
+        res = NextResponse.next({
+          request: {
+            headers: req.headers,
+          },
         });
+        res.cookies.set({ name, value: "", ...options });
       },
     },
   });
 
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
 
   const url = req.nextUrl.clone();
 
@@ -73,12 +73,17 @@ export async function middleware(req: NextRequest) {
 
   const isProtected = protectedPaths.some((p) => url.pathname.startsWith(p));
 
-  if (!user && isProtected) {
+  if (!session && isProtected) {
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  if (user && (url.pathname === "/login" || url.pathname === "/signup" || url.pathname === "/")) {
+  if (
+    session &&
+    (url.pathname === "/login" ||
+      url.pathname === "/signup" ||
+      url.pathname === "/")
+  ) {
     url.pathname = "/lobby";
     return NextResponse.redirect(url);
   }
@@ -87,5 +92,7 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|gif|webp)$).*)"],
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|gif|webp)$).*)",
+  ],
 };
