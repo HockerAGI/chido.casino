@@ -1,9 +1,10 @@
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
- * Cliente Supabase para Client Components (browser).
- * Usado por helpers como uploadAvatar().
+ * Cliente Supabase para Client Components.
+ * Se mantiene separado por compatibilidad con imports existentes.
  */
-export function createClient() {
+export function createClient(): SupabaseClient {
   return createClientComponentClient();
 }
