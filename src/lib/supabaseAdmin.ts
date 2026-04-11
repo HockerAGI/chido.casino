@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
+import { APP_NAME, APP_SLUG } from "@/lib/appContext";
 
 function mustEnv(name: "NEXT_PUBLIC_SUPABASE_URL" | "SUPABASE_SERVICE_ROLE_KEY") {
   const v = process.env[name];
@@ -12,6 +13,12 @@ export const supabaseAdmin = createClient(
   mustEnv("SUPABASE_SERVICE_ROLE_KEY"),
   {
     auth: { persistSession: false, autoRefreshToken: false },
-    global: { headers: { "X-Client-Info": "chido-casino-admin" } },
+    global: {
+      headers: {
+        "X-Client-Info": `chido-casino-admin/${APP_SLUG}`,
+        "X-App-Slug": APP_SLUG,
+        "X-App-Name": APP_NAME,
+      },
+    },
   }
 );
