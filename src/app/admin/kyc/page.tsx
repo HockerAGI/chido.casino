@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
@@ -67,6 +66,7 @@ export default function AdminKycPage() {
   // Obtener las solicitudes cuando el token cambia
   useEffect(() => {
     fetchRequests();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const handleSetToken = () => {
@@ -79,7 +79,7 @@ export default function AdminKycPage() {
   const getPublicUrl = (path: string | undefined | null) => {
     if (!path) return "#";
     const { data } = supabase.storage.from("kyc").getPublicUrl(path);
-    return data.publicUrl;
+    return data.publicUrl || "#";
   };
 
   const handleUpdateRequest = async (userId: string, status: "approved" | "rejected") => {
@@ -97,7 +97,6 @@ export default function AdminKycPage() {
       if (!res.ok || !json.ok) {
         throw new Error(json.error || `Failed to set status to ${status}`);
       }
-      // Si fue exitoso, refrescamos la lista para que el item desaparezca
       await fetchRequests();
     } catch (e: any) {
       alert(`Error updating request: ${e.message}`);
@@ -110,13 +109,15 @@ export default function AdminKycPage() {
         <Card className="p-6 space-y-4 bg-black/30 border-white/10 w-96">
           <h1 className="font-bold text-xl">Admin KYC Panel</h1>
           <p className="text-sm text-white/70">Please enter the Admin API Token to proceed.</p>
-          <Input 
+          <Input
             type="password"
-            value={tokenInput} 
+            value={tokenInput}
             onChange={(e) => setTokenInput(e.target.value)}
             placeholder="Enter token..."
           />
-          <Button onClick={handleSetToken} className="w-full font-bold">Set Token & Enter</Button>
+          <Button onClick={handleSetToken} className="w-full font-bold">
+            Set Token & Enter
+          </Button>
         </Card>
       </div>
     );
@@ -127,7 +128,9 @@ export default function AdminKycPage() {
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-black">KYC Requests</h1>
-          <Button onClick={fetchRequests} disabled={loading} variant="secondary">{loading ? "Loading..." : "Refresh"}</Button>
+          <Button onClick={fetchRequests} disabled={loading} variant="secondary">
+            {loading ? "Loading..." : "Refresh"}
+          </Button>
         </div>
 
         {error && <p className="text-red-500 mb-4">Error: {error}</p>}
@@ -139,7 +142,7 @@ export default function AdminKycPage() {
             <p className="p-6 text-center text-white/60">No pending KYC requests. ¡Qué chido!</p>
           ) : (
             <div className="divide-y divide-white/10">
-              {requests.map(req => (
+              {requests.map((req) => (
                 <div key={req.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex-1 space-y-1">
                     <p className="font-bold">{req.profiles?.username || "(No username)"}</p>
@@ -147,14 +150,15 @@ export default function AdminKycPage() {
                     <p className="text-xs text-white/40 font-mono">User ID: {req.user_id}</p>
                     <p className="text-xs text-white/40">Submitted: {new Date(req.submitted_at).toLocaleString()}</p>
                   </div>
+
                   <div className="flex-1 flex items-center gap-3">
                     <a href={getPublicUrl(req.id_front_path)} target="_blank" rel="noopener noreferrer">
                       <Button variant="outline">ID Front</Button>
                     </a>
                     {req.id_back_path && (
-                       <a href={getPublicUrl(req.id_back_path)} target="_blank" rel="noopener noreferrer">
-                         <Button variant="outline">ID Back</Button>
-                       </a>
+                      <a href={getPublicUrl(req.id_back_path)} target="_blank" rel="noopener noreferrer">
+                        <Button variant="outline">ID Back</Button>
+                      </a>
                     )}
                     {req.selfie_path && (
                       <a href={getPublicUrl(req.selfie_path)} target="_blank" rel="noopener noreferrer">
@@ -162,17 +166,12 @@ export default function AdminKycPage() {
                       </a>
                     )}
                   </div>
+
                   <div className="flex gap-3">
-                    <Button 
-                      variant="destructive"
-                      onClick={() => handleUpdateRequest(req.user_id, 'rejected')}
-                    >
+                    <Button variant="destructive" onClick={() => handleUpdateRequest(req.user_id, "rejected")}>
                       Reject
                     </Button>
-                    <Button 
-                      className="bg-green-600 hover:bg-green-700 text-white"
-                      onClick={() => handleUpdateRequest(req.user_id, 'approved')}
-                    >
+                    <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleUpdateRequest(req.user_id, "approved")}>
                       Approve
                     </Button>
                   </div>
@@ -183,5 +182,5 @@ export default function AdminKycPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }
