@@ -1,8 +1,8 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 function isDuplicate(msg: string) {
@@ -11,17 +11,20 @@ function isDuplicate(msg: string) {
 }
 
 export async function POST() {
-  const supabase = createRouteHandlerClient({ cookies });
+  const supabase = createServerSupabaseClient();
+
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
-  if (!session) return NextResponse.json({ ok: false, error: "NO_AUTH" }, { status: 401 });
+  if (!session) {
+    return NextResponse.json({ ok: false, error: "NO_AUTH" }, { status: 401 });
+  }
 
-  const ref = cookies().get("chido_ref")?.value?.trim()?.toUpperCase() || "";
+  const cookieStore = cookies();
+  const ref = cookieStore.get("chido_ref")?.value?.trim()?.toUpperCase() || "";
   const res = NextResponse.json({ ok: true, attributed: false });
 
-  // siempre limpiamos cookie (evita loops)
   res.cookies.set("chido_ref", "", { maxAge: 0, path: "/" });
 
   if (!ref) return res;
