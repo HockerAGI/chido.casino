@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createClientComponentClient } from "@supabase/ssr";
 import { Lock, Mail, AlertCircle, Loader2, CheckCircle2, Ticket, Eye, EyeOff, Gift, Zap } from "lucide-react";
 
 const SUPABASE_CONFIGURED =
@@ -14,7 +14,7 @@ const SUPABASE_CONFIGURED =
 
 const PERKS = [
   { icon: Gift, text: "+100% bono en tu primer depósito" },
-  { icon: Zap,  text: "Apuestas desde $0.10 MXN" },
+  { icon: Zap, text: "Apuestas desde $0.10 MXN" },
   { icon: CheckCircle2, text: "Giros gratis al registrarte" },
 ];
 
@@ -22,7 +22,11 @@ export default function SignupPage() {
   const router = useRouter();
   const supabase = useMemo(() => {
     if (!SUPABASE_CONFIGURED) return null as any;
-    try { return createClientComponentClient(); } catch { return null as any; }
+    try {
+      return createClientComponentClient();
+    } catch {
+      return null as any;
+    }
   }, []);
 
   const [ref, setRef] = useState("");
@@ -38,7 +42,9 @@ export default function SignupPage() {
       const sp = new URLSearchParams(window.location.search);
       const r = (sp.get("ref") || "").trim().toUpperCase();
       setRef(r);
-    } catch { setRef(""); }
+    } catch {
+      setRef("");
+    }
   }, []);
 
   useEffect(() => {
@@ -48,10 +54,12 @@ export default function SignupPage() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!supabase) {
       setError("Configura NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY en Replit Secrets.");
       return;
     }
+
     setLoading(true);
     setError(null);
 
@@ -109,19 +117,22 @@ export default function SignupPage() {
 
   return (
     <div className="w-full max-w-sm mx-auto">
-      {/* Logo */}
       <div className="flex justify-center mb-7">
         <div className="relative">
           <div className="absolute -inset-4 rounded-full bg-[#FF0099]/20 blur-xl animate-pulse" />
-          <Image src="/chido-logo.png" alt="Chido Casino" width={110} height={110} className="relative drop-shadow-[0_0_24px_rgba(255,0,153,0.6)]" />
+          <Image
+            src="/chido-logo.png"
+            alt="Chido Casino"
+            width={110}
+            height={110}
+            className="relative drop-shadow-[0_0_24px_rgba(255,0,153,0.6)]"
+          />
         </div>
       </div>
 
-      {/* Card */}
       <div className="relative rounded-3xl border border-white/10 bg-gradient-to-b from-white/8 to-white/3 backdrop-blur-xl p-7 shadow-[0_32px_64px_rgba(0,0,0,0.6)]">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px rounded-t-3xl bg-gradient-to-r from-transparent via-[#32CD32]/50 to-transparent" />
 
-        {/* Perks */}
         <div className="mb-5 space-y-1.5">
           {PERKS.map(({ icon: Icon, text }) => (
             <div key={text} className="flex items-center gap-2.5 text-xs text-white/65">
@@ -160,7 +171,6 @@ export default function SignupPage() {
         )}
 
         <form onSubmit={handleSignup} className="space-y-3">
-          {/* Email */}
           <div className="group relative">
             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-[#32CD32] transition-colors" size={16} />
             <input
@@ -173,7 +183,6 @@ export default function SignupPage() {
             />
           </div>
 
-          {/* Password */}
           <div className="group relative">
             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-[#32CD32] transition-colors" size={16} />
             <input
@@ -194,12 +203,18 @@ export default function SignupPage() {
             </button>
           </div>
 
-          {/* Terms note */}
           <p className="text-[10px] text-white/30 leading-relaxed px-1">
-            Al crear tu cuenta aceptas los <Link href="/terms" className="text-white/50 hover:text-white underline">Términos</Link> y la <Link href="/privacy" className="text-white/50 hover:text-white underline">Privacidad</Link>. +18 años.
+            Al crear tu cuenta aceptas los{" "}
+            <Link href="/terms" className="text-white/50 hover:text-white underline">
+              Términos
+            </Link>{" "}
+            y la{" "}
+            <Link href="/privacy" className="text-white/50 hover:text-white underline">
+              Privacidad
+            </Link>
+            . +18 años.
           </p>
 
-          {/* Submit */}
           <button
             type="submit"
             disabled={loading}
@@ -213,7 +228,6 @@ export default function SignupPage() {
           </button>
         </form>
 
-        {/* Divider */}
         <div className="my-5 flex items-center gap-3">
           <div className="flex-1 h-px bg-white/10" />
           <span className="text-xs text-white/30">¿ya tienes cuenta?</span>
