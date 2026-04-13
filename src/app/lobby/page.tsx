@@ -6,13 +6,25 @@ import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useProfile } from "@/lib/useProfile";
 import { getPlayerLevel } from "@/lib/playerLevel";
-import {
-  Flame, Gift, Search, Sparkles, Ticket, TrendingUp, Info,
-  Zap, Star, Trophy, Clock, Lock, ChevronRight, Gamepad2,
-  Radio, Dices, CircleDot, Swords,
-} from "lucide-react";
 import { GAMES, CATEGORY_LABELS, type GameCategory } from "@/lib/games";
 import { DailyStreakBar } from "@/components/ui/daily-streak-bar";
+import {
+  Flame,
+  Gift,
+  Search,
+  Sparkles,
+  Ticket,
+  TrendingUp,
+  Zap,
+  Trophy,
+  Clock,
+  Lock,
+  ChevronRight,
+  Dices,
+  CircleDot,
+  Swords,
+  Radio,
+} from "lucide-react";
 
 type WinFeedItem = {
   id: string;
@@ -34,6 +46,22 @@ const CATEGORY_ICONS: Record<string, any> = {
 };
 
 const SLANG_WINS = ["¡Que curado!", "¡No hay falla!", "¡A todo dar!", "¡Está cañón!", "¡Qué chido!", "¡Se armó!", "¡Órale!"];
+
+function StatBox({ label, value, tone = "cyan" }: { label: string; value: string; tone?: "cyan" | "pink" | "green" | "gold" }) {
+  const tones = {
+    cyan: "border-[#00F0FF]/15 bg-[#00F0FF]/8 text-[#00F0FF]",
+    pink: "border-[#FF0099]/15 bg-[#FF0099]/8 text-[#FF0099]",
+    green: "border-[#32CD32]/15 bg-[#32CD32]/8 text-[#32CD32]",
+    gold: "border-[#FFD700]/15 bg-[#FFD700]/8 text-[#FFD700]",
+  } as const;
+
+  return (
+    <div className={`rounded-3xl border px-4 py-4 backdrop-blur-xl ${tones[tone]}`}>
+      <div className="text-[10px] font-black uppercase tracking-[0.28em] text-white/35">{label}</div>
+      <div className="mt-2 text-xl font-black text-white">{value}</div>
+    </div>
+  );
+}
 
 export default function LobbyPage() {
   const { toast } = useToast();
@@ -62,6 +90,7 @@ export default function LobbyPage() {
   const redeem = async () => {
     const code = promoCode.trim();
     if (!code) return;
+
     setRedeeming(true);
     try {
       const res = await fetch("/api/promos/redeem", {
@@ -71,10 +100,18 @@ export default function LobbyPage() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.error || "No se pudo activar");
-      toast({ title: "¡Que curado! ✅", description: json?.message || "Ya quedó. Se aplica en tu próximo depósito." });
+
+      toast({
+        title: "¡Que curado! ✅",
+        description: json?.message || "Ya quedó. Se aplica en tu próximo depósito.",
+      });
       setPromoCode("");
     } catch (e: any) {
-      toast({ title: "No se armó 😅", description: e?.message || "Error", variant: "destructive" });
+      toast({
+        title: "No se armó 😅",
+        description: e?.message || "Error",
+        variant: "destructive",
+      });
     } finally {
       setRedeeming(false);
     }
@@ -82,17 +119,24 @@ export default function LobbyPage() {
 
   useEffect(() => {
     let mounted = true;
+
     const load = async () => {
       try {
         const res = await fetch("/api/feed/wins", { cache: "no-store" });
         const json = await res.json();
         if (!res.ok || !mounted) return;
         setFeed((json?.items || []) as WinFeedItem[]);
-      } catch {}
+      } catch {
+        // ignore
+      }
     };
+
     void load();
     const t = setInterval(load, 20000);
-    return () => { mounted = false; clearInterval(t); };
+    return () => {
+      mounted = false;
+      clearInterval(t);
+    };
   }, []);
 
   useEffect(() => {
@@ -104,7 +148,7 @@ export default function LobbyPage() {
     { key: "todos", label: "Todos" },
     { key: "slots", label: "Slots" },
     { key: "crash", label: "Crash" },
-    { key: "live", label: "En Vivo" },
+    { key: "live", label: "En vivo" },
     { key: "arcade", label: "Arcade" },
     { key: "sports", label: "Deportes" },
   ];
@@ -113,121 +157,160 @@ export default function LobbyPage() {
     <div className="relative min-h-[calc(100vh-80px)]">
       <div className="absolute inset-0 -z-10">
         <Image src="/hero-bg.jpg" alt="Fondo" fill className="object-cover opacity-20" priority />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/65 to-black/90" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/85 via-black/70 to-black/95" />
       </div>
 
-      <div className="mx-auto w-full max-w-5xl py-5 px-4 space-y-6">
-
-        {/* HERO PROMO BANNER */}
-        <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#1a0533] via-[#0d0d1a] to-black">
-          <div className="absolute inset-0 opacity-25">
+      <div className="mx-auto w-full max-w-7xl px-4 py-5 space-y-6 md:px-6">
+        <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(135deg,rgba(255,0,153,0.16),rgba(0,240,255,0.08),rgba(0,0,0,0.92))] shadow-[0_30px_80px_rgba(0,0,0,0.45)]">
+          <div className="absolute inset-0 opacity-20">
             <Image src="/opengraph-image.jpg" alt="Promo" fill className="object-cover" />
           </div>
-          <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/65 to-black/30" />
-          <div className="relative z-10 p-6 md:p-8 flex flex-col md:flex-row justify-between gap-6">
-            <div className="max-w-md">
-              <div className="inline-flex items-center gap-2 rounded-full bg-[#FF0099]/20 border border-[#FF0099]/30 px-3 py-1 text-[11px] font-black tracking-widest text-[#FF0099] mb-4">
+          <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/68 to-black/20" />
+
+          <div className="relative z-10 grid gap-8 p-6 md:p-8 lg:grid-cols-[1.25fr_0.75fr] lg:items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#FF0099]/30 bg-[#FF0099]/15 px-3 py-1 text-[11px] font-black tracking-[0.28em] text-[#FF0099]">
                 <Flame size={12} /> BONO DE BIENVENIDA
               </div>
-              <h2 className="text-3xl md:text-4xl font-black text-white leading-tight mb-2">
-                Primer depósito{" "}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FF0099] to-[#FF5E00]">
-                  +100% extra
+
+              <h1 className="mt-4 max-w-3xl text-4xl font-black tracking-tight text-white md:text-6xl">
+                Juega chido.{" "}
+                <span className="bg-gradient-to-r from-[#FF0099] via-[#FF5E00] to-[#FFD700] bg-clip-text text-transparent">
+                  Gana con flow.
                 </span>
-              </h2>
-              <p className="text-white/65 text-sm mb-5">
-                Deposita desde $100 MXN y te la rifamos al doble. Sin letra chica, sin rollos.{" "}
-                <span className="text-[#FFD700] font-bold">¡No hay falla!</span>
+              </h1>
+
+              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/65 md:text-base">
+                Chido Casino entra con cara de marca grande: juegos originales, promos reales, lectura limpia y una UX pensada para convertir sin verse genérica.
               </p>
-              <div className="flex flex-wrap gap-3">
-                <Link href="/wallet?tab=deposit" className="inline-flex items-center gap-2 rounded-2xl bg-white text-black px-5 py-3 text-sm font-black hover:scale-105 transition">
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link
+                  href="/wallet?tab=deposit"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-black transition hover:scale-[1.02]"
+                >
                   <Gift size={16} /> Reclamar bono
                 </Link>
-                <Link href="/promos" className="inline-flex items-center gap-2 rounded-2xl bg-white/10 border border-white/20 text-white px-5 py-3 text-sm font-bold hover:bg-white/15 transition">
-                  Ver todos los bonos <ChevronRight size={16} />
+                <Link
+                  href="/vip"
+                  className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10"
+                >
+                  Ver VIP <ChevronRight size={16} />
                 </Link>
               </div>
             </div>
-            <div className="hidden md:flex items-center justify-center flex-col gap-2 pr-4">
-              <div className="text-4xl font-black text-center transition-all">{SLANG_WINS[slangIdx]}</div>
-              <div className="text-white/35 text-xs font-bold tracking-widest uppercase">Frase del momento</div>
+
+            <div className="grid gap-3">
+              <div className="rounded-[1.75rem] border border-white/10 bg-black/45 p-5 backdrop-blur-xl">
+                <div className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">Frase del momento</div>
+                <div className="mt-3 text-4xl font-black leading-none text-white">{SLANG_WINS[slangIdx]}</div>
+                <div className="mt-2 text-xs text-white/40">UI con sabor real, no maqueta vacía.</div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <StatBox label="Juegos" value={`${GAMES.length}`} tone="cyan" />
+                <StatBox label="Top" value={`${hotGames.length}`} tone="pink" />
+              </div>
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* DAILY STREAK BONUS */}
         <DailyStreakBar />
 
-        {/* VIP LEVEL BAR */}
         {profile && (
-          <div className="rounded-2xl border border-white/10 bg-black/40 backdrop-blur p-4 flex items-center gap-4">
-            <div className="relative w-11 h-11 shrink-0">
-              <Image src={lvl.level.badge} alt={lvl.level.label} fill className="object-contain p-0.5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2 mb-1.5">
-                <span className="text-sm font-black text-white">{lvl.level.label}</span>
-                <span className="text-xs text-white/45">{lvl.pctToNext}% al siguiente nivel</span>
+          <section className="rounded-[2rem] border border-white/10 bg-black/45 p-5 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.35)]">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center">
+              <div className="relative h-14 w-14 shrink-0">
+                <Image src={lvl.level.badge} alt={lvl.level.label} fill className="object-contain p-1" />
               </div>
-              <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-                <div className="h-full rounded-full bg-gradient-to-r from-[#FF0099] to-[#FF5E00] transition-all" style={{ width: `${lvl.pctToNext}%` }} />
+
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] font-black uppercase tracking-[0.28em] text-white/35">Tu nivel actual</div>
+                    <div className="text-xl font-black text-white">{lvl.level.label}</div>
+                  </div>
+                  <div className="text-xs text-white/45">{lvl.pctToNext}% al siguiente nivel</div>
+                </div>
+
+                <div className="mt-3 h-2 rounded-full bg-white/10 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-[#FF0099] via-[#FF5E00] to-[#FFD700]"
+                    style={{ width: `${lvl.pctToNext}%` }}
+                  />
+                </div>
               </div>
+
+              <Link
+                href="/profile"
+                className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-black text-white transition hover:bg-white/10"
+              >
+                Ver perfil <ChevronRight size={16} />
+              </Link>
             </div>
-            <Link href="/profile" className="shrink-0 text-xs text-[#FF0099] font-black flex items-center gap-1 hover:underline whitespace-nowrap">
-              Ver VIP <ChevronRight size={13} />
-            </Link>
-          </div>
+          </section>
         )}
 
-        {/* WIN FEED TICKER */}
         {feed.length > 0 && (
-          <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/30 py-3 px-4 flex items-center gap-3">
-            <div className="shrink-0 flex items-center gap-2 text-[#FFD700] text-xs font-black uppercase tracking-widest">
-              <TrendingUp size={14} /> En vivo
-            </div>
-            <div className="overflow-hidden flex-1">
-              <div className="animate-marquee whitespace-nowrap text-xs text-white/60">
-                {feed.concat(feed).map((w, i) => (
-                  <span key={i} className="inline-block mx-5">
-                    <span className="text-white font-bold">{w.user}</span>
-                    {" ganó "}
-                    <span className="text-[#32CD32] font-black">+${w.profit.toFixed(0)} MXN</span>
-                    {" en "}
-                    <span className="capitalize text-white/80">{w.game.replace(/_/g, " ")}</span>
-                  </span>
-                ))}
+          <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-black/35 p-4 backdrop-blur-xl">
+            <div className="flex items-center gap-3">
+              <div className="shrink-0 flex items-center gap-2 text-xs font-black uppercase tracking-[0.28em] text-[#FFD700]">
+                <TrendingUp size={14} /> En vivo
+              </div>
+              <div className="overflow-hidden flex-1">
+                <div className="animate-marquee whitespace-nowrap text-xs text-white/60">
+                  {feed.concat(feed).map((w, i) => (
+                    <span key={i} className="inline-block mx-5">
+                      <span className="font-bold text-white">{w.user}</span>
+                      {" ganó "}
+                      <span className="font-black text-[#32CD32]">+${w.profit.toFixed(0)} MXN</span>
+                      {" en "}
+                      <span className="capitalize text-white/80">{w.game.replace(/_/g, " ")}</span>
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
+          </section>
         )}
 
-        {/* HOT PICKS */}
-        <div>
-          <div className="flex items-center gap-2 mb-4">
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
             <Flame size={18} className="text-[#FF5E00]" />
-            <h2 className="text-base font-black text-white uppercase tracking-tight">Está ardiendo 🔥</h2>
+            <h2 className="text-base font-black uppercase tracking-tight text-white">Está ardiendo</h2>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {hotGames.map((g) => (
               <Link
                 key={g.id}
                 href={g.status === "coming_soon" ? "#" : g.href}
-                className={`group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br ${g.gradient} p-4 transition-all hover:scale-[1.03] hover:border-white/25 ${g.status === "coming_soon" ? "opacity-55 cursor-default" : ""}`}
+                className={`group relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-gradient-to-br ${g.gradient} p-4 transition-all ${
+                  g.status === "coming_soon"
+                    ? "cursor-default opacity-55"
+                    : "hover:scale-[1.02] hover:border-white/25 hover:shadow-[0_0_25px_rgba(255,255,255,0.05)]"
+                }`}
               >
                 <div className="text-3xl mb-2">{g.emoji}</div>
-                <div className="text-xs font-black text-white leading-tight mb-1">{g.title}</div>
-                {g.status === "coming_soon" ? (
-                  <div className="flex items-center gap-1 text-[10px] text-white/40 font-bold"><Clock size={10} /> Próximamente</div>
-                ) : (
-                  <div className="inline-flex items-center gap-1 rounded-full bg-black/30 border border-white/10 px-2 py-0.5 text-[10px] font-black text-white/70">{g.badge}</div>
-                )}
+                <div className="text-xs font-black leading-tight text-white">{g.title}</div>
+                <div className="mt-1 text-[11px] text-white/55 line-clamp-2">{g.subtitle}</div>
+                <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/35 px-2.5 py-1 text-[10px] font-black text-white/65">
+                  {g.status === "coming_soon" ? (
+                    <>
+                      <Clock size={10} /> Próximamente
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={10} /> {g.badge}
+                    </>
+                  )}
+                </div>
               </Link>
             ))}
           </div>
-        </div>
+        </section>
 
-        {/* SEARCH + CATEGORIES */}
-        <div className="space-y-3">
+        <section className="space-y-3">
           <div className="relative">
             <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" />
             <input
@@ -235,7 +318,7 @@ export default function LobbyPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Busca tu juego favorito..."
-              className="w-full rounded-2xl bg-black/40 border border-white/10 pl-10 pr-4 py-3 text-sm text-white placeholder-white/35 focus:outline-none focus:border-white/25 focus:bg-black/50 transition"
+              className="w-full rounded-[1.25rem] border border-white/10 bg-black/45 py-3 pl-10 pr-4 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-white/25 focus:bg-black/60"
             />
           </div>
 
@@ -246,174 +329,207 @@ export default function LobbyPage() {
                 <button
                   key={c.key}
                   onClick={() => setCategory(c.key)}
-                  className={`flex items-center gap-2 shrink-0 rounded-2xl px-4 py-2.5 text-xs font-black uppercase tracking-wider transition-all border ${
+                  className={`shrink-0 rounded-2xl border px-4 py-2.5 text-xs font-black uppercase tracking-wider transition-all ${
                     category === c.key
-                      ? "bg-white text-black border-white"
-                      : "bg-black/40 border-white/10 text-white/60 hover:text-white hover:border-white/20"
+                      ? "border-white bg-white text-black"
+                      : "border-white/10 bg-black/35 text-white/60 hover:border-white/20 hover:text-white"
                   }`}
                 >
-                  <Icon size={13} />
-                  {c.label}
+                  <span className="inline-flex items-center gap-2">
+                    <Icon size={13} />
+                    {c.label}
+                  </span>
                 </button>
               );
             })}
           </div>
-        </div>
+        </section>
 
-        {/* GAME GRID */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-black text-white uppercase tracking-tight">
-              {category === "todos" ? "Todos los juegos" : (CATEGORY_LABELS as any)[category] || category}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-base font-black uppercase tracking-tight text-white">
+              {category === "todos" ? "Todos los juegos" : CATEGORY_LABELS[category]}
             </h2>
-            <span className="text-xs text-white/40 font-bold">{filtered.length} juegos</span>
+            <span className="text-xs font-bold text-white/40">{filtered.length} juegos</span>
           </div>
 
           {filtered.length === 0 ? (
-            <div className="text-center py-16 text-white/40 text-sm font-bold">
-              <div className="text-4xl mb-3">🤔</div>
-              Ese juego no lo tenemos aún... ¡pero más viene en camino!
+            <div className="rounded-[1.75rem] border border-white/10 bg-black/35 py-16 text-center text-sm font-bold text-white/40">
+              <div className="mb-3 text-4xl">🤔</div>
+              Ese juego no lo tenemos aún... pero más viene en camino.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {filtered.map((g) => (
                 <Link
                   key={g.id}
                   href={g.status === "coming_soon" ? "#" : g.href}
-                  className={`group relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br ${g.gradient} bg-black/40 transition-all ${
+                  className={`group relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-gradient-to-br ${g.gradient} transition-all ${
                     g.status === "coming_soon"
-                      ? "opacity-55 cursor-default"
-                      : "hover:border-white/25 hover:shadow-[0_0_25px_rgba(255,255,255,0.04)] hover:scale-[1.01]"
+                      ? "cursor-default opacity-55"
+                      : "hover:scale-[1.01] hover:border-white/25 hover:shadow-[0_0_25px_rgba(255,255,255,0.04)]"
                   }`}
                 >
                   <div className="absolute inset-0 opacity-15">
                     <Image src="/hero-bg.jpg" alt="" fill className="object-cover" />
                   </div>
-                  <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/50 to-black/80" />
+                  <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/50 to-black/85" />
 
-                  <div className="relative p-5 flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2 flex-wrap">
-                        <div className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-black tracking-widest ${
-                          g.status === "coming_soon" ? "bg-white/5 border-white/10 text-white/40" :
-                          g.status === "hot" ? "bg-[#FF5E00]/20 border-[#FF5E00]/30 text-[#FF5E00]" :
-                          g.status === "new" ? "bg-[#32CD32]/20 border-[#32CD32]/30 text-[#32CD32]" :
-                          "bg-white/10 border-white/10 text-white/70"
-                        }`}>
-                          {g.status === "coming_soon" ? <><Clock size={10} /> Próximamente</> :
-                           g.status === "hot" ? <><Flame size={10} /> {g.badge}</> :
-                           g.status === "new" ? <><Sparkles size={10} /> {g.badge}</> :
-                           <><Zap size={10} /> {g.badge}</>}
+                  <div className="relative p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                          <div
+                            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-black tracking-widest ${
+                              g.status === "coming_soon"
+                                ? "border-white/10 bg-white/5 text-white/40"
+                                : g.status === "hot"
+                                  ? "border-[#FF5E00]/30 bg-[#FF5E00]/20 text-[#FF5E00]"
+                                  : g.status === "new"
+                                    ? "border-[#32CD32]/30 bg-[#32CD32]/20 text-[#32CD32]"
+                                    : "border-white/10 bg-white/10 text-white/70"
+                            }`}
+                          >
+                            {g.status === "coming_soon" ? (
+                              <>
+                                <Clock size={10} /> Próximamente
+                              </>
+                            ) : g.status === "hot" ? (
+                              <>
+                                <Flame size={10} /> {g.badge}
+                              </>
+                            ) : g.status === "new" ? (
+                              <>
+                                <Sparkles size={10} /> {g.badge}
+                              </>
+                            ) : (
+                              <>
+                                <Zap size={10} /> {g.badge}
+                              </>
+                            )}
+                          </div>
+                          <span className="text-[10px] font-bold text-white/30">{g.provider}</span>
                         </div>
-                        <span className="text-[10px] text-white/30 font-bold">{g.provider}</span>
-                      </div>
 
-                      <div className="text-xl font-black text-white mb-1">
-                        {g.emoji} {g.title}
-                      </div>
-                      <div className="text-sm text-white/60 mb-3 leading-relaxed line-clamp-2">{g.subtitle}</div>
+                        <div className="text-2xl font-black text-white">
+                          {g.emoji} {g.title}
+                        </div>
+                        <div className="mt-1 text-sm leading-relaxed text-white/60 line-clamp-2">{g.subtitle}</div>
 
-                      {(g.rtp || g.maxWin || g.volatility) && (
-                        <div className="flex flex-wrap gap-1.5 mb-3">
-                          {g.rtp && <span className="inline-flex rounded-full bg-white/8 border border-white/10 px-2.5 py-1 text-[10px] font-black text-white/55">RTP {g.rtp}</span>}
-                          {g.maxWin && <span className="inline-flex rounded-full bg-white/8 border border-white/10 px-2.5 py-1 text-[10px] font-black text-[#FFD700]">Max {g.maxWin}</span>}
-                          {g.volatility && (
-                            <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black ${
-                              g.volatility === "alta" ? "bg-[#FF0099]/10 border-[#FF0099]/20 text-[#FF0099]" :
-                              g.volatility === "media" ? "bg-[#FFD700]/10 border-[#FFD700]/20 text-[#FFD700]" :
-                              "bg-[#32CD32]/10 border-[#32CD32]/20 text-[#32CD32]"
-                            }`}>Vol. {g.volatility}</span>
+                        {(g.rtp || g.maxWin || g.volatility) && (
+                          <div className="mt-3 flex flex-wrap gap-1.5">
+                            {g.rtp && (
+                              <span className="inline-flex rounded-full border border-white/10 bg-white/8 px-2.5 py-1 text-[10px] font-black text-white/60">
+                                RTP {g.rtp}
+                              </span>
+                            )}
+                            {g.maxWin && (
+                              <span className="inline-flex rounded-full border border-white/10 bg-white/8 px-2.5 py-1 text-[10px] font-black text-[#FFD700]">
+                                Max {g.maxWin}
+                              </span>
+                            )}
+                            {g.volatility && (
+                              <span
+                                className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black ${
+                                  g.volatility === "alta"
+                                    ? "border-[#FF0099]/20 bg-[#FF0099]/10 text-[#FF0099]"
+                                    : g.volatility === "media"
+                                      ? "border-[#FFD700]/20 bg-[#FFD700]/10 text-[#FFD700]"
+                                      : "border-[#32CD32]/20 bg-[#32CD32]/10 text-[#32CD32]"
+                                }`}
+                              >
+                                Vol. {g.volatility}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="mt-4">
+                          {g.status !== "coming_soon" ? (
+                            <div className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-2.5 text-sm font-black text-black transition group-hover:scale-[1.02]">
+                              Jugar ahora →
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-bold text-white/40">
+                              <Lock size={13} /> Próximamente
+                            </div>
                           )}
                         </div>
-                      )}
+                      </div>
 
-                      {g.status !== "coming_soon" ? (
-                        <div className="inline-flex items-center gap-2 rounded-2xl bg-white text-black px-5 py-2.5 text-sm font-black group-hover:scale-[1.02] transition">
-                          Jugar ahora →
-                        </div>
-                      ) : (
-                        <div className="inline-flex items-center gap-2 rounded-2xl bg-white/5 border border-white/10 text-white/40 px-5 py-2.5 text-sm font-bold">
-                          <Lock size={13} /> Próximamente
-                        </div>
-                      )}
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-black/40 text-3xl">
+                        {g.emoji}
+                      </div>
                     </div>
 
-                    <div className="h-14 w-14 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center shrink-0 text-3xl">
-                      {g.emoji}
-                    </div>
+                    {g.tags?.length ? (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {g.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="rounded-full border border-white/5 bg-white/5 px-2 py-0.5 text-[10px] font-bold text-white/25"
+                          >
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
-
-                  {g.tags && g.tags.length > 0 && (
-                    <div className="relative px-5 pb-4 flex gap-2 flex-wrap">
-                      {g.tags.map((tag) => (
-                        <span key={tag} className="text-[10px] text-white/25 font-bold bg-white/5 rounded-full px-2 py-0.5 border border-white/5">#{tag}</span>
-                      ))}
-                    </div>
-                  )}
                 </Link>
               ))}
             </div>
           )}
-        </div>
+        </section>
 
-        {/* PROMO CODE */}
-        <div className="rounded-3xl border border-[#FFD700]/20 bg-gradient-to-br from-[#1a1200] to-black/60 p-6">
+        <section className="rounded-[2rem] border border-[#FFD700]/20 bg-[linear-gradient(135deg,rgba(26,18,0,0.95),rgba(0,0,0,0.6))] p-6">
           <div className="flex items-center gap-2 mb-4">
             <Ticket size={18} className="text-[#FFD700]" />
-            <h3 className="text-sm font-black text-white">¿Tienes un código? ¡Úsalo ya!</h3>
+            <h3 className="text-sm font-black text-white">¿Tienes un código? Úsalo ya</h3>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-col sm:flex-row">
             <input
               type="text"
               value={promoCode}
               onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
               placeholder="CODIGO-CHIDO"
-              className="flex-1 rounded-2xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#FFD700]/40 font-mono uppercase tracking-widest transition"
+              className="flex-1 rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm uppercase tracking-widest text-white outline-none transition placeholder:text-white/30 focus:border-[#FFD700]/40"
             />
             <button
               onClick={redeem}
               disabled={redeeming || !promoCode.trim()}
-              className="rounded-2xl bg-[#FFD700] text-black px-5 py-3 text-sm font-black hover:bg-[#FFE44D] disabled:opacity-40 transition"
+              className="rounded-2xl bg-[#FFD700] px-5 py-3 text-sm font-black text-black transition hover:bg-[#FFE44D] disabled:opacity-40"
             >
               {redeeming ? "..." : "¡Activar!"}
             </button>
           </div>
-          <p className="mt-3 text-xs text-white/35">Rollover aplica. Ver detalles en sección Bonos.</p>
-        </div>
+          <p className="mt-3 text-xs text-white/35">Rollover aplica. Ver detalles en la sección Bonos.</p>
+        </section>
 
-        {/* CHIDOWINS AI HINT */}
-        <div className="rounded-3xl border border-[#00F0FF]/15 bg-gradient-to-br from-[#001a1a] to-black/60 p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-[#00F0FF]/10 border border-[#00F0FF]/20 flex items-center justify-center text-2xl shrink-0">🤖</div>
-          <div className="flex-1">
-            <div className="text-sm font-black text-white mb-0.5">Chidowins — Tu IA de suerte</div>
-            <div className="text-xs text-white/45 leading-relaxed">¿No sabes qué jugar? Pregúntale a Chidowins. Tiene las mejores estrategias para que te la rifes al máximo. ¡Si ya te la guau para qué te la miau!</div>
+        <section className="rounded-[2rem] border border-[#00F0FF]/15 bg-[linear-gradient(135deg,rgba(0,26,26,0.95),rgba(0,0,0,0.55))] p-5">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#00F0FF]/20 bg-[#00F0FF]/10 text-2xl">
+              🤖
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-black text-white">Chidowins — Tu IA de suerte</div>
+              <div className="text-xs leading-relaxed text-white/45">
+                ¿No sabes qué jugar? Pregúntale a Chidowins. Te suelta la ruta más clara sin inventarte nada.
+              </div>
+            </div>
+            <button
+              onClick={() =>
+                toast({
+                  title: "🤖 Chidowins",
+                  description: "Empieza con Chido Crash o Taco Slot. Está más directo y más limpio para calentar.",
+                })
+              }
+              className="shrink-0 rounded-2xl border border-[#00F0FF]/20 bg-[#00F0FF]/10 px-4 py-2 text-xs font-black text-[#00F0FF] transition hover:bg-[#00F0FF]/20"
+            >
+              Preguntar →
+            </button>
           </div>
-          <button
-            onClick={() => toast({ title: "🤖 Chidowins", description: "¡Qué onda! Yo te ayudo. Juega Taco Slot o Chido Crash para empezar, ¡no hay falla!" })}
-            className="shrink-0 rounded-2xl bg-[#00F0FF]/10 border border-[#00F0FF]/20 text-[#00F0FF] px-4 py-2 text-xs font-black hover:bg-[#00F0FF]/20 transition"
-          >
-            Preguntar →
-          </button>
-        </div>
-
-        <div className="text-center text-[11px] text-white/35 pb-10">
-          18+ • Solo entretenimiento para adultos • Juega responsable • chidocasino.com
-        </div>
+        </section>
       </div>
-
-      <style jsx global>{`
-        @keyframes marquee {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        .animate-marquee {
-          display: inline-block;
-          padding-left: 100%;
-          animation: marquee 22s linear infinite;
-        }
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-      `}</style>
     </div>
   );
 }
