@@ -1,15 +1,27 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { NextResponse, type NextRequest } from 'next/server';
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
 
-export async function middleware(req: NextRequest) {
+function getSupabaseUrl() {
+  return process.env.NEXT_PUBLIC_SUPABASE_URL ?? null;
+}
+
+function getSupabaseKey() {
+  return (
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+    null
+  );
+}
+
+export async function proxy(req: NextRequest) {
   let res = NextResponse.next({
     request: {
       headers: req.headers,
     },
   });
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl = getSupabaseUrl();
+  const supabaseKey = getSupabaseKey();
 
   if (!supabaseUrl || !supabaseKey) {
     return res;
@@ -30,13 +42,13 @@ export async function middleware(req: NextRequest) {
         res.cookies.set({ name, value, ...options });
       },
       remove(name: string, options: CookieOptions) {
-        req.cookies.set({ name, value: '', ...options });
+        req.cookies.set({ name, value: "", ...options });
         res = NextResponse.next({
           request: {
             headers: req.headers,
           },
         });
-        res.cookies.set({ name, value: '', ...options });
+        res.cookies.set({ name, value: "", ...options });
       },
     },
   });
@@ -48,29 +60,27 @@ export async function middleware(req: NextRequest) {
   const url = req.nextUrl.clone();
 
   const protectedPaths = [
-    '/lobby',
-    '/wallet',
-    '/profile',
-    '/promos',
-    '/affiliates',
-    '/tournaments',
-    '/games',
-    '/vip',
-    '/support',
+    "/lobby",
+    "/wallet",
+    "/profile",
+    "/promos",
+    "/affiliates",
+    "/tournaments",
+    "/games",
+    "/vip",
+    "/support",
+    "/admin",
   ];
 
   const isProtected = protectedPaths.some((p) => url.pathname.startsWith(p));
 
   if (!session && isProtected) {
-    url.pathname = '/login';
+    url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  if (
-    session &&
-    (url.pathname === '/login' || url.pathname === '/signup' || url.pathname === '/')
-  ) {
-    url.pathname = '/lobby';
+  if (session && (url.pathname === "/login" || url.pathname === "/signup" || url.pathname === "/")) {
+    url.pathname = "/lobby";
     return NextResponse.redirect(url);
   }
 
@@ -79,6 +89,6 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\.(?:png|jpg|jpeg|svg|gif|webp)$).*)',
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|gif|webp)$).*)",
   ],
 };
