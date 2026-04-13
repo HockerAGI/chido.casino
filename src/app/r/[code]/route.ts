@@ -8,20 +8,10 @@ function sha256hex(input: string) {
   return crypto.createHash("sha256").update(input).digest("hex");
 }
 
-type RouteParams = {
-  code: string;
-};
-
-export async function GET(
-  req: Request,
-  { params }: { params: Promise<RouteParams> }
-) {
+export async function GET(req: Request, { params }: { params: Promise<{ code: string }> }) {
   const resolved = await params;
   const code = String(resolved.code || "").trim().toUpperCase();
-
-  if (!code) {
-    return NextResponse.redirect(new URL("/", req.url));
-  }
+  if (!code) return NextResponse.redirect(new URL("/", req.url));
 
   const { data: aff, error } = await supabaseAdmin
     .from("affiliates")
@@ -30,9 +20,7 @@ export async function GET(
     .eq("status", "active")
     .maybeSingle();
 
-  if (error || !aff) {
-    return NextResponse.redirect(new URL("/", req.url));
-  }
+  if (error || !aff) return NextResponse.redirect(new URL("/", req.url));
 
   const salt = process.env.AFFILIATE_IP_SALT || "";
   const xf = req.headers.get("x-forwarded-for") || "";
@@ -50,10 +38,7 @@ export async function GET(
     referer,
   });
 
-  const res = NextResponse.redirect(
-    new URL(`/signup?ref=${encodeURIComponent(aff.code)}`, req.url)
-  );
-
+  const res = NextResponse.redirect(new URL(`/signup?ref=${encodeURIComponent(aff.code)}`, req.url));
   res.cookies.set("chido_ref", aff.code, {
     httpOnly: true,
     sameSite: "lax",
