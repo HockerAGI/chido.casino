@@ -15,26 +15,10 @@ function LoadingState() {
   );
 }
 
-export default function AuthCallbackPage({
-  searchParams,
-}: {
-  searchParams?: { code?: string | string[]; error?: string | string[]; error_description?: string | string[] };
-}) {
-  const code = Array.isArray(searchParams?.code)
-    ? searchParams?.code[0]
-    : searchParams?.code || "";
-
-  const error = Array.isArray(searchParams?.error)
-    ? searchParams?.error[0]
-    : searchParams?.error || "";
-
-  const errorDescription = Array.isArray(searchParams?.error_description)
-    ? searchParams?.error_description[0]
-    : searchParams?.error_description || "";
-
+export default function AuthCallbackPage() {
   return (
     <Suspense fallback={<LoadingState />}>
-      <AuthCallbackClient code={code} error={error} errorDescription={errorDescription} />
+      <AuthCallbackClient />
     </Suspense>
   );
 }
