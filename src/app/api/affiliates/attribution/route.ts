@@ -21,7 +21,7 @@ export async function POST() {
     return NextResponse.json({ ok: false, error: "NO_AUTH" }, { status: 401 });
   }
 
-  const cookieStore = (await cookies()) as any;
+  const cookieStore = await cookies();
   const ref = cookieStore.get("chido_ref")?.value?.trim()?.toUpperCase() || "";
   const res = NextResponse.json({ ok: true, attributed: false });
 
