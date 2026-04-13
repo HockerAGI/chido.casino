@@ -20,7 +20,7 @@ function getSupabaseKey() {
 }
 
 export async function createServerSupabaseClient(): Promise<SupabaseClient> {
-  const cookieStore = (await cookies()) as any;
+  const cookieStore = await cookies();
 
   return createServerClient(getSupabaseUrl(), getSupabaseKey(), {
     cookies: {
