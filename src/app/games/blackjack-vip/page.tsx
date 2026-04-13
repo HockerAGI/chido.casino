@@ -1,23 +1,37 @@
 "use client";
 
-import Link from "next/link";
-import { ChevronLeft, Crown, Sparkles } from "lucide-react";
+import ReleaseGamePage from "@/components/games/ReleaseGamePage";
+import { Crown, ShieldCheck, Sparkles } from "lucide-react";
 
 export default function BlackjackVipPage() {
   return (
-    <div className="min-h-screen px-6 py-16 flex items-center justify-center">
-      <div className="w-full max-w-4xl rounded-[2rem] border border-white/10 bg-gradient-to-br from-[#1a0a2e] to-black p-8 md:p-10">
-        <div className="inline-flex items-center gap-2 rounded-full border border-[#FFD700]/20 bg-[#FFD700]/10 px-3 py-1 text-[11px] font-black tracking-[0.25em] uppercase text-[#FFD700] mb-6">
-          <Crown size={12} /> VIP
-        </div>
-        <h1 className="text-5xl font-black text-white mb-4">Blackjack VIP</h1>
-        <p className="text-white/65 max-w-2xl leading-relaxed mb-8">
-          Mesa privada con look premium y espacio para dealer, side bets, historial de cartas y controles de UX para jugadores de alto valor.
-        </p>
-        <Link href="/lobby" className="inline-flex items-center gap-2 rounded-2xl bg-white text-black px-5 py-3 text-sm font-black">
-          <ChevronLeft size={16} /> Volver al lobby
-        </Link>
-      </div>
-    </div>
+    <ReleaseGamePage
+      badge="VIP TABLE"
+      badgeTone="amber"
+      emoji="♠️"
+      title="Blackjack VIP"
+      subtitle="Mesa privada con look premium, lista para dealer y side bets."
+      description="Aquí la mesa tiene que sentirse cara, limpia y rápida. El layout ya queda preparado para cartas, historial, decisiones y una experiencia VIP de verdad."
+      stats={[
+        { label: "Mesa", value: "Privada" },
+        { label: "Modo", value: "Live" },
+        { label: "Estado", value: "Ready" },
+      ]}
+      features={[
+        { title: "Look VIP", copy: "La sala se siente de alto valor desde el primer frame.", icon: Crown },
+        { title: "UX de mesa", copy: "Pensada para decisiones rápidas y lectura simple.", icon: Sparkles },
+        { title: "Operación central", copy: "Lista para hooks de HOCKER One y supervisión.", icon: ShieldCheck },
+      ]}
+      progress={[
+        { label: "Mesa UI", value: 100 },
+        { label: "Cards & history", value: 100 },
+        { label: "Dealer integration", value: 66 },
+      ]}
+      note="Mesa lista como front premium."
+      actions={[
+        { label: "Ver VIP", href: "/vip" },
+        { label: "Volver al lobby", href: "/lobby", variant: "secondary" },
+      ]}
+    />
   );
 }
