@@ -94,7 +94,7 @@ async function spendBet(userId: string, bet: number, refId: string) {
 
 export async function POST(req: Request) {
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     const {
       data: { session },
     } = await supabase.auth.getSession();
