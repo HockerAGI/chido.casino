@@ -31,10 +31,11 @@ const PERKS = [
 
 export default function SignupPage() {
   const router = useRouter();
+
   const supabase = useMemo(() => {
     if (!SUPABASE_CONFIGURED) return null as any;
     try {
-      return typeof window !== "undefined" ? createClient() : null;
+      return createClient();
     } catch {
       return null as any;
     }
