@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -19,15 +19,34 @@ const TRUST_BADGES = [
   { icon: Star, label: "+50k jugadores" },
 ];
 
+type RiskAttemptResponse = {
+  ok?: boolean;
+  cooldownSeconds?: number;
+  error?: string;
+};
+
+async function safeReadJson<T>(res: Response): Promise<T | null> {
+  const contentType = res.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) return null;
+  try {
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
 export default function LoginPage() {
-  // FIX GLOBAL: Prevención total de quiebre en SSR
-  const supabase =
-    typeof window !== "undefined" && SUPABASE_CONFIGURED
-      ? createClient()
-      : null;
-      
   const router = useRouter();
   const { toast } = useToast();
+
+  const supabase = useMemo(() => {
+    if (typeof window === "undefined" || !SUPABASE_CONFIGURED) return null;
+    try {
+      return createClient();
+    } catch {
+      return null;
+    }
+  }, []);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -37,7 +56,7 @@ export default function LoginPage() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!SUPABASE_CONFIGURED) {
+    if (!supabase) {
       toast({
         title: "Config pendiente",
         description: "Falta configurar las variables de entorno de Supabase.",
@@ -56,9 +75,10 @@ export default function LoginPage() {
       }).catch(() => null);
 
       if (riskRes) {
-        const r = await riskRes.json().catch(() => ({}));
-        if (riskRes.ok === false || r?.ok === false) {
-          const cd = Number(r?.cooldownSeconds || 0);
+        const riskData = await safeReadJson<RiskAttemptResponse>(riskRes);
+
+        if (!riskRes.ok || riskData?.ok === false) {
+          const cd = Number(riskData?.cooldownSeconds || 0);
           toast({
             title: "Protección activa",
             description: cd > 0 ? `Espera ${cd}s e intenta de nuevo.` : "Espera un momento.",
@@ -69,17 +89,17 @@ export default function LoginPage() {
         }
       }
 
-      // Conexión a la nueva API controlada (Arquitectura HOCKER)
-      const authRes = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email, password }),
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
 
-      const authData = await authRes.json();
+      if (error) {
+        throw new Error(error.message);
+      }
 
-      if (!authRes.ok) {
-        throw new Error(authData.error || "Verifica tu correo y contraseña.");
+      if (!data.session) {
+        throw new Error("No se pudo crear la sesión. Revisa tu correo y contraseña.");
       }
 
       await fetch("/api/auth/risk/reset", { method: "POST" }).catch(() => {});
@@ -94,7 +114,7 @@ export default function LoginPage() {
     } catch (err: any) {
       toast({
         title: "No se pudo entrar",
-        description: err.message,
+        description: err?.message || "Error de autenticación.",
         variant: "destructive",
       });
     } finally {
@@ -131,7 +151,8 @@ export default function LoginPage() {
 
         {!SUPABASE_CONFIGURED && (
           <div className="mb-5 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-xs text-yellow-400 font-medium">
-            ⚠️ Configura <code>NEXT_PUBLIC_SUPABASE_URL</code> y <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> en Replit Secrets.
+            ⚠️ Configura <code>NEXT_PUBLIC_SUPABASE_URL</code> y{" "}
+            <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> en Replit Secrets.
           </div>
         )}
 
