@@ -1,25 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Loader2, ShieldCheck } from "lucide-react";
 
-export default function AuthCallbackClient({
-  code,
-  error,
-  errorDescription,
-}: {
-  code: string;
-  error: string;
-  errorDescription: string;
-}) {
+export default function AuthCallbackClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [message, setMessage] = useState("Validando tu cuenta...");
   const [localError, setLocalError] = useState<string | null>(null);
 
   useEffect(() => {
     const run = async () => {
+      const code = searchParams.get("code");
+      const error = searchParams.get("error");
+      const errorDescription = searchParams.get("error_description");
+
       if (error) {
         setLocalError(errorDescription || error || "Hubo un problema con la confirmación.");
         setTimeout(() => router.replace("/login"), 1500);
@@ -51,7 +48,7 @@ export default function AuthCallbackClient({
     };
 
     void run();
-  }, [code, error, errorDescription, router]);
+  }, [router, searchParams]);
 
   return (
     <div className="min-h-screen flex items-center justify-center px-6 bg-[#050510] text-white">
@@ -62,7 +59,9 @@ export default function AuthCallbackClient({
 
         <h1 className="text-2xl font-black text-white">Confirmación de cuenta</h1>
 
-        <p className="mt-3 text-sm leading-relaxed text-white/55">{localError ? localError : message}</p>
+        <p className="mt-3 text-sm leading-relaxed text-white/55">
+          {localError ? localError : message}
+        </p>
 
         <div className="mt-6 flex items-center justify-center gap-2 text-xs text-white/35">
           <Loader2 className="animate-spin" size={14} />
