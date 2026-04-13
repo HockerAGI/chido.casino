@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClientComponentClient } from "@supabase/ssr";
+import { createClient } from "@/lib/supabase/client";
 import { Lock, Mail, AlertCircle, Loader2, CheckCircle2, Ticket, Eye, EyeOff, Gift, Zap } from "lucide-react";
 
 const SUPABASE_CONFIGURED =
@@ -23,7 +23,7 @@ export default function SignupPage() {
   const supabase = useMemo(() => {
     if (!SUPABASE_CONFIGURED) return null as any;
     try {
-      return createClientComponentClient();
+      return typeof window !== "undefined" ? createClient() : null;
     } catch {
       return null as any;
     }
