@@ -19,8 +19,8 @@ function getSupabaseKey() {
   return key;
 }
 
-export function createServerSupabaseClient(): SupabaseClient {
-  const cookieStore = cookies();
+export async function createServerSupabaseClient(): Promise<SupabaseClient> {
+  const cookieStore = (await cookies()) as any;
 
   return createServerClient(getSupabaseUrl(), getSupabaseKey(), {
     cookies: {
