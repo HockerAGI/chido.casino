@@ -1,23 +1,37 @@
 "use client";
 
-import Link from "next/link";
-import { ChevronLeft, Trophy, Sparkles } from "lucide-react";
+import ReleaseGamePage from "@/components/games/ReleaseGamePage";
+import { ShieldCheck, Sparkles, Trophy } from "lucide-react";
 
 export default function FutbolMxPage() {
   return (
-    <div className="min-h-screen px-6 py-16 flex items-center justify-center">
-      <div className="w-full max-w-4xl rounded-[2rem] border border-white/10 bg-gradient-to-br from-[#0b2d18] to-black p-8 md:p-10">
-        <div className="inline-flex items-center gap-2 rounded-full border border-[#32CD32]/20 bg-[#32CD32]/10 px-3 py-1 text-[11px] font-black tracking-[0.25em] uppercase text-[#32CD32] mb-6">
-          <Trophy size={12} /> Sports
-        </div>
-        <h1 className="text-5xl font-black text-white mb-4">Predictor Fútbol MX</h1>
-        <p className="text-white/65 max-w-2xl leading-relaxed mb-8">
-          Panel listo para predicción, torneos y bonos ligados al rendimiento deportivo. La pieza ya queda enlazada al ecosistema.
-        </p>
-        <Link href="/lobby" className="inline-flex items-center gap-2 rounded-2xl bg-white text-black px-5 py-3 text-sm font-black">
-          <ChevronLeft size={16} /> Volver al lobby
-        </Link>
-      </div>
-    </div>
+    <ReleaseGamePage
+      badge="SPORTS"
+      badgeTone="green"
+      emoji="⚽"
+      title="Predictor Fútbol MX"
+      subtitle="Deporte, métricas y apuesta con lenguaje claro."
+      description="La capa deportiva queda armada para predicción, torneos y bonos ligados al rendimiento. La UI está pensada para lectura rápida, emoción y conexión directa con el ecosistema."
+      stats={[
+        { label: "Modo", value: "Sports" },
+        { label: "Cobertura", value: "MX" },
+        { label: "Estado", value: "Ready" },
+      ]}
+      features={[
+        { title: "Señales claras", copy: "Panel limpio para decisiones y seguimiento.", icon: Trophy },
+        { title: "Métricas vivas", copy: "Diseñado para insights, no para ruido.", icon: Sparkles },
+        { title: "Operación central", copy: "Listo para administración vía HOCKER One.", icon: ShieldCheck },
+      ]}
+      progress={[
+        { label: "Sports UX", value: 100 },
+        { label: "Data hooks", value: 100 },
+        { label: "Provider layer", value: 62 },
+      ]}
+      note="Módulo deportivo listo como front pro."
+      actions={[
+        { label: "Ver lobby", href: "/lobby" },
+        { label: "Preparar saldo", href: "/wallet?tab=deposit", variant: "secondary" },
+      ]}
+    />
   );
 }
