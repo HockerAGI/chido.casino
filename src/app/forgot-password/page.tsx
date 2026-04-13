@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useMemo, useState } from "react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createClient } from "@/lib/supabase/client";
 import { Loader2, Mail, ArrowLeft, CheckCircle2, Shield } from "lucide-react";
 
 const SUPABASE_CONFIGURED =
@@ -14,7 +14,11 @@ const SUPABASE_CONFIGURED =
 export default function ForgotPasswordPage() {
   const supabase = useMemo(() => {
     if (!SUPABASE_CONFIGURED) return null as any;
-    try { return createClientComponentClient(); } catch { return null as any; }
+    try {
+      return typeof window !== "undefined" ? createClient() : null;
+    } catch {
+      return null as any;
+    }
   }, []);
 
   const [email, setEmail] = useState("");
@@ -24,10 +28,12 @@ export default function ForgotPasswordPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!supabase) {
       setError("Faltan variables de entorno de Supabase.");
       return;
     }
+
     setLoading(true);
     setError(null);
 
@@ -53,7 +59,9 @@ export default function ForgotPasswordPage() {
             <CheckCircle2 size={34} className="text-[#32CD32]" />
           </div>
           <h1 className="text-2xl font-black text-white mb-2">Revisa tu correo</h1>
-          <p className="text-white/55 text-sm leading-relaxed">Si la cuenta existe, te mandamos el enlace para restablecer tu contraseña.</p>
+          <p className="text-white/55 text-sm leading-relaxed">
+            Si la cuenta existe, te mandamos el enlace para restablecer tu contraseña.
+          </p>
           <Link href="/login" className="mt-6 inline-flex items-center gap-2 text-[#00F0FF] text-sm font-black hover:underline">
             <ArrowLeft size={14} /> Volver al login
           </Link>
@@ -70,7 +78,10 @@ export default function ForgotPasswordPage() {
 
       <div className="rounded-3xl border border-white/10 bg-gradient-to-b from-white/8 to-white/3 backdrop-blur-xl p-7 shadow-[0_32px_64px_rgba(0,0,0,0.6)]">
         <div className="mb-6 text-center">
-          <h1 className="text-3xl font-black tracking-tight text-white">Recuperar acceso</h1>
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-black tracking-[0.24em] uppercase text-white/55">
+            <Shield size={12} /> Acceso seguro
+          </div>
+          <h1 className="mt-4 text-3xl font-black tracking-tight text-white">Recuperar acceso</h1>
           <p className="mt-1 text-sm text-white/50">Te mandamos el correo de reset sin inventar nada.</p>
         </div>
 
@@ -81,20 +92,20 @@ export default function ForgotPasswordPage() {
         )}
 
         {error && (
-          <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400 font-medium">
+          <div className="mb-5 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-300">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="relative">
-            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={16} />
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="group relative">
+            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-[#00F0FF] transition-colors" size={16} />
             <input
               type="email"
-              placeholder="Tu correo"
+              placeholder="Tu correo electrónico"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-2xl border border-white/10 bg-black/50 text-white pl-11 pr-4 py-4 text-sm outline-none placeholder:text-white/25 focus:border-[#00F0FF]/60"
+              className="w-full rounded-2xl border border-white/10 bg-black/50 text-white pl-11 pr-4 py-4 text-sm outline-none transition-all focus:border-[#00F0FF]/60 focus:bg-black/70 placeholder:text-white/25"
               required
             />
           </div>
@@ -102,14 +113,20 @@ export default function ForgotPasswordPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-14 rounded-2xl bg-gradient-to-r from-[#FF0099] to-[#FF5E00] font-black text-white tracking-widest uppercase disabled:opacity-60"
+            className="relative w-full h-14 rounded-2xl font-black text-base tracking-widest uppercase overflow-hidden transition-all active:scale-[0.98] disabled:opacity-60 group"
           >
-            {loading ? <Loader2 className="mx-auto animate-spin" size={20} /> : "Enviar enlace"}
+            <div className="absolute inset-0 bg-gradient-to-r from-[#00F0FF] to-[#32CD32]" />
+            <div className="absolute inset-px rounded-[14px] bg-gradient-to-b from-white/15 to-transparent" />
+            <span className="relative text-black flex items-center justify-center gap-2">
+              {loading ? <Loader2 className="animate-spin" size={20} /> : "Enviar enlace"}
+            </span>
           </button>
         </form>
 
-        <div className="mt-5 text-[11px] text-white/35 flex items-center gap-2">
-          <Shield size={13} /> Solo se envía si la cuenta está registrada.
+        <div className="mt-5 text-center">
+          <Link href="/login" className="text-sm text-white/45 hover:text-white/80 transition-colors">
+            Volver al login
+          </Link>
         </div>
       </div>
     </div>
