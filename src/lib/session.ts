@@ -20,7 +20,7 @@ export async function getServerSession(_req?: Request): Promise<ServerSession | 
   if (!SUPABASE_CONFIGURED) return null;
 
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
 
     const { data: userData, error: userError } = await supabase.auth.getUser();
     if (userError || !userData.user) return null;
