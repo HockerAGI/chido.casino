@@ -1,22 +1,33 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Loader2, ShieldCheck } from "lucide-react";
 
-export default function AuthCallbackClient() {
+export default function AuthCallbackClient({
+  code,
+  error,
+  errorDescription,
+}: {
+  code: string;
+  error: string;
+  errorDescription: string;
+}) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [message, setMessage] = useState("Validando tu cuenta...");
-  const [error, setError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   useEffect(() => {
     const run = async () => {
-      const code = searchParams.get("code");
+      if (error) {
+        setLocalError(errorDescription || error || "Hubo un problema con la confirmación.");
+        setTimeout(() => router.replace("/login"), 1500);
+        return;
+      }
 
       if (!code) {
-        setError("Falta el código de confirmación.");
+        setLocalError("Falta el código de confirmación.");
         setTimeout(() => router.replace("/login"), 1200);
         return;
       }
@@ -26,7 +37,7 @@ export default function AuthCallbackClient() {
         const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
 
         if (exchangeError) {
-          setError(exchangeError.message);
+          setLocalError(exchangeError.message);
           setTimeout(() => router.replace("/login"), 1500);
           return;
         }
@@ -34,13 +45,13 @@ export default function AuthCallbackClient() {
         setMessage("Cuenta confirmada. Entrando al lobby...");
         setTimeout(() => router.replace("/lobby"), 900);
       } catch (e: any) {
-        setError(e?.message || "No se pudo completar la confirmación.");
+        setLocalError(e?.message || "No se pudo completar la confirmación.");
         setTimeout(() => router.replace("/login"), 1500);
       }
     };
 
     void run();
-  }, [router, searchParams]);
+  }, [code, error, errorDescription, router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center px-6 bg-[#050510] text-white">
@@ -51,9 +62,7 @@ export default function AuthCallbackClient() {
 
         <h1 className="text-2xl font-black text-white">Confirmación de cuenta</h1>
 
-        <p className="mt-3 text-sm leading-relaxed text-white/55">
-          {error ? error : message}
-        </p>
+        <p className="mt-3 text-sm leading-relaxed text-white/55">{localError ? localError : message}</p>
 
         <div className="mt-6 flex items-center justify-center gap-2 text-xs text-white/35">
           <Loader2 className="animate-spin" size={14} />
