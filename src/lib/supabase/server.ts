@@ -2,6 +2,7 @@ import "server-only";
 
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import type { CookieOptions, CookieMethodsServer } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 function getSupabaseUrl() {
@@ -19,23 +20,31 @@ function getSupabaseKey() {
   return key;
 }
 
+type CookieToSet = {
+  name: string;
+  value: string;
+  options: CookieOptions;
+};
+
 export async function createServerSupabaseClient(): Promise<SupabaseClient> {
   const cookieStore = await cookies();
 
-  return createServerClient(getSupabaseUrl(), getSupabaseKey(), {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll();
-      },
-      setAll(cookiesToSet) {
-        try {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options);
-          });
-        } catch {
-          // En algunos contextos de Server Components no se pueden escribir cookies.
-        }
-      },
+  const cookieAdapter: CookieMethodsServer = {
+    getAll() {
+      return cookieStore.getAll();
     },
+    setAll(cookiesToSet: CookieToSet[]) {
+      try {
+        cookiesToSet.forEach(({ name, value, options }) => {
+          cookieStore.set(name, value, options);
+        });
+      } catch {
+        // En Server Components no siempre se pueden escribir cookies.
+      }
+    },
+  };
+
+  return createServerClient(getSupabaseUrl(), getSupabaseKey(), {
+    cookies: cookieAdapter,
   });
 }
