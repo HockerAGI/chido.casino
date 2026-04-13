@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
+import { Footer } from "@/components/layout/footer";
 import { ArrowRight, Flame } from "lucide-react";
 
 export default function Home() {
@@ -62,6 +63,10 @@ export default function Home() {
             18+ • Juega responsable • Retiros requieren KYC aprobado.
           </div>
         </main>
+
+        <div className="mt-16">
+          <Footer />
+        </div>
       </div>
     </div>
   );
