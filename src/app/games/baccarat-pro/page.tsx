@@ -1,23 +1,37 @@
 "use client";
 
-import Link from "next/link";
-import { ChevronLeft, Sparkles } from "lucide-react";
+import ReleaseGamePage from "@/components/games/ReleaseGamePage";
+import { ShieldCheck, Sparkles, Crown } from "lucide-react";
 
 export default function BaccaratProPage() {
   return (
-    <div className="min-h-screen px-6 py-16 flex items-center justify-center">
-      <div className="w-full max-w-4xl rounded-[2rem] border border-white/10 bg-black/50 p-8 md:p-10">
-        <div className="inline-flex items-center gap-2 rounded-full border border-[#00F0FF]/20 bg-[#00F0FF]/10 px-3 py-1 text-[11px] font-black tracking-[0.25em] uppercase text-[#00F0FF] mb-6">
-          <Sparkles size={12} /> Live Table
-        </div>
-        <h1 className="text-5xl font-black text-white mb-4">Baccarat Pro</h1>
-        <p className="text-white/65 max-w-2xl leading-relaxed mb-8">
-          Baccarat de alto nivel con interfaz sobria, grandes apuestas y un layout preparado para integrar dealers, roadmaps y estadísticas.
-        </p>
-        <Link href="/lobby" className="inline-flex items-center gap-2 rounded-2xl bg-white text-black px-5 py-3 text-sm font-black">
-          <ChevronLeft size={16} /> Volver al lobby
-        </Link>
-      </div>
-    </div>
+    <ReleaseGamePage
+      badge="LIVE TABLE"
+      badgeTone="cyan"
+      emoji="♦️"
+      title="Baccarat Pro"
+      subtitle="Mesa sobria, elegante y lista para tráfico premium."
+      description="Baccarat necesita pulcritud. Esta sala queda con actitud ejecutiva, contraste fuerte y espacio para historial, apuestas y flujo de dealer sin ruido visual."
+      stats={[
+        { label: "Mesa", value: "Pro" },
+        { label: "Modo", value: "En vivo" },
+        { label: "Estado", value: "Ready" },
+      ]}
+      features={[
+        { title: "Elegancia real", copy: "Diseño sobrio que se siente caro y claro.", icon: Crown },
+        { title: "Lectura inmediata", copy: "El jugador entiende el estado sin buscar demasiado.", icon: Sparkles },
+        { title: "Control HOCKER", copy: "Base lista para administración y monitoreo central.", icon: ShieldCheck },
+      ]}
+      progress={[
+        { label: "Visual system", value: 100 },
+        { label: "Tables flow", value: 100 },
+        { label: "Dealer link", value: 65 },
+      ]}
+      note="Mesa premium lista para live stack."
+      actions={[
+        { label: "Ver soporte", href: "/support" },
+        { label: "Volver al lobby", href: "/lobby", variant: "secondary" },
+      ]}
+    />
   );
 }
