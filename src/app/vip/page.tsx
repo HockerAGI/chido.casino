@@ -2,10 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useMemo } from "react";
 import { useProfile } from "@/lib/useProfile";
 import { getPlayerLevel } from "@/lib/playerLevel";
-import { useMemo } from "react";
-import { Star, Zap, Gift, Crown, ShieldCheck, ChevronRight, Sparkles, Trophy } from "lucide-react";
+import { Crown, Gift, ShieldCheck, Sparkles, Trophy, Zap, ChevronRight, Star } from "lucide-react";
 
 const LEVELS = [
   {
@@ -66,139 +66,171 @@ export default function VIPPage() {
 
   return (
     <div className="min-h-screen pb-24">
-      {/* HERO */}
-      <div className="relative bg-gradient-to-br from-[#1a0a2e] via-[#121214] to-black border-b border-white/5 py-16 px-6 overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#FF0099]/10 rounded-full blur-[100px] pointer-events-none" />
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#00F0FF]/8 rounded-full blur-[100px] pointer-events-none" />
-        <div className="max-w-4xl mx-auto relative z-10 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFD700]/10 text-[#FFD700] text-xs font-black uppercase tracking-widest mb-6 border border-[#FFD700]/20">
+      <div className="relative overflow-hidden border-b border-white/5 bg-[linear-gradient(135deg,rgba(26,10,46,0.96),rgba(10,10,12,0.98))] px-6 py-16">
+        <div className="absolute left-1/4 top-0 h-96 w-96 rounded-full bg-[#FF0099]/10 blur-[110px]" />
+        <div className="absolute right-1/4 top-0 h-96 w-96 rounded-full bg-[#00F0FF]/8 blur-[110px]" />
+
+        <div className="relative z-10 mx-auto max-w-6xl text-center">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#FFD700]/20 bg-[#FFD700]/10 px-3 py-1 text-[11px] font-black uppercase tracking-widest text-[#FFD700]">
             <Crown size={14} /> VIP Club
           </div>
-          <h1 className="text-4xl md:text-6xl font-black text-white mb-4 tracking-tighter">
+
+          <h1 className="mt-5 text-4xl font-black tracking-tight text-white md:text-7xl">
             Sube de nivel,{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FFD700] to-[#FF5E00]">
+            <span className="bg-gradient-to-r from-[#FFD700] via-[#FF5E00] to-[#FF0099] bg-clip-text text-transparent">
               gana más
             </span>
           </h1>
-          <p className="text-white/60 text-lg max-w-2xl mx-auto mb-8">
-            Entre más juegas, más chido te ponemos. Cashback real, bonos exclusivos, gestor personal y mesas VIP. ¡Si ya te la guau para qué te la miau!
+
+          <p className="mx-auto mt-4 max-w-3xl text-lg leading-relaxed text-white/60">
+            Entre más juegas, más chido te ponemos. Cashback real, bonos exclusivos, gestor personal y mesas VIP con una UI de marca grande.
           </p>
 
           {profile && (
-            <div className="inline-flex items-center gap-4 rounded-3xl border border-white/10 bg-black/40 px-6 py-4 backdrop-blur">
-              <div className="relative w-12 h-12">
+            <div className="mx-auto mt-8 inline-flex max-w-3xl flex-wrap items-center gap-4 rounded-[2rem] border border-white/10 bg-black/40 px-6 py-5 backdrop-blur-xl">
+              <div className="relative h-14 w-14 shrink-0">
                 <Image src={lvl.level.badge} alt={lvl.level.label} fill className="object-contain" />
               </div>
               <div className="text-left">
-                <div className="text-xs text-white/50 font-bold uppercase tracking-widest">Tu nivel actual</div>
-                <div className="text-xl font-black text-white">{lvl.level.label}</div>
-                <div className="text-xs text-white/40 mt-0.5">{lvl.pctToNext}% al siguiente nivel</div>
+                <div className="text-[10px] font-black uppercase tracking-[0.28em] text-white/45">Tu nivel actual</div>
+                <div className="text-2xl font-black text-white">{lvl.level.label}</div>
+                <div className="text-xs text-white/40">{lvl.pctToNext}% al siguiente nivel</div>
               </div>
-              <div className="ml-4 w-24 h-2 rounded-full bg-white/10 overflow-hidden">
-                <div className="h-full rounded-full bg-gradient-to-r from-[#FF0099] to-[#FF5E00]" style={{ width: `${lvl.pctToNext}%` }} />
+              <div className="h-2 w-36 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-[#FF0099] via-[#FF5E00] to-[#FFD700]"
+                  style={{ width: `${lvl.pctToNext}%` }}
+                />
               </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* HOW IT WORKS */}
-      <div className="max-w-4xl mx-auto px-6 py-12">
-        <div className="text-center mb-10">
-          <h2 className="text-2xl font-black text-white mb-3">¿Cómo funciona el VIP?</h2>
-          <p className="text-white/50 text-sm max-w-xl mx-auto">Cada peso apostado te da XP. A más XP, mayor nivel. Sin trampa, sin cartón.</p>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-4 mb-12">
+      <div className="mx-auto max-w-6xl px-6 py-12 space-y-12">
+        <section className="grid gap-4 md:grid-cols-3">
           {[
-            { icon: Zap, title: "Juega y acumula XP", desc: "Cada apuesta en Crash y Slots te da puntos de experiencia automáticamente." },
-            { icon: Star, title: "Sube de nivel", desc: "Los niveles se van desbloqueando: Verde → Jalapeño → Serrano → Habanero → Salsa Pro." },
-            { icon: Gift, title: "Disfruta beneficios reales", desc: "Cashback semanal, bonos exclusivos, retiros rápidos y mucho más." },
+            { icon: Zap, title: "Juega y acumula XP", desc: "Cada apuesta te suma experiencia automáticamente." },
+            { icon: Star, title: "Sube de nivel", desc: "Verde → Jalapeño → Serrano → Habanero → Salsa Pro." },
+            { icon: Gift, title: "Beneficios reales", desc: "Cashback, bonos, retiros rápidos y trato preferente." },
           ].map(({ icon: Icon, title, desc }) => (
-            <div key={title} className="rounded-3xl border border-white/10 bg-black/30 p-6 text-center">
-              <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
+            <div key={title} className="rounded-[1.75rem] border border-white/10 bg-black/35 p-6 text-center backdrop-blur-xl">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
                 <Icon size={24} className="text-[#FF0099]" />
               </div>
-              <div className="text-base font-black text-white mb-2">{title}</div>
-              <div className="text-sm text-white/55 leading-relaxed">{desc}</div>
+              <div className="text-lg font-black text-white">{title}</div>
+              <p className="mt-2 text-sm leading-relaxed text-white/50">{desc}</p>
             </div>
           ))}
-        </div>
+        </section>
 
-        {/* LEVELS TABLE */}
-        <h2 className="text-2xl font-black text-white mb-6 text-center">Los 5 niveles VIP</h2>
-        <div className="space-y-4">
-          {LEVELS.map((l) => {
-            const isCurrentLevel = l.key === lvl.level.key;
-            return (
-              <div
-                key={l.key}
-                className={`relative overflow-hidden rounded-3xl border p-6 transition-all ${
-                  isCurrentLevel
-                    ? "border-[#FF0099]/40 bg-gradient-to-br from-[#1a0533]/60 to-black/60"
-                    : "border-white/10 bg-black/30"
-                }`}
-              >
-                {isCurrentLevel && (
-                  <div className="absolute top-4 right-4 inline-flex items-center gap-1.5 rounded-full bg-[#FF0099]/20 border border-[#FF0099]/30 px-3 py-1 text-[10px] font-black text-[#FF0099] uppercase tracking-widest">
-                    <Sparkles size={10} /> Tu nivel
-                  </div>
-                )}
-                <div className="flex items-start gap-5">
-                  <div className="shrink-0 w-16 h-16 relative">
-                    <Image src={l.badge} alt={l.label} fill className="object-contain" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-lg font-black text-white mb-0.5">{l.label}</div>
-                    <div className="text-xs text-white/40 mb-3">Desde {l.minXp.toLocaleString()} XP</div>
-                    <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1.5">
-                      {l.perks.map((perk) => (
-                        <div key={perk} className="flex items-center gap-2 text-sm text-white/70">
-                          <ShieldCheck size={13} style={{ color: l.color }} className="shrink-0" />
-                          {perk}
-                        </div>
-                      ))}
+        <section className="rounded-[2rem] border border-white/10 bg-black/35 p-6 backdrop-blur-xl">
+          <div className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.28em] text-[#FFD700]">
+            <Trophy size={16} /> Beneficios por nivel
+          </div>
+
+          <div className="mt-5 grid gap-4">
+            {LEVELS.map((lvlItem, idx) => {
+              const current = lvl.level.key === lvlItem.key;
+              const reached = (profile as any)?.xp >= lvlItem.minXp;
+
+              return (
+                <div
+                  key={lvlItem.key}
+                  className={`rounded-[1.5rem] border p-5 transition ${
+                    current
+                      ? "border-white/20 bg-white/8 shadow-[0_0_30px_rgba(255,255,255,0.04)]"
+                      : "border-white/10 bg-black/30 hover:border-white/15"
+                  }`}
+                >
+                  <div className="flex flex-col gap-4 md:flex-row md:items-center">
+                    <div className="relative h-14 w-14 shrink-0">
+                      <Image src={lvlItem.badge} alt={lvlItem.label} fill className="object-contain" />
                     </div>
-                    <div className="mt-4 flex gap-4">
-                      <div className="rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-xs">
-                        <div className="text-white/40 font-bold uppercase tracking-widest text-[10px] mb-0.5">Cashback</div>
-                        <div className="font-black text-white">{l.cashback}</div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="text-lg font-black text-white">{lvlItem.label}</div>
+                        <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.24em] text-white/45">
+                          XP {lvlItem.minXp}+
+                        </span>
+                        {current ? (
+                          <span className="rounded-full border border-[#00F0FF]/20 bg-[#00F0FF]/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.24em] text-[#00F0FF]">
+                            Activo
+                          </span>
+                        ) : reached ? (
+                          <span className="rounded-full border border-[#32CD32]/20 bg-[#32CD32]/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.24em] text-[#32CD32]">
+                            Desbloqueado
+                          </span>
+                        ) : (
+                          <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.24em] text-white/35">
+                            Bloqueado
+                          </span>
+                        )}
                       </div>
-                      <div className="rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-xs">
-                        <div className="text-white/40 font-bold uppercase tracking-widest text-[10px] mb-0.5">Apuesta</div>
-                        <div className="font-black text-white">{l.maxBet}</div>
+
+                      <div className="mt-2 text-sm text-white/45">
+                        Cashback: <span className="font-black text-white">{lvlItem.cashback}</span> • Límite:{" "}
+                        <span className="font-black text-white">{lvlItem.maxBet}</span>
                       </div>
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {lvlItem.perks.map((perk) => (
+                          <span
+                            key={perk}
+                            className="rounded-full border border-white/5 bg-white/5 px-3 py-1 text-[11px] font-medium text-white/55"
+                          >
+                            {perk}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="shrink-0">
+                      <div className="text-xs font-black uppercase tracking-[0.28em] text-white/35">{idx + 1}</div>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </section>
 
-        {/* CTA */}
-        <div className="mt-12 text-center space-y-4">
+        <section className="rounded-[2rem] border border-[#00F0FF]/15 bg-[linear-gradient(135deg,rgba(0,26,26,0.96),rgba(0,0,0,0.6))] p-6 backdrop-blur-xl">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#00F0FF]/20 bg-[#00F0FF]/10">
+              <ShieldCheck size={22} className="text-[#00F0FF]" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-black text-white">Chido Gerente — Optimización VIP</div>
+              <div className="text-xs leading-relaxed text-white/45">
+                La capa VIP se piensa para crecer con tu actividad y convertir eso en beneficios claros, no humo.
+              </div>
+            </div>
+            <div className="shrink-0 rounded-2xl border border-[#00F0FF]/20 bg-[#00F0FF]/10 px-4 py-2 text-xs font-black text-[#00F0FF]">
+              Pronto →
+            </div>
+          </div>
+        </section>
+
+        <section className="text-center">
           <h3 className="text-2xl font-black text-white">¿Listo para subir de nivel?</h3>
-          <p className="text-white/50 text-sm">Deposita, juega y gana XP automáticamente. ¡No hay falla!</p>
-          <div className="flex justify-center gap-4 flex-wrap">
-            <Link href="/wallet?tab=deposit" className="inline-flex items-center gap-2 rounded-2xl bg-white text-black px-6 py-3 text-sm font-black hover:scale-105 transition">
+          <p className="mt-2 text-sm text-white/50">Deposita, juega y gana XP automáticamente. Sin vueltas.</p>
+          <div className="mt-6 flex flex-wrap justify-center gap-4">
+            <Link
+              href="/wallet?tab=deposit"
+              className="inline-flex items-center gap-2 rounded-2xl bg-white px-6 py-3 text-sm font-black text-black transition hover:scale-[1.02]"
+            >
               <Gift size={16} /> Depositar ahora
             </Link>
-            <Link href="/lobby" className="inline-flex items-center gap-2 rounded-2xl bg-white/10 border border-white/20 text-white px-6 py-3 text-sm font-bold hover:bg-white/15 transition">
+            <Link
+              href="/lobby"
+              className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-bold text-white transition hover:bg-white/10"
+            >
               Ir al lobby <ChevronRight size={16} />
             </Link>
           </div>
-        </div>
-
-        {/* CHIDOWINS HINT */}
-        <div className="mt-10 rounded-3xl border border-[#00F0FF]/15 bg-gradient-to-br from-[#001a1a] to-black/60 p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-[#00F0FF]/10 border border-[#00F0FF]/20 flex items-center justify-center text-2xl shrink-0">🤖</div>
-          <div className="flex-1">
-            <div className="text-sm font-black text-white mb-0.5">Chido Gerente — Optimización VIP</div>
-            <div className="text-xs text-white/45 leading-relaxed">Nuestro sistema de IA analiza tu historial y te sugiere la estrategia óptima para subir de nivel más rápido. ¡Próximamente disponible para todos los niveles!</div>
-          </div>
-          <div className="shrink-0 rounded-2xl bg-[#00F0FF]/10 border border-[#00F0FF]/20 text-[#00F0FF] px-4 py-2 text-xs font-black">Pronto →</div>
-        </div>
+        </section>
       </div>
     </div>
   );
