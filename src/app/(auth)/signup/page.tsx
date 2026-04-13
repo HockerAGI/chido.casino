@@ -5,7 +5,18 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Lock, Mail, AlertCircle, Loader2, CheckCircle2, Ticket, Eye, EyeOff, Gift, Zap } from "lucide-react";
+import {
+  Lock,
+  Mail,
+  AlertCircle,
+  Loader2,
+  CheckCircle2,
+  Ticket,
+  Eye,
+  EyeOff,
+  Gift,
+  Zap,
+} from "lucide-react";
 
 const SUPABASE_CONFIGURED =
   typeof process !== "undefined" &&
@@ -49,24 +60,30 @@ export default function SignupPage() {
 
   useEffect(() => {
     if (!ref) return;
-    fetch(`/api/affiliates/set-ref?code=${encodeURIComponent(ref)}`, { cache: "no-store" }).catch(() => {});
+    fetch(`/api/affiliates/set-ref?code=${encodeURIComponent(ref)}`, {
+      cache: "no-store",
+    }).catch(() => {});
   }, [ref]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!supabase) {
-      setError("Configura NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY en Replit Secrets.");
+      setError("Faltan variables de entorno de Supabase.");
       return;
     }
 
     setLoading(true);
     setError(null);
 
+    const callbackUrl = new URL("/auth/callback", window.location.origin).toString();
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${location.origin}/api/auth/callback` },
+      options: {
+        emailRedirectTo: callbackUrl,
+      },
     });
 
     if (error) {
@@ -81,6 +98,7 @@ export default function SignupPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({}),
       }).catch(() => {});
+
       router.refresh();
       router.push("/lobby");
       return;
@@ -94,20 +112,22 @@ export default function SignupPage() {
     return (
       <div className="w-full max-w-sm text-center">
         <div className="rounded-3xl border border-white/10 bg-gradient-to-b from-white/8 to-white/3 backdrop-blur-xl p-8 shadow-[0_32px_64px_rgba(0,0,0,0.6)]">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px rounded-t-3xl bg-gradient-to-r from-transparent via-[#32CD32]/50 to-transparent" />
           <div className="w-16 h-16 rounded-full bg-[#32CD32]/15 border border-[#32CD32]/30 flex items-center justify-center mx-auto mb-5">
             <CheckCircle2 size={36} className="text-[#32CD32]" />
           </div>
           <h2 className="text-2xl font-black text-white mb-2">¡Ya eres chido!</h2>
           <p className="text-white/50 text-sm mb-5 leading-relaxed">
-            Mandamos un correo a <strong className="text-white">{email}</strong>. Confírmalo y empieza a ganar.
+            Si tu correo requiere confirmación, ya debe ir en camino. Revisa tu inbox y spam.
           </p>
           {ref && (
             <div className="mb-5 flex items-center justify-center gap-2 rounded-2xl bg-[#00F0FF]/5 border border-[#00F0FF]/15 px-4 py-2.5 text-xs text-[#00F0FF] font-bold">
               <Ticket size={13} /> Invitación: <span className="font-mono">{ref}</span>
             </div>
           )}
-          <Link href="/login" className="inline-flex items-center gap-2 text-[#00F0FF] text-sm font-black hover:underline">
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-2 text-[#00F0FF] text-sm font-black hover:underline"
+          >
             Iniciar sesión →
           </Link>
         </div>
@@ -147,14 +167,17 @@ export default function SignupPage() {
         <div className="mb-5">
           <h1 className="text-2xl font-black tracking-tight text-white">
             ¡Crea tu cuenta{" "}
-            <span className="bg-gradient-to-r from-[#32CD32] to-[#00F0FF] bg-clip-text text-transparent">gratis!</span>
+            <span className="bg-gradient-to-r from-[#32CD32] to-[#00F0FF] bg-clip-text text-transparent">
+              gratis!
+            </span>
           </h1>
           <p className="mt-0.5 text-sm text-white/40">Sin rollos, en 30 segundos</p>
         </div>
 
         {!SUPABASE_CONFIGURED && (
           <div className="mb-4 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-xs text-yellow-400 font-medium">
-            ⚠️ Configura <code>NEXT_PUBLIC_SUPABASE_URL</code> y <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> en Replit Secrets.
+            ⚠️ Configura <code>NEXT_PUBLIC_SUPABASE_URL</code> y{" "}
+            <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> en Replit Secrets.
           </div>
         )}
 
@@ -172,7 +195,10 @@ export default function SignupPage() {
 
         <form onSubmit={handleSignup} className="space-y-3">
           <div className="group relative">
-            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-[#32CD32] transition-colors" size={16} />
+            <Mail
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-[#32CD32] transition-colors"
+              size={16}
+            />
             <input
               type="email"
               placeholder="Tu correo electrónico"
@@ -184,7 +210,10 @@ export default function SignupPage() {
           </div>
 
           <div className="group relative">
-            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-[#32CD32] transition-colors" size={16} />
+            <Lock
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-[#32CD32] transition-colors"
+              size={16}
+            />
             <input
               type={showPw ? "text" : "password"}
               placeholder="Elige una contraseña"
