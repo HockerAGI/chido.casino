@@ -1,60 +1,62 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import Image from "next/image";
 import Link from "next/link";
 import { useMemo } from "react";
 import { useProfile } from "@/lib/useProfile";
 import { getPlayerLevel } from "@/lib/playerLevel";
-import { Crown, Gift, ShieldCheck, Sparkles, Trophy, Zap, ChevronRight, Star } from "lucide-react";
+import { Crown, Gift, ShieldCheck, Sparkles, Trophy, Zap, ChevronRight, Star, Wallet } from "lucide-react";
 
 const LEVELS = [
   {
     key: "verde",
-    label: "Nivel Verde 🌱",
+    label: "Nivel Verde",
     badge: "/badge-verde.png",
     minXp: 0,
     color: "#32CD32",
-    perks: ["Acceso a todos los juegos", "Feed de ganadores en vivo", "Bonos de bienvenida", "Soporte por WhatsApp"],
+    perks: ["Acceso completo al lobby", "Bonos de bienvenida", "Soporte estándar"],
     cashback: "0%",
     maxBet: "Sin límite especial",
   },
   {
     key: "jalapeno",
-    label: "Nivel Jalapeño 🌶️",
+    label: "Nivel Jalapeño",
     badge: "/badge-jalapeno.png",
     minXp: 500,
     color: "#FFD700",
-    perks: ["Todo lo de Verde", "+2% cashback semanal", "Torneos prioritarios", "Bonos de recarga exclusivos"],
+    perks: ["Cashback semanal", "Promos preferentes", "Prioridad en soporte"],
     cashback: "2%",
-    maxBet: "+25% límite de apuesta",
+    maxBet: "+25% límite",
   },
   {
     key: "serrano",
-    label: "Nivel Serrano 🔥",
+    label: "Nivel Serrano",
     badge: "/badge-serrano.png",
     minXp: 1500,
     color: "#FF5E00",
-    perks: ["Todo lo de Jalapeño", "+5% cashback semanal", "Retiros prioritarios (24h)", "Gestor de cuenta dedicado"],
+    perks: ["Cashback ampliado", "Retiros más rápidos", "Bonos exclusivos"],
     cashback: "5%",
-    maxBet: "+50% límite de apuesta",
+    maxBet: "+50% límite",
   },
   {
     key: "habanero",
-    label: "Nivel Habanero 💎",
+    label: "Nivel Habanero",
     badge: "/badge-habanero.png",
     minXp: 3000,
     color: "#FF0099",
-    perks: ["Todo lo de Serrano", "+8% cashback semanal", "Mesa Blackjack VIP exclusiva", "Retiros en 12h", "Regalos físicos trimestrales"],
+    perks: ["Mesas y beneficios VIP", "Gestión prioritaria", "Regalos especiales"],
     cashback: "8%",
     maxBet: "Sin límite",
   },
   {
     key: "salsa",
-    label: "Nivel Salsa Pro 👑",
-    badge: "/badge-verde.png",
+    label: "Nivel Salsa Pro",
+    badge: "/badge-salsa.png",
     minXp: 6000,
     color: "#00F0FF",
-    perks: ["Todo lo de Habanero", "+12% cashback semanal", "Acceso a juegos privados antes del lanzamiento", "Línea directa 24/7 con gerente VIP", "Evento presencial anual", "Bonos personalizados ilimitados"],
+    perks: ["Beneficios máximos", "Eventos especiales", "Atención VIP directa"],
     cashback: "12%",
     maxBet: "Sin límite + mesas especiales",
   },
@@ -72,18 +74,18 @@ export default function VIPPage() {
 
         <div className="relative z-10 mx-auto max-w-6xl text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-[#FFD700]/20 bg-[#FFD700]/10 px-3 py-1 text-[11px] font-black uppercase tracking-widest text-[#FFD700]">
-            <Crown size={14} /> VIP Club
+            <Crown size={14} /> VIP
           </div>
 
           <h1 className="mt-5 text-4xl font-black tracking-tight text-white md:text-7xl">
             Sube de nivel,{" "}
             <span className="bg-gradient-to-r from-[#FFD700] via-[#FF5E00] to-[#FF0099] bg-clip-text text-transparent">
-              gana más
+              gana más.
             </span>
           </h1>
 
           <p className="mx-auto mt-4 max-w-3xl text-lg leading-relaxed text-white/60">
-            Entre más juegas, más chido te ponemos. Cashback real, bonos exclusivos, gestor personal y mesas VIP con una UI de marca grande.
+            Entre más juegas, más beneficios acumulas. Cashback, soporte prioritario y acceso a beneficios superiores.
           </p>
 
           {profile && (
@@ -110,7 +112,7 @@ export default function VIPPage() {
       <div className="mx-auto max-w-6xl px-6 py-12 space-y-12">
         <section className="grid gap-4 md:grid-cols-3">
           {[
-            { icon: Zap, title: "Juega y acumula XP", desc: "Cada apuesta te suma experiencia automáticamente." },
+            { icon: Zap, title: "Juega y acumula XP", desc: "Cada apuesta suma experiencia automáticamente." },
             { icon: Star, title: "Sube de nivel", desc: "Verde → Jalapeño → Serrano → Habanero → Salsa Pro." },
             { icon: Gift, title: "Beneficios reales", desc: "Cashback, bonos, retiros rápidos y trato preferente." },
           ].map(({ icon: Icon, title, desc }) => (
@@ -132,7 +134,7 @@ export default function VIPPage() {
           <div className="mt-5 grid gap-4">
             {LEVELS.map((lvlItem, idx) => {
               const current = lvl.level.key === lvlItem.key;
-              const reached = (profile as any)?.xp >= lvlItem.minXp;
+              const reached = Number((profile as any)?.xp || 0) >= lvlItem.minXp;
 
               return (
                 <div
@@ -186,8 +188,8 @@ export default function VIPPage() {
                       </div>
                     </div>
 
-                    <div className="shrink-0">
-                      <div className="text-xs font-black uppercase tracking-[0.28em] text-white/35">{idx + 1}</div>
+                    <div className="shrink-0 text-xs font-black uppercase tracking-[0.28em] text-white/35">
+                      {idx + 1}
                     </div>
                   </div>
                 </div>
@@ -202,26 +204,26 @@ export default function VIPPage() {
               <ShieldCheck size={22} className="text-[#00F0FF]" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-sm font-black text-white">Chido Gerente — Optimización VIP</div>
+              <div className="text-sm font-black text-white">Centro VIP</div>
               <div className="text-xs leading-relaxed text-white/45">
-                La capa VIP se piensa para crecer con tu actividad y convertir eso en beneficios claros, no humo.
+                Tu actividad se convierte en mejores beneficios, sin procesos raros ni mensajes internos visibles.
               </div>
             </div>
             <div className="shrink-0 rounded-2xl border border-[#00F0FF]/20 bg-[#00F0FF]/10 px-4 py-2 text-xs font-black text-[#00F0FF]">
-              Pronto →
+              Listo
             </div>
           </div>
         </section>
 
         <section className="text-center">
           <h3 className="text-2xl font-black text-white">¿Listo para subir de nivel?</h3>
-          <p className="mt-2 text-sm text-white/50">Deposita, juega y gana XP automáticamente. Sin vueltas.</p>
+          <p className="mt-2 text-sm text-white/50">Deposita, juega y gana XP automáticamente.</p>
           <div className="mt-6 flex flex-wrap justify-center gap-4">
             <Link
               href="/wallet?tab=deposit"
               className="inline-flex items-center gap-2 rounded-2xl bg-white px-6 py-3 text-sm font-black text-black transition hover:scale-[1.02]"
             >
-              <Gift size={16} /> Depositar ahora
+              <Wallet size={16} /> Depositar ahora
             </Link>
             <Link
               href="/lobby"
