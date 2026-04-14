@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/browser";
+import { WALLET_REFRESH_EVENT } from "@/lib/wallet-refresh";
 
 type WalletState = {
   userId: string | null;
@@ -22,13 +23,15 @@ function formatMXN(n: number) {
       style: "currency",
       currency: "MXN",
       maximumFractionDigits: 2,
-    }).format(n);
+    }).format(Number.isFinite(n) ? n : 0);
   } catch {
     return `$${(n ?? 0).toFixed(2)} MXN`;
   }
 }
 
 export function useWalletBalance() {
+  const supabase = useMemo(() => supabaseBrowser(), []);
+
   const [state, setState] = useState<WalletState>({
     userId: null,
     loading: true,
@@ -44,8 +47,8 @@ export function useWalletBalance() {
 
   const load = useCallback(async () => {
     setState((s) => ({ ...s, loading: true, error: null }));
+
     try {
-      const supabase = supabaseBrowser();
       const {
         data: { session },
         error: sessionErr,
@@ -71,7 +74,7 @@ export function useWalletBalance() {
 
       const { data, error } = await supabase
         .from("balances")
-        .select("balance,bonus_balance,locked_balance")
+        .select("balance, bonus_balance, locked_balance")
         .eq("user_id", userId)
         .maybeSingle();
 
@@ -99,14 +102,79 @@ export function useWalletBalance() {
         error: e?.message ?? "Error al cargar balance",
       }));
     }
-  }, []);
+  }, [supabase]);
 
   useEffect(() => {
-    load();
+    void load();
+
+    const onRefresh = () => void load();
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === "__chido_wallet_refresh__") void load();
+    };
+
+    window.addEventListener(WALLET_REFRESH_EVENT, onRefresh);
+    window.addEventListener("storage", onStorage);
+
+    const poll = window.setInterval(() => {
+      void load();
+    }, 20000);
+
+    return () => {
+      window.removeEventListener(WALLET_REFRESH_EVENT, onRefresh);
+      window.removeEventListener("storage", onStorage);
+      window.clearInterval(poll);
+    };
   }, [load]);
+
+  useEffect(() => {
+    let channel: any = null;
+    let active = true;
+
+    const bindRealtime = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const userId = session?.user?.id;
+      if (!active || !userId) return;
+
+      channel = supabase
+        .channel(`balances:${userId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "balances",
+            filter: `user_id=eq.${userId}`,
+          },
+          () => {
+            void load();
+          }
+        )
+        .subscribe();
+    };
+
+    void bindRealtime();
+
+    return () => {
+      active = false;
+      if (channel) {
+        void supabase.removeChannel(channel);
+      }
+    };
+  }, [load, supabase]);
+
+  useEffect(() => {
+    const sub = supabase.auth.onAuthStateChange(() => {
+      void load();
+    });
+
+    return () => sub.data.subscription.unsubscribe();
+  }, [load, supabase]);
 
   return {
     ...state,
-    refresh: load, // 👈 esto desbloquea taco-slot y cualquier “refetch”
+    refresh: load,
   };
 }
