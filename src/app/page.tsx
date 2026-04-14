@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
-import { Footer } from "@/components/layout/footer";
-import { ArrowRight, Flame } from "lucide-react";
+import { ArrowRight, Flame, ShieldCheck, Wallet, Crown, Zap } from "lucide-react";
 
 export default function Home() {
   return (
@@ -31,16 +30,19 @@ export default function Home() {
 
         <main className="flex-1 flex flex-col justify-center items-start max-w-4xl">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-chido-pink/30 bg-chido-pink/10 text-chido-pink text-xs font-black tracking-widest uppercase mb-6 backdrop-blur-md animate-fade-in shadow-lg">
-            <Flame size={12} className="animate-pulse" /> Originals + Bonos + Chido Wallet
+            <Flame size={12} className="animate-pulse" /> Chido Casino • Lanzamiento
           </div>
 
           <h1 className="text-6xl md:text-9xl font-black tracking-tighter leading-[0.9] mb-8 animate-fade-in drop-shadow-2xl">
-            JUEGA CHIDO. <br />
-            GANA <span className="text-transparent bg-clip-text bg-gradient-to-r from-chido-cyan to-chido-green">LIMPIO.</span>
+            JUEGA. <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-chido-cyan to-chido-green">
+              COBRA.
+            </span>{" "}
+            REPITE.
           </h1>
 
           <p className="text-xl md:text-2xl text-zinc-300 mb-10 max-w-xl leading-relaxed animate-fade-in font-medium drop-shadow-md">
-            Juegos originales, bonos que sí aplican y Chido Wallet para depositar y retirar sin rollos. ¡No hay falla!
+            Juegos originales, bonos claros y una wallet lista para depósitos, retiros y control en vivo.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 animate-fade-in w-full sm:w-auto">
@@ -55,18 +57,22 @@ export default function Home() {
               href="/lobby"
               className="px-10 py-5 rounded-full bg-white/10 border border-white/10 text-white font-black text-xl hover:bg-white/15 transition-colors flex items-center justify-center"
             >
-              Ver Lobby
+              Ver lobby
             </Link>
           </div>
 
-          <div className="mt-6 text-xs text-white/45">
-            18+ • Juega responsable • Retiros requieren KYC aprobado.
+          <div className="mt-8 grid gap-3 sm:grid-cols-3 text-sm text-white/65">
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 flex items-center gap-2">
+              <ShieldCheck size={16} className="text-[#32CD32]" /> KYC para retiros
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 flex items-center gap-2">
+              <Wallet size={16} className="text-[#00F0FF]" /> Wallet en vivo
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 flex items-center gap-2">
+              <Crown size={16} className="text-[#FFD700]" /> VIP y promociones
+            </div>
           </div>
         </main>
-
-        <div className="mt-16">
-          <Footer />
-        </div>
       </div>
     </div>
   );
