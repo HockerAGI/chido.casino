@@ -105,7 +105,7 @@ export const GAMES: Game[] = [
     subtitle: "Rompe la piñata y llueven los bonos",
     badge: "POPULAR",
     category: "slots",
-    href: "/games/piñata-fiesta",
+    href: "/games/pinata-fiesta",
     status: "live",
     rtp: "96.5%",
     maxWin: "3,500x",

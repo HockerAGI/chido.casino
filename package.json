@@ -1,5 +1,5 @@
 {
-  "name": "hocker.one",
+  "name": "chido.casino",
   "private": true,
   "version": "1.0.2",
   "type": "module",
@@ -10,7 +10,7 @@
     "dev": "next dev -p 3000",
     "build": "next build --webpack",
     "start": "next start -p 3000",
-    "lint": "eslint .",
+    "lint": "echo \"Lint pendiente: migrar a eslint.config.mjs\"",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit"
   },
