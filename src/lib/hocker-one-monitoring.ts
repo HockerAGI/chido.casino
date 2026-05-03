@@ -56,34 +56,46 @@ export async function upsertChidoPresence(args: {
 }): Promise<void> {
   const now = new Date().toISOString();
 
-  const body = [
-    {
-      id: NODE_ID,
+  const node = {
+    id: NODE_ID,
+    project_id: PROJECT_ID,
+    name: "Chido Casino Web",
+    type: "app",
+    status: args.status,
+    last_seen_at: now,
+    updated_at: now,
+    meta: {
+      ...args.meta,
+      source: "chido.casino",
+      node_id: NODE_ID,
       project_id: PROJECT_ID,
-      name: "Chido Casino Web",
-      type: "app",
-      status: args.status,
-      last_seen_at: now,
-      updated_at: now,
-      meta: {
-        ...args.meta,
-        source: "chido.casino",
-        node_id: NODE_ID,
-        project_id: PROJECT_ID,
-      },
     },
-  ];
+  };
 
-  const res = await supabaseFetch("nodes?on_conflict=id", {
-    method: "POST",
+  const patchRes = await supabaseFetch(`nodes?id=eq.${encodeURIComponent(NODE_ID)}`, {
+    method: "PATCH",
     headers: {
-      Prefer: "resolution=merge-duplicates,return=minimal",
+      Prefer: "return=representation",
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify(node),
   });
 
-  if (!res.ok) {
-    throw new Error(`No se pudo registrar presencia Chido: ${res.status}`);
+  if (patchRes.ok) {
+    const updated = await patchRes.json().catch(() => []);
+    if (Array.isArray(updated) && updated.length > 0) return;
+  }
+
+  const insertRes = await supabaseFetch("nodes", {
+    method: "POST",
+    headers: {
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify([node]),
+  });
+
+  if (!insertRes.ok) {
+    const detail = await insertRes.text().catch(() => "");
+    throw new Error(`No se pudo registrar presencia Chido: ${insertRes.status} ${detail}`);
   }
 }
 
