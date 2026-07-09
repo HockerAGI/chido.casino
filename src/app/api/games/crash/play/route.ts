@@ -7,6 +7,7 @@ import { walletApplyDelta } from "@/lib/walletApplyDelta";
 import { fairFloat, generateServerSeed, serverSeedHash } from "@/lib/provablyFair";
 import { promoWageringProgress } from "@/lib/promoWagering";
 import { getPromoLimitState } from "@/lib/promoLimits";
+import { assertGamesNotPaused } from "@/lib/gamesPaused";
 
 function clamp(n: number, a: number, b: number) {
   return Math.max(a, Math.min(b, n));
@@ -67,6 +68,10 @@ async function refundAndUnlock(userId: string, betAmount: number, refId: string,
 export async function POST(req: Request) {
   const session = await getServerSession(req);
   if (!session?.user?.id) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+
+  // Global kill-switch: honor Hocker ONE admin pause immediately
+  const paused = await assertGamesNotPaused();
+  if (paused) return paused;
 
   const body = await req.json().catch(() => ({} as any));
   const betAmount = Number(body?.betAmount ?? body?.bet ?? 0);

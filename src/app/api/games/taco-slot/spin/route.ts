@@ -7,6 +7,7 @@ import { walletApplyDelta } from "@/lib/walletApplyDelta";
 import { fairFloat, generateServerSeed, serverSeedHash } from "@/lib/provablyFair";
 import { promoWageringProgress } from "@/lib/promoWagering";
 import { getPromoLimitState } from "@/lib/promoLimits";
+import { assertGamesNotPaused } from "@/lib/gamesPaused";
 
 type SymbolKey = "verde" | "jalapeno" | "serrano" | "habanero";
 
@@ -100,6 +101,10 @@ export async function POST(req: Request) {
     } = await supabase.auth.getSession();
 
     if (!session) return NextResponse.json({ ok: false, error: "No autorizado" }, { status: 401 });
+
+    // Global kill-switch: honor Hocker ONE admin pause immediately
+    const paused = await assertGamesNotPaused();
+    if (paused) return paused;
 
     const body = await req.json().catch(() => ({} as any));
     const bet = Number(body?.bet);
