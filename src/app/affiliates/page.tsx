@@ -60,7 +60,7 @@ export default function AffiliatesPage() {
       const json = (await res.json()) as ApiMe;
       setData(json);
     } catch {
-      setData({ ok: false, error: "No se pudo cargar el panel de afiliados." });
+      setData({ ok: false, error: "No se pudo cargar el panel de afiliados, chale." });
     } finally {
       setLoading(false);
     }
@@ -73,9 +73,9 @@ export default function AffiliatesPage() {
   const copyToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(link);
-      toast({ title: "Enlace copiado", description: "Ya lo puedes compartir." });
+      toast({ title: "Enlace copiado", description: "Ya lo puedes regar a tus compas." });
     } catch {
-      toast({ title: "No se pudo copiar", description: "Copia el enlace manualmente.", variant: "destructive" });
+      toast({ title: "No se pudo copiar", description: "Cópialo a mano carnal.", variant: "destructive" });
     }
   };
 
@@ -84,7 +84,7 @@ export default function AffiliatesPage() {
   if (loading) {
     return (
       <div className="min-h-screen pb-20 animate-fade-in flex items-center justify-center text-white/70 gap-2">
-        <Loader2 className="animate-spin" size={18} /> Cargando tu panel de afiliados…
+        <Loader2 className="animate-spin" size={18} /> Cargando tu panel de afiliados, un momentito…
       </div>
     );
   }
@@ -115,7 +115,7 @@ export default function AffiliatesPage() {
               </span>
             </h1>
             <p className="text-zinc-400 text-sm md:text-base font-medium">
-              Comparte tu enlace, trae jugadores y gana comisión sobre actividad validada.
+              Comparte tu enlace, trae a los compas y gana comisión sobre actividad validada, sin trucos.
             </p>
           </div>
 
@@ -124,7 +124,7 @@ export default function AffiliatesPage() {
               onClick={() => router.push("/wallet?tab=withdraw&type=commission")}
               className="bg-[#32CD32] text-black hover:bg-[#28a745] font-black uppercase tracking-widest shadow-[0_0_20px_rgba(50,205,50,0.3)]"
             >
-              <Wallet size={16} /> Retirar ganancias
+              <Wallet size={16} /> Sacar ganancias
             </Button>
           )}
         </div>
@@ -193,7 +193,7 @@ export default function AffiliatesPage() {
 
           <div className="mt-4 flex items-start gap-2 text-xs text-white/60">
             <ShieldAlert size={16} className="mt-0.5 shrink-0" />
-            Las comisiones se acreditan solo sobre actividad validada y sin fraude.
+            Las comisiones se acreditan solo sobre actividad validada y sin fraude, no hay vuelta de hoja.
           </div>
         </Card>
 
@@ -218,7 +218,7 @@ export default function AffiliatesPage() {
             </div>
           ) : (
             <div className="text-sm text-white/60">
-              Aquí aparecerán tus comisiones cuando tus referidos generen actividad real.
+              Aquí van a aparecer tus comisiones cuando tus referidos se avienten a jugar de verdad.
             </div>
           )}
         </Card>

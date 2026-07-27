@@ -68,11 +68,11 @@ export default function PromosPage() {
     try {
       const res = await fetch("/api/promos/list", { cache: "no-store" });
       const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || "Error cargando promociones");
+      if (!res.ok) throw new Error(json?.error || "Error cargando las promos");
       setOffers(json.offers || []);
       setActiveClaim(json.activeClaim || null);
     } catch (e: any) {
-      setMsg(e?.message ?? "Error cargando promociones.");
+      setMsg(e?.message ?? "Error cargando las promos.");
     } finally {
       setLoading(false);
     }
@@ -98,12 +98,12 @@ export default function PromosPage() {
       });
       const json = await res.json().catch(() => ({}));
 
-      if (!res.ok) throw new Error(json?.error || "No se pudo activar");
+      if (!res.ok) throw new Error(json?.error || "No se pudo clavar");
 
-      setMsg(json?.message || "Promoción activada.");
+      setMsg(json?.message || "¡Promo clavada!");
       await load();
     } catch (e: any) {
-      setMsg(e?.message || "No se pudo activar la promoción.");
+      setMsg(e?.message || "No se pudo clavar la promoción.");
     } finally {
       setBusy(false);
     }
@@ -130,7 +130,7 @@ export default function PromosPage() {
             </span>
           </h1>
           <p className="mt-3 max-w-3xl text-sm leading-relaxed text-white/60 md:text-base">
-            Aquí ves tus promociones activas, el progreso de wagering y el estado de tus recompensas.
+            Aquí ves tus promos activas, el progreso de wagering y el estado de tus recompensas. Todo al claro.
           </p>
         </div>
       </div>
@@ -148,7 +148,7 @@ export default function PromosPage() {
               </div>
 
               <div className="min-w-0 flex-1">
-                <div className="text-lg font-black text-white">Promoción activa</div>
+                <div className="text-lg font-black text-white">Promo activa</div>
                 <div className="mt-1 text-sm text-white/55">
                   Código: <span className="font-mono text-white/80">{activeClaim.offer_id}</span>
                 </div>
@@ -169,7 +169,7 @@ export default function PromosPage() {
                 href="/wallet?tab=deposit"
                 className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-black transition hover:scale-[1.02]"
               >
-                Depositar <ArrowRight size={16} />
+                Echar lana <ArrowRight size={16} />
               </Link>
             </div>
           </section>
@@ -178,7 +178,7 @@ export default function PromosPage() {
         <section className="rounded-[2rem] border border-white/10 bg-black/35 p-6 backdrop-blur-xl">
           <div className="flex items-center gap-2">
             <Ticket size={18} className="text-[#FFD700]" />
-            <h2 className="text-base font-black text-white">Activar por código</h2>
+            <h2 className="text-base font-black text-white">Clavarlo por código</h2>
           </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
@@ -193,11 +193,11 @@ export default function PromosPage() {
               disabled={busy || !code.trim()}
               className="inline-flex h-12 items-center justify-center rounded-2xl bg-white px-5 text-sm font-black text-black transition hover:scale-[1.01] disabled:opacity-40"
             >
-              {busy ? <Loader2 className="animate-spin" size={16} /> : "Activar"}
+              {busy ? <Loader2 className="animate-spin" size={16} /> : "Clavarlo"}
             </button>
           </div>
 
-          <div className="mt-3 text-[11px] text-white/45">Si una promo queda activa, se aplicará en tu siguiente depósito válido.</div>
+          <div className="mt-3 text-[11px] text-white/45">Si una promo queda activa, se va a aplicar en tu siguiente depósito válido.</div>
 
           {msg ? (
             <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">{msg}</div>
@@ -206,11 +206,11 @@ export default function PromosPage() {
 
         <section className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-lg font-black text-white">Promociones disponibles</div>
-            <div className="text-xs text-white/40">Bonos, free rounds y wagering visible.</div>
+            <div className="text-lg font-black text-white">Promos disponibles</div>
+            <div className="text-xs text-white/40">Bonos, free rounds y wagering al tiro.</div>
           </div>
           <Link href="/lobby" className="inline-flex items-center gap-2 text-xs font-black text-white/60 transition hover:text-white">
-            Volver al lobby <ChevronRight size={14} />
+            Al lobby <ChevronRight size={14} />
           </Link>
         </section>
 
@@ -219,7 +219,7 @@ export default function PromosPage() {
             <Loader2 className="animate-spin" size={16} /> Cargando…
           </div>
         ) : offers.length === 0 ? (
-          <div className="rounded-[1.75rem] border border-white/10 bg-black/35 p-6 text-white/60">No hay promociones activas.</div>
+          <div className="rounded-[1.75rem] border border-white/10 bg-black/35 p-6 text-white/60">No hay promos activas por ahora, carnal.</div>
         ) : (
           <div className="grid gap-4">
             {offers.map((o) => {
@@ -260,7 +260,7 @@ export default function PromosPage() {
 
                       <div className="mt-3 text-2xl font-black text-white">{o.title}</div>
                       <div className="mt-2 max-w-3xl text-sm leading-relaxed text-white/55">
-                        {o.description || "Promoción premium con condiciones claras y seguimiento visible."}
+                        {o.description || "Promo bien chida con condiciones claras y seguimiento visible."}
                       </div>
 
                       <div className="mt-4 flex flex-wrap gap-2">

@@ -120,7 +120,7 @@ export default function CrashPro() {
     if (resp.ok && resp.excluded) {
       return toast({
         title: "Autoexclusión activa",
-        description: resp.until ? `Hasta: ${new Date(resp.until).toLocaleString()}` : "No puedes jugar por ahora.",
+        description: resp.until ? `Hasta: ${new Date(resp.until).toLocaleString()}` : "No puedes echar jugada por ahora, carnal.",
         variant: "destructive",
       });
     }
@@ -131,7 +131,7 @@ export default function CrashPro() {
     if (safeBet > available) {
       return toast({
         title: "Saldo insuficiente",
-        description: "Tu disponible incluye bono si aplica.",
+        description: "Tu disponible incluye bono si aplica. Échale lana.",
         variant: "destructive",
       });
     }
@@ -152,7 +152,7 @@ export default function CrashPro() {
       if (!res.ok) {
         if (data?.error === "PROMO_MAX_BET") {
           setBet(clampBet(Number(data.maxBet || safeBet)));
-          throw new Error(data?.message || "Apuesta excede el máximo permitido por bono.");
+          throw new Error(data?.message || "La apuesta se pasa del máximo permitido por bono.");
         }
         if (data?.error === "SELF_EXCLUDED") {
           await loadGates();
@@ -304,7 +304,7 @@ export default function CrashPro() {
               </div>
               <h2 className="mt-4 text-3xl font-black tracking-tight text-white">Crash Pro</h2>
               <p className="mt-2 text-sm leading-relaxed text-white/55">
-                Ritmo limpio, tensión fuerte y UI lista para nivel provider-top.
+                Ritmo limpio, tensión fuerte y UI lista pa' nivel provider-top.
               </p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/35 p-3">
@@ -318,7 +318,7 @@ export default function CrashPro() {
               <div>
                 <div className="font-black">Autoexclusión activa</div>
                 <div className="text-xs text-white/65">
-                  {resp.until ? `Hasta: ${new Date(resp.until).toLocaleString()}` : "No puedes jugar por ahora."}
+                  {resp.until ? `Hasta: ${new Date(resp.until).toLocaleString()}` : "No puedes echar jugada por ahora, carnal."}
                 </div>
               </div>
             </div>
@@ -406,11 +406,11 @@ export default function CrashPro() {
                 : "bg-gradient-to-r from-[#00F0FF] to-[#32CD32] text-black shadow-[0_0_28px_rgba(0,240,255,0.25)] hover:scale-[1.01] hover:brightness-110"
             }`}
           >
-            {loading ? <Loader2 className="animate-spin" /> : gameState === "RUNNING" ? "EN JUEGO..." : "APOSTAR"}
+            {loading ? <Loader2 className="animate-spin" /> : gameState === "RUNNING" ? "EN JUEGO..." : "¡APOSTAR!"}
           </Button>
 
           <div className="flex items-center gap-2 rounded-2xl border border-white/8 bg-white/[0.04] px-4 py-3 text-[11px] text-white/45">
-            <Info size={14} /> Si tienes bono activo, hay límite por jugada para proteger el sistema.
+            <Info size={14} /> Si tienes bono activo, hay tope por jugada pa' cuidar el sistema.
           </div>
         </div>
 
@@ -457,19 +457,19 @@ export default function CrashPro() {
 
               {gameState === "CRASHED" && (
                 <div className="mt-4 rounded-full bg-[#FF3D00] px-6 py-2 text-xl font-black uppercase tracking-widest text-black shadow-[0_0_28px_rgba(255,61,0,0.35)]">
-                  Crashed
+                  ¡Se fue a la chin!
                 </div>
               )}
 
               {gameState === "WON" && (
                 <div className="mt-4 rounded-full bg-[#32CD32] px-6 py-2 text-xl font-black uppercase tracking-widest text-black shadow-[0_0_28px_rgba(50,205,50,0.35)]">
-                  ¡Cobrado!
+                  ¡Cobrado, a la bolsa!
                 </div>
               )}
 
               {gameState === "IDLE" && (
                 <div className="mt-4 rounded-full border border-white/10 bg-white/5 px-5 py-2 text-sm font-bold text-white/50">
-                  Listo para arrancar
+                  Listo pa' arrancar
                 </div>
               )}
             </div>

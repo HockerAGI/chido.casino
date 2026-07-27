@@ -155,7 +155,7 @@ export default function TacoSlotPro() {
     if (resp.ok && resp.excluded) {
       toast({
         title: "Autoexclusión activa",
-        description: resp.until ? `Hasta: ${new Date(resp.until).toLocaleString()}` : "No puedes jugar por ahora.",
+        description: resp.until ? `Hasta: ${new Date(resp.until).toLocaleString()}` : "No puedes echar jugada por ahora, carnal.",
         variant: "destructive",
       });
       return;
@@ -166,8 +166,8 @@ export default function TacoSlotPro() {
 
     if (safeBet > available) {
       toast({
-        title: "Saldo insuficiente ¡Deposita!",
-        description: "Tu disponible incluye bono si aplica.",
+        title: "Saldo insuficiente ¡Échale lana!",
+        description: "Tu disponible incluye bono si aplica. Échale lana.",
         variant: "destructive",
       });
       return;
@@ -195,7 +195,7 @@ export default function TacoSlotPro() {
       if (!res.ok || !data.ok) {
         if (data?.error === "PROMO_MAX_BET") {
           setBet(clampBet(Number(data.maxBet || safeBet)));
-          throw new Error(data?.message || "Apuesta excede el máximo por bono.");
+          throw new Error(data?.message || "La apuesta se pasa del máximo por bono.");
         }
         if (data?.error === "SELF_EXCLUDED") {
           await loadGates();
@@ -245,7 +245,7 @@ export default function TacoSlotPro() {
                 TACO SLOT <span className="text-[#FF0099]">DELUXE</span>
               </h1>
               <p className="mt-2 text-sm leading-relaxed text-white/55">
-                Más brillo, más claridad y más sensación de proveedor grande.
+                Más brillo, más claridad y más sensación de proveedor grande. Puro nivel chido.
               </p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/35 p-3">
@@ -264,7 +264,7 @@ export default function TacoSlotPro() {
               <div>
                 <div className="font-black">Autoexclusión activa</div>
                 <div className="text-xs text-white/65">
-                  {resp.ok && resp.until ? `Hasta: ${new Date(resp.until).toLocaleString()}` : "No puedes jugar por ahora."}
+                  {resp.ok && resp.until ? `Hasta: ${new Date(resp.until).toLocaleString()}` : "No puedes echar jugada por ahora, carnal."}
                 </div>
               </div>
             </div>
@@ -352,7 +352,7 @@ export default function TacoSlotPro() {
               {spinning ? (
                 <>
                   <Loader2 className="animate-spin" size={22} />
-                  <span>GIRANDO...</span>
+                  <span>GIRANDO…</span>
                 </>
               ) : (
                 <>

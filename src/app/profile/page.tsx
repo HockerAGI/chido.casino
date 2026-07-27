@@ -208,7 +208,7 @@ export default function ProfilePage() {
       const { data } = await supabase.auth.getUser();
       const email = data?.user?.email;
       if (!email) {
-        setMsg("No encontramos tu correo activo.");
+        setMsg("No encontramos tu correo, chale.");
         return;
       }
 
@@ -217,9 +217,9 @@ export default function ProfilePage() {
       });
 
       if (error) throw error;
-      setMsg("Te mandamos un correo para restablecer tu contraseña.");
+      setMsg("Te mandamos un correo pa' que resetees tu contraseña, sin rodeos.");
     } catch (e: any) {
-      setMsg(e?.message || "No se pudo enviar el correo.");
+      setMsg(e?.message || "No se pudo mandar el correo, intenta luego.");
     }
   };
 
@@ -236,20 +236,20 @@ export default function ProfilePage() {
   const copy = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      setMsg("Copiado al portapapeles.");
+      setMsg("Copiado, ya lo tienes.");
       setTimeout(() => setMsg(null), 1200);
     } catch {
-      setMsg("No se pudo copiar.");
+      setMsg("No se pudo copiar, cópialo a mano.");
       setTimeout(() => setMsg(null), 1200);
     }
   };
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center text-white/60">Cargando tu perfil…</div>;
+    return <div className="min-h-screen flex items-center justify-center text-white/60">Cargando tu perfil, un momentito carnal…</div>;
   }
 
   if (!profile) {
-    return <div className="min-h-screen flex items-center justify-center text-white/60">Primero necesitas entrar a tu cuenta.</div>;
+    return <div className="min-h-screen flex items-center justify-center text-white/60">Primero necesitas entrar a tu cuenta, no te quedes afuera.</div>;
   }
 
   return (
@@ -258,7 +258,7 @@ export default function ProfilePage() {
         <div>
           <div className="text-3xl md:text-4xl font-black text-white">Mi Perfil</div>
           <div className="text-white/60 text-sm mt-1">
-            Aquí controlas tu cuenta, tu seguridad y tus movimientos.
+            Aquí manejas tu cuenta, tu seguridad y tus movimientos, todo al tiro.
           </div>
         </div>
 
@@ -352,9 +352,9 @@ export default function ProfilePage() {
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-              <div className="text-[10px] uppercase tracking-[0.24em] text-white/35 font-black">Restablecer contraseña</div>
+              <div className="text-[10px] uppercase tracking-[0.24em] text-white/35 font-black">Resetear contraseña</div>
               <Button onClick={resetPassword} className="mt-2 w-full font-black" variant="secondary">
-                <KeyRound size={16} /> Enviar correo
+                <KeyRound size={16} /> Mandar correo
               </Button>
             </div>
           </div>
@@ -363,7 +363,7 @@ export default function ProfilePage() {
         <div className="space-y-6">
           <Card className="bg-black/30 border-white/10 p-6 rounded-3xl">
             <div className="flex items-center gap-2 text-lg font-black text-white">
-              <Wallet size={18} /> Resumen de wallet
+              <Wallet size={18} /> Resumen de tu wallet
             </div>
 
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -417,7 +417,7 @@ export default function ProfilePage() {
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div>
                 <div className="text-lg font-black text-white">Afiliados</div>
-                <div className="text-xs text-white/45">Tu enlace, tus registros y tus ganancias.</div>
+                <div className="text-xs text-white/45">Tu enlace, tus registros y tus ganancias, todo bien clarito.</div>
               </div>
               <div className="flex gap-2 flex-wrap">
                 {affiliateLink ? (
@@ -428,7 +428,7 @@ export default function ProfilePage() {
                 {totalCommission > 0 ? (
                   <Link href="/wallet?tab=withdraw&type=commission">
                     <Button className="font-black">
-                      <TrendingUp size={16} /> Retirar comisiones
+                      <TrendingUp size={16} /> Sacar comisiones
                     </Button>
                   </Link>
                 ) : null}
@@ -449,7 +449,7 @@ export default function ProfilePage() {
             <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
               <div className="text-[10px] uppercase tracking-[0.24em] text-white/35 font-black">Tu enlace</div>
               <div className="mt-1 break-all text-sm text-white/85 font-mono">
-                {affiliateLink || "Tu enlace de afiliado aparecerá aquí cuando esté activo."}
+                {affiliateLink || "Tu enlace de afiliado va a aparecer aquí cuando quede activo."}
               </div>
             </div>
 
@@ -493,7 +493,7 @@ export default function ProfilePage() {
                 ))}
               </div>
             ) : (
-              <div className="text-sm text-white/60">Aquí verás tus comisiones cuando tus referidos activen actividad real.</div>
+              <div className="text-sm text-white/60">Aquí van a aparecer tus comisiones cuando tus referidos se avienten a jugar de verdad.</div>
             )}
           </Card>
         </div>

@@ -49,17 +49,17 @@ export default function TournamentsPage() {
               </span>
             </h1>
             <p className="text-zinc-400 max-w-xl text-lg font-medium">
-              Ranking real basado en juego reciente. Sin nombres fake, sin números inventados.
+              Ranking al tiro basado en juego reciente. Sin nombres postizos, sin números inventados.
             </p>
             <div className="mt-3 text-xs text-white/50 flex items-center gap-2">
-              <Info size={14} /> Periodo: últimos 7 días {since ? `(desde ${new Date(since).toLocaleString()})` : ""}
+              <Info size={14} /> Período: últimos 7 días {since ? `(desde ${new Date(since).toLocaleString()})` : ""}
             </div>
           </div>
 
           <div className="bg-black/50 border border-white/10 p-6 rounded-3xl backdrop-blur-md text-center md:text-right flex-shrink-0">
-            <div className="text-xs text-zinc-500 uppercase font-bold tracking-widest mb-1">Cómo se suman puntos</div>
+            <div className="text-xs text-zinc-500 uppercase font-bold tracking-widest mb-1">Cómo se suman los puntos</div>
             <div className="text-sm text-white/70">
-              Crash: <b>apuesta × auto-cashout</b> (si cobras). <br />
+              Crash: <b>apuesta × auto-cashout</b> (si cobras, carnal). <br />
               Slot: <b>apuesta × multiplicador</b>.
             </div>
           </div>
@@ -83,7 +83,7 @@ export default function TournamentsPage() {
                   </div>
                   <h3 className="text-2xl font-black text-white mt-3">Crash Rush • 7 días</h3>
                   <p className="text-sm text-zinc-400 mt-1">
-                    Multiplicadores altos te suben más rápido.
+                    Entre más altos los multiplicadores, más rápido subes.
                   </p>
                 </div>
 
@@ -93,13 +93,13 @@ export default function TournamentsPage() {
                     href="/games/crash"
                     className="inline-flex items-center justify-center mt-2 rounded-xl bg-[#00F0FF] text-black font-black px-5 py-3 hover:opacity-90"
                   >
-                    Jugar Crash →
+                    ¡A darle al Crash →
                   </Link>
                 </div>
               </div>
 
               <div className="text-xs text-white/60 bg-black/40 p-3 rounded-xl border border-white/5">
-                *Este ranking se calcula con datos reales de <b>crash_bets</b> y <b>slot_spins</b>. Se actualiza cada ~20s.
+                *Este ranking se calcula con datos reales de <b>crash_bets</b> y <b>slot_spins</b>. Se actualiza cada ~20s, sin trucos.
               </div>
             </div>
           </Card>
@@ -108,7 +108,7 @@ export default function TournamentsPage() {
             <div className="text-lg font-black">Recompensas (configurable)</div>
             <div className="text-sm text-white/65 mt-2">
               Si vas a soltar bolsa/premios, configúralo desde Admin (HOCKER ONE) o reglas internas.
-              Aquí no se muestra nada inventado.
+              Aquí no se muestra nada inventado, nomás lo real.
             </div>
           </Card>
         </div>
@@ -125,11 +125,11 @@ export default function TournamentsPage() {
             <div className="bg-[#1A1A1D] rounded-2xl p-4">
               {loading ? (
                 <div className="flex items-center gap-2 text-white/70">
-                  <Loader2 className="animate-spin" size={16} /> Cargando leaderboard…
+                  <Loader2 className="animate-spin" size={16} /> Cargando el ranking…
                 </div>
               ) : rows.length === 0 ? (
                 <div className="text-sm text-white/60">
-                  Aún no hay datos suficientes. Juega Crash / Taco Slot y entra al ranking.
+                  Aún no hay datos suficientes. Échate un Crash / Taco Slot y métete al ranking.
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -159,7 +159,7 @@ export default function TournamentsPage() {
                 href="/lobby"
                 className="w-full mt-4 text-xs font-bold text-zinc-500 hover:text-white flex items-center justify-center gap-1 transition-colors"
               >
-                Volver al Lobby <ChevronRight size={14} />
+                Volver al lobby <ChevronRight size={14} />
               </Link>
             </div>
           </Card>
