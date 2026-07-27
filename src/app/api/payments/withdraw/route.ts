@@ -104,6 +104,12 @@ export async function POST(req: Request) {
 
     const externalId = `wd_${session.user.id}_${Date.now()}`;
 
+    // Determine the payout provider: mercadopago, astropay, or manual
+    const payoutProvider =
+      (body?.provider as string) ||
+      process.env.DEFAULT_PAYOUT_PROVIDER ||
+      "manual";
+
     const lock = await walletApplyDelta(supabaseAdmin as any, {
       userId: session.user.id,
       deltaBalance: -Number(amount),
@@ -127,7 +133,7 @@ export async function POST(req: Request) {
       currency: "MXN",
       status: "pending",
       external_id: externalId,
-      provider: "astropay",
+      provider: payoutProvider,
       clabe,
       beneficiary,
       provider_payload: null,
@@ -141,9 +147,9 @@ export async function POST(req: Request) {
         amount: Number(amount),
         currency: "MXN",
         status: "pending",
-        method: "astropay",
+        method: payoutProvider,
         destination: clabe,
-        metadata: { beneficiary, external_id: externalId, provider: "astropay" },
+        metadata: { beneficiary, external_id: externalId, provider: payoutProvider },
       };
       ins = await supabaseAdmin.from("withdraw_requests").insert(payloadLegacy);
     }
@@ -163,10 +169,10 @@ export async function POST(req: Request) {
     await fraudLog(supabaseAdmin as any, req, {
       userId: session.user.id,
       eventType: "withdraw_requested",
-      metadata: { amount, provider: "astropay" },
+      metadata: { amount, provider: payoutProvider },
     });
 
-    return NextResponse.json({ ok: true, status: "pending", externalId });
+    return NextResponse.json({ ok: true, status: "pending", externalId, provider: payoutProvider });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "Error interno" }, { status: 500 });
   }

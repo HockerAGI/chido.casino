@@ -15,8 +15,8 @@ const SUPABASE_CONFIGURED =
 
 const TRUST_BADGES = [
   { icon: Shield, label: "SSL 256-bit" },
-  { icon: Zap, label: "Pago al instante" },
-  { icon: Star, label: "+50k jugadores" },
+  { icon: Zap, label: "Pago al toque" },
+  { icon: Star, label: "+50k jugando" },
 ];
 
 type RiskAttemptResponse = {

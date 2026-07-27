@@ -20,13 +20,13 @@ export default function SupportPage() {
             <HelpCircle size={12} /> Centro de Ayuda
           </div>
           <h1 className="text-4xl md:text-5xl font-black text-white mb-6 tracking-tight">
-            Soporte <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00F0FF] to-[#0099FF]">real</span>
+            Soporte <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00F0FF] to-[#0099FF]">al tiro</span>
           </h1>
           <p className="text-zinc-400 text-lg max-w-2xl mx-auto mb-2">
-            Para depósitos, retiros, KYC o cualquier duda. No vendemos humo: si algo está manual, aquí se dice.
+            Pa' depósitos, retiros, KYC o cualquier duda. Aquí no vendemos humo: si algo va manual, te lo decimos claro.
           </p>
           <p className="text-xs text-white/45 max-w-2xl mx-auto">
-            Recomendación: incluye tu correo de registro + folio/ID cuando sea depósito o retiro.
+            Tip carnal: incluye tu correo de registro + folio/ID cuando sea depósito o retiro.
           </p>
         </div>
       </div>
@@ -53,10 +53,10 @@ export default function SupportPage() {
                 </div>
                 <h3 className="text-2xl font-bold text-white mb-2">WhatsApp</h3>
                 <p className="text-zinc-400 mb-6 text-sm">
-                  Para depósitos, validaciones y soporte rápido.
+                  Pa' depósitos, validaciones y soporte rapidito.
                 </p>
                 <div className="flex items-center gap-2 text-[#25D366] font-bold text-sm uppercase tracking-wider group-hover:translate-x-2 transition-transform">
-                  Abrir Chat <ChevronRight size={16} />
+                  Abrir chat <ChevronRight size={16} />
                 </div>
                 <div className="mt-3 text-[11px] text-white/45">Número: {whatsapp}</div>
               </div>
@@ -75,10 +75,10 @@ export default function SupportPage() {
                 </div>
                 <h3 className="text-2xl font-bold text-white mb-2">Correo</h3>
                 <p className="text-zinc-400 mb-6 text-sm">
-                  Para temas formales: cuentas, disputas, aclaraciones.
+                  Pa' lo formal: cuentas, aclaraciones, disputas.
                 </p>
                 <div className="flex items-center gap-2 text-[#00F0FF] font-bold text-sm uppercase tracking-wider group-hover:translate-x-2 transition-transform">
-                  Enviar Correo <ChevronRight size={16} />
+                  Mandar correo <ChevronRight size={16} />
                 </div>
                 <div className="mt-3 text-[11px] text-white/45">{email}</div>
               </div>
@@ -88,7 +88,7 @@ export default function SupportPage() {
 
         <section>
           <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-            <FileText className="text-[#FF0099]" size={20} /> FAQ (sin inventar)
+            <FileText className="text-[#FF0099]" size={20} /> Preguntas frecuentes (sin inventar)
           </h2>
 
           <div className="grid md:grid-cols-2 gap-4">
@@ -97,7 +97,7 @@ export default function SupportPage() {
                 <ShieldAlert size={16} className="text-zinc-500" /> Depósitos SPEI
               </h3>
               <p className="text-sm text-zinc-400 leading-relaxed">
-                El depósito se genera con folio e instrucciones. Si no se refleja, soporte lo valida con tu folio + comprobante.
+                El depósito se arma con folio e instrucciones. Si no se refleja, soporte lo valida con tu folio + comprobante.
               </p>
             </Card>
 
@@ -106,7 +106,7 @@ export default function SupportPage() {
                 <ShieldAlert size={16} className="text-zinc-500" /> Retiros
               </h3>
               <p className="text-sm text-zinc-400 leading-relaxed">
-                Para retirar necesitas KYC aprobado. El retiro bloquea tu saldo mientras se procesa.
+                Pa' retirar necesitas KYC aprobado. El retiro bloquea tu saldo mientras se procesa, no hay vuelta de hoja.
               </p>
             </Card>
 
@@ -115,7 +115,7 @@ export default function SupportPage() {
                 <ShieldAlert size={16} className="text-zinc-500" /> Juegos “Provably Fair”
               </h3>
               <p className="text-sm text-zinc-400 leading-relaxed">
-                Crash y Taco Slot guardan seeds/hash para verificación. No usamos “blockchain” aquí: es verificación criptográfica directa.
+                Crash y Taco Slot guardan seeds/hash pa' que verifiques. No usamos "blockchain" aquí: es verificación criptográfica directa, sin maice.
               </p>
             </Card>
 
@@ -124,7 +124,7 @@ export default function SupportPage() {
                 <ShieldAlert size={16} className="text-zinc-500" /> Disputas
               </h3>
               <p className="text-sm text-zinc-400 leading-relaxed">
-                Envía ID/folio y evidencia. Se revisan logs del servidor y transacciones de la wallet.
+                Manda ID/folio y evidencia. Se revisan los logs del servidor y las transacciones de la wallet.
               </p>
             </Card>
           </div>

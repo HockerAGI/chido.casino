@@ -46,7 +46,7 @@ const CATEGORY_ICONS: Record<string, any> = {
   sports: Swords,
 };
 
-const SLANG_WINS = ["Nivel alto", "Buen ritmo", "Todo limpio", "Hoy se arma", "Fluye bonito", "Súbelo", "A cobrar"];
+const SLANG_WINS = ["Va bien armado", "Le lleva la verde", "Todo quedo camión", "Hoy se avienta", "Rifa bonito", "Súbele la afición", "A la carga y a cobrar"];
 
 export default function LobbyPage() {
   const { toast } = useToast();
@@ -84,17 +84,17 @@ export default function LobbyPage() {
         body: JSON.stringify({ code }),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json?.error || "No se pudo activar");
+      if (!res.ok) throw new Error(json?.error || "No se pudo rajar");
 
       toast({
-        title: "Promoción activada",
-        description: json?.message || "Ya quedó. Se aplicará según la regla de la promo.",
+        title: "¡Promo clavada!",
+        description: json?.message || "Ya quedó. Se aplica según la regla de la promo, sin trucos.",
       });
       setPromoCode("");
     } catch (e: any) {
       toast({
-        title: "No se pudo activar",
-        description: e?.message || "Error",
+        title: "No se pudo clavar",
+        description: e?.message || "Chale, algo falló",
         variant: "destructive",
       });
     } finally {
@@ -153,16 +153,16 @@ export default function LobbyPage() {
           <div className="relative z-10 p-6 md:p-8 flex flex-col md:flex-row justify-between gap-6">
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2 rounded-full bg-[#FF0099]/20 border border-[#FF0099]/30 px-3 py-1 text-[11px] font-black tracking-widest text-[#FF0099] mb-4">
-                <Flame size={12} /> Bono de bienvenida
+                <Flame size={12} /> Bono pa los nuevos
               </div>
               <h2 className="text-3xl md:text-5xl font-black text-white leading-tight mb-3">
-                Juega con estilo y{" "}
+                Juega a lo chido y{" "}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FF0099] to-[#FF5E00]">
-                  cobra sin fricción.
+                  cobra sin chaquetear.
                 </span>
               </h2>
               <p className="text-white/65 text-sm md:text-base mb-6 max-w-xl">
-                Juegos originales, promociones claras y una wallet lista para depósitos, retiros y seguimiento real.
+                Juegos originales, promos sin maice y una wallet lista para meter y sacar lana cuando quieras, todo en vivo y sin tramoya.
               </p>
 
               <div className="flex flex-wrap gap-3">
@@ -170,13 +170,13 @@ export default function LobbyPage() {
                   href="/wallet?tab=deposit"
                   className="inline-flex items-center gap-2 rounded-2xl bg-white text-black px-5 py-3 text-sm font-black hover:scale-105 transition"
                 >
-                  <Gift size={16} /> Depositar
+                  <Gift size={16} /> Echar lana
                 </Link>
                 <Link
                   href="/promos"
                   className="inline-flex items-center gap-2 rounded-2xl bg-white/10 border border-white/20 text-white px-5 py-3 text-sm font-bold hover:bg-white/15 transition"
                 >
-                  Ver promociones <ChevronRight size={16} />
+                  Ver las promos <ChevronRight size={16} />
                 </Link>
               </div>
             </div>
@@ -184,7 +184,7 @@ export default function LobbyPage() {
             <div className="md:w-72 rounded-3xl border border-white/10 bg-black/35 p-5 backdrop-blur-xl">
               <div className="text-[10px] uppercase tracking-[0.28em] text-white/40 font-black">Frase del momento</div>
               <div className="mt-3 text-3xl font-black text-white leading-tight">{SLANG_WINS[slangIdx]}</div>
-              <div className="mt-2 text-xs text-white/35">La experiencia de hoy, sin ruido interno.</div>
+              <div className="mt-2 text-xs text-white/35">La onda de hoy, sin rodeos.</div>
             </div>
           </div>
         </section>
@@ -209,7 +209,7 @@ export default function LobbyPage() {
               </div>
             </div>
             <Link href="/profile" className="shrink-0 text-xs text-[#FF0099] font-black flex items-center gap-1 hover:underline whitespace-nowrap">
-              Ver perfil <ChevronRight size={13} />
+              Ver mi perfil <ChevronRight size={13} />
             </Link>
           </section>
         )}
@@ -238,7 +238,7 @@ export default function LobbyPage() {
         <section>
           <div className="flex items-center gap-2 mb-4">
             <Flame size={18} className="text-[#FF5E00]" />
-            <h2 className="text-base font-black text-white uppercase tracking-tight">Destacados</h2>
+            <h2 className="text-base font-black text-white uppercase tracking-tight">Lo que está rifando</h2>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {hotGames.map((g) => (
@@ -253,7 +253,7 @@ export default function LobbyPage() {
                 <div className="text-xs font-black text-white leading-tight mb-1">{g.title}</div>
                 {g.status === "coming_soon" ? (
                   <div className="flex items-center gap-1 text-[10px] text-white/40 font-bold">
-                    <Clock size={10} /> Próximamente
+                    <Clock size={10} /> Viene en camino
                   </div>
                 ) : (
                   <div className="inline-flex items-center gap-1 rounded-full bg-black/30 border border-white/10 px-2 py-0.5 text-[10px] font-black text-white/70">
@@ -272,7 +272,7 @@ export default function LobbyPage() {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Busca tu juego favorito..."
+              placeholder="Busca tu juego carnal..."
               className="w-full rounded-2xl bg-black/40 border border-white/10 pl-10 pr-4 py-3 text-sm text-white placeholder:text-white/35 focus:outline-none focus:border-white/25 focus:bg-black/50 transition"
             />
           </div>
@@ -309,7 +309,7 @@ export default function LobbyPage() {
           {filtered.length === 0 ? (
             <div className="rounded-[1.75rem] border border-white/10 bg-black/35 py-16 text-center text-sm font-bold text-white/40">
               <div className="mb-3 text-4xl">🤔</div>
-              No encontramos coincidencias.
+              No le atinamos carnal, no hay coincidencias.
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -345,7 +345,7 @@ export default function LobbyPage() {
                           >
                             {g.status === "coming_soon" ? (
                               <>
-                                <Clock size={10} /> Próximamente
+                                <Clock size={10} /> Viene en camino
                               </>
                             ) : g.status === "hot" ? (
                               <>
@@ -400,11 +400,11 @@ export default function LobbyPage() {
                         <div className="mt-4">
                           {g.status !== "coming_soon" ? (
                             <div className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-2.5 text-sm font-black text-black transition group-hover:scale-[1.02]">
-                              Jugar ahora →
+                              ¡A darle! →
                             </div>
                           ) : (
                             <div className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-bold text-white/40">
-                              <Lock size={13} /> Próximamente
+                              <Lock size={13} /> Viene en camino
                             </div>
                           )}
                         </div>
@@ -437,7 +437,7 @@ export default function LobbyPage() {
         <section className="rounded-[2rem] border border-[#FFD700]/20 bg-[linear-gradient(135deg,rgba(26,18,0,0.95),rgba(0,0,0,0.6))] p-6">
           <div className="flex items-center gap-2 mb-4">
             <Ticket size={18} className="text-[#FFD700]" />
-            <h3 className="text-sm font-black text-white">¿Tienes un código?</h3>
+            <h3 className="text-sm font-black text-white">¿Traes un código, carnal?</h3>
           </div>
           <div className="flex gap-3 flex-col sm:flex-row">
             <input
@@ -452,10 +452,10 @@ export default function LobbyPage() {
               disabled={redeeming || !promoCode.trim()}
               className="rounded-2xl bg-[#FFD700] px-5 py-3 text-sm font-black text-black transition hover:bg-[#FFE44D] disabled:opacity-40"
             >
-              {redeeming ? "..." : "Activar"}
+              {redeeming ? "..." : "Clavarlo"}
             </button>
           </div>
-          <p className="mt-3 text-xs text-white/35">La promo activa se aplicará según sus reglas.</p>
+          <p className="mt-3 text-xs text-white/35">La promo se aplica según sus reglas, sin hacerle el paro a nadie.</p>
         </section>
 
         <section className="rounded-[2rem] border border-[#00F0FF]/15 bg-[linear-gradient(135deg,rgba(0,26,26,0.96),rgba(0,0,0,0.6))] p-5">
@@ -464,9 +464,9 @@ export default function LobbyPage() {
               🤖
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-sm font-black text-white">Asistente de juego</div>
+              <div className="text-sm font-black text-white">Tu compa bot</div>
               <div className="text-xs leading-relaxed text-white/45">
-                Si no sabes qué jugar, empieza por Crash o Taco Slot. Son directos y rápidos para entender el flujo.
+                Si no sabes qué echar, arranca con Crash o Taco Slot. Van directo y se le agarran rápido la onda.
               </div>
             </div>
             <div className="shrink-0 rounded-2xl border border-[#00F0FF]/20 bg-[#00F0FF]/10 px-4 py-2 text-xs font-black text-[#00F0FF]">

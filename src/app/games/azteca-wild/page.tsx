@@ -10,17 +10,17 @@ export default function AztecaWildPage() {
       badgeTone="emerald"
       emoji="🏛️"
       title="Azteca Wild"
-      subtitle="Piedra, fuego y cascadas con pulso de marca grande."
-      description="Pirámides, wilds en cascada, bonus rounds con energía ceremonial y una estética que se siente de estudio premium. La sala queda lista para la integración real de motor, audio y provider."
+      subtitle="Piedra, fuego y cascadas con pulso de marca grande, bien recio."
+      description="Pirámides, wilds en cascada, bonus rounds con energía ceremonial y una estética que se siente de estudio premium. La sala queda lista pa' la integración real de motor, audio y provider, sin andar con chingonerías."
       stats={[
         { label: "RTP", value: "96.8%" },
         { label: "Max Win", value: "5,000x" },
         { label: "Volatilidad", value: "Alta" },
       ]}
       features={[
-        { title: "Wilds encadenados", copy: "Caídas con reacciones visuales y feedback que empuja la emoción.", icon: Sparkles },
-        { title: "Bonus ceremonial", copy: "Pantalla, ritmo y FX para que el bonus se sienta como evento.", icon: Flame },
-        { title: "Backoffice listo", copy: "Pensado para colgarse al control maestro de HOCKER sin fricción.", icon: ShieldCheck },
+        { title: "Wilds encadenados", copy: "Caídas con reacciones visuales y feedback que le mete acelerón a la emoción.", icon: Sparkles },
+        { title: "Bonus ceremonial", copy: "Pantalla, ritmo y FX pa' que el bonus se sienta como evento, no como adorno.", icon: Flame },
+        { title: "Backoffice listo", copy: "Pensado pa' colgarse al control maestro de HOCKER sin chaquetear.", icon: ShieldCheck },
       ]}
       progress={[
         { label: "Arte y UI", value: 100 },

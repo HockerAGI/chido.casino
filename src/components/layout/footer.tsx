@@ -11,7 +11,7 @@ export function Footer() {
             <div className="text-sm font-black">Chido Casino</div>
           </div>
           <div className="mt-3 text-xs text-white/55 leading-relaxed">
-            Juegos originales, wallet en vivo, bonos reales y soporte operativo para lanzamiento comercial.
+            Juegos bien chidos, wallet en vivo, bonos sin trucos y soporte al tiro para que rife bonito.
           </div>
           <div className="mt-3 text-[11px] text-white/40">18+ • Juego responsable</div>
         </div>

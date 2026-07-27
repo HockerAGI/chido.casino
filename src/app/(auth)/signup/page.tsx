@@ -129,7 +129,7 @@ export default function SignupPage() {
             href="/login"
             className="inline-flex items-center gap-2 text-[#00F0FF] text-sm font-black hover:underline"
           >
-            Iniciar sesión →
+            Entrar →
           </Link>
         </div>
       </div>
@@ -268,7 +268,7 @@ export default function SignupPage() {
           href="/login"
           className="flex items-center justify-center w-full h-12 rounded-2xl border border-[#FF0099]/30 bg-[#FF0099]/5 hover:bg-[#FF0099]/10 hover:border-[#FF0099]/50 transition-all font-bold text-sm text-[#FF0099]"
         >
-          Iniciar sesión — ¡Órale!
+          Ya tengo cuenta — ¡Órale!
         </Link>
       </div>
     </div>

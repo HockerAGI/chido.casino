@@ -10,8 +10,8 @@ export default function PiñataFiestaPage() {
       badgeTone="red"
       emoji="🪅"
       title="Piñata Fiesta"
-      subtitle="Rompe la piñata y suelta una lluvia de premios."
-      description="La sala entra con identidad mexicana, timing agresivo y una UI que no se ve genérica. Aquí lo importante es que cada caída y cada bonus se lean con claridad y energía."
+      subtitle="Rómpele la piñata y que caiga lluvia de premios, bien de a montón."
+      description="La sala entra con identidad mexicana, timing agresivo y una UI que no se ve genérica. Aquí lo importante es que cada caída y cada bonus se lean con claridad y energía, sin andar de mechudos."
       stats={[
         { label: "RTP", value: "96.5%" },
         { label: "Max Win", value: "3,500x" },

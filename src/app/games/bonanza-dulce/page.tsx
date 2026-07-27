@@ -10,8 +10,8 @@ export default function BonanzaDulcePage() {
       badgeTone="pink"
       emoji="🍬"
       title="Bonanza Dulce"
-      subtitle="La sala se ve dulce; el UX debe pegar duro."
-      description="Cluster pays, explosiones de azúcar, multiplicadores y una dirección visual más grande que el promedio. No es una vitrina floja: queda con framing de producto serio, animación y lectura clara."
+      subtitle="La sala se ve dulce; el UX pega duro, no es puro caramelo."
+      description="Cluster pays, explosiones de azúcar, multiplicadores y una dirección visual más grande que el promedio. No es una vitrina chafa: queda con framing de producto serio, animación y lectura clara, bien armado."
       stats={[
         { label: "RTP", value: "96.5%" },
         { label: "Max Win", value: "21,100x" },

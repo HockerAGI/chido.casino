@@ -41,7 +41,7 @@ export async function fraudLog(
 
 export async function velocityLimit(
   supabaseAdmin: SupabaseClient,
-  table: "manual_deposit_requests" | "withdraw_requests",
+  table: "manual_deposit_requests" | "withdraw_requests" | "deposit_intents",
   params: { userId: string; minutes: number; max: number }
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {

@@ -16,7 +16,7 @@ const LEVELS = [
     badge: "/badge-verde.png",
     minXp: 0,
     color: "#32CD32",
-    perks: ["Acceso completo al lobby", "Bonos de bienvenida", "Soporte estándar"],
+    perks: ["Acceso completo al lobby", "Bonos pa' los nuevos", "Soporte estándar"],
     cashback: "0%",
     maxBet: "Sin límite especial",
   },
@@ -36,7 +36,7 @@ const LEVELS = [
     badge: "/badge-serrano.png",
     minXp: 1500,
     color: "#FF5E00",
-    perks: ["Cashback ampliado", "Retiros más rápidos", "Bonos exclusivos"],
+    perks: ["Cashback ampliado", "Retiros más rapidito", "Bonos exclusivos"],
     cashback: "5%",
     maxBet: "+50% límite",
   },
@@ -56,7 +56,7 @@ const LEVELS = [
     badge: "/badge-salsa.png",
     minXp: 6000,
     color: "#00F0FF",
-    perks: ["Beneficios máximos", "Eventos especiales", "Atención VIP directa"],
+    perks: ["Beneficios al máximo", "Eventos especiales", "Atención VIP directa"],
     cashback: "12%",
     maxBet: "Sin límite + mesas especiales",
   },
@@ -85,7 +85,7 @@ export default function VIPPage() {
           </h1>
 
           <p className="mx-auto mt-4 max-w-3xl text-lg leading-relaxed text-white/60">
-            Entre más juegas, más beneficios acumulas. Cashback, soporte prioritario y acceso a beneficios superiores.
+            Entre más juegas, más se arman los beneficios. Cashback, soporte al tiro y acceso a ondas superiores, todo sin tramoya.
           </p>
 
           {profile && (
@@ -112,9 +112,9 @@ export default function VIPPage() {
       <div className="mx-auto max-w-6xl px-6 py-12 space-y-12">
         <section className="grid gap-4 md:grid-cols-3">
           {[
-            { icon: Zap, title: "Juega y acumula XP", desc: "Cada apuesta suma experiencia automáticamente." },
+            { icon: Zap, title: "Juega y jala XP", desc: "Cada apuesta te suma experiencia al toque, sin hacerle nada." },
             { icon: Star, title: "Sube de nivel", desc: "Verde → Jalapeño → Serrano → Habanero → Salsa Pro." },
-            { icon: Gift, title: "Beneficios reales", desc: "Cashback, bonos, retiros rápidos y trato preferente." },
+            { icon: Gift, title: "Beneficios bien reales", desc: "Cashback, bonos, retiros rapidito y trato preferente." },
           ].map(({ icon: Icon, title, desc }) => (
             <div key={title} className="rounded-[1.75rem] border border-white/10 bg-black/35 p-6 text-center backdrop-blur-xl">
               <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
@@ -206,7 +206,7 @@ export default function VIPPage() {
             <div className="min-w-0 flex-1">
               <div className="text-sm font-black text-white">Centro VIP</div>
               <div className="text-xs leading-relaxed text-white/45">
-                Tu actividad se convierte en mejores beneficios, sin procesos raros ni mensajes internos visibles.
+                Tu actividad se convierte en mejores beneficios, sin procesos chafa ni rodeos visibles.
               </div>
             </div>
             <div className="shrink-0 rounded-2xl border border-[#00F0FF]/20 bg-[#00F0FF]/10 px-4 py-2 text-xs font-black text-[#00F0FF]">
@@ -216,20 +216,20 @@ export default function VIPPage() {
         </section>
 
         <section className="text-center">
-          <h3 className="text-2xl font-black text-white">¿Listo para subir de nivel?</h3>
-          <p className="mt-2 text-sm text-white/50">Deposita, juega y gana XP automáticamente.</p>
+          <h3 className="text-2xl font-black text-white">¿Listo pa' subir de nivel?</h3>
+          <p className="mt-2 text-sm text-white/50">Echa lana, juega y jala XP automático.</p>
           <div className="mt-6 flex flex-wrap justify-center gap-4">
             <Link
               href="/wallet?tab=deposit"
               className="inline-flex items-center gap-2 rounded-2xl bg-white px-6 py-3 text-sm font-black text-black transition hover:scale-[1.02]"
             >
-              <Wallet size={16} /> Depositar ahora
+              <Wallet size={16} /> Echar lana ya
             </Link>
             <Link
               href="/lobby"
               className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-bold text-white transition hover:bg-white/10"
             >
-              Ir al lobby <ChevronRight size={16} />
+              Al lobby <ChevronRight size={16} />
             </Link>
           </div>
         </section>

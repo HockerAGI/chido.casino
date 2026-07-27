@@ -10,8 +10,8 @@ export default function CatrinaBonanzaPage() {
       badgeTone="amber"
       emoji="💀"
       title="Catrina Bonanza"
-      subtitle="Día de muertos con bonus modernos y presencia brutal."
-      description="Una sala que mezcla folclor, lujo visual y una lectura premium pensada para conversiones, no para verse improvisada. La Catrina entra con personalidad fuerte, multiplicadores y capas de presentación muy limpias."
+      subtitle="Día de muertos con bonus modernos y presencia brutal, bien de a peso."
+      description="Una sala que mezcla folclor, lujo visual y una lectura premium pensada pa' conversiones, no pa' verse improvisada. La Catrina entra con personalidad fuerte, multiplicadores y capas de presentación muy limpias, sin andar de chafa."
       stats={[
         { label: "RTP", value: "96.0%" },
         { label: "Max Win", value: "10,000x" },

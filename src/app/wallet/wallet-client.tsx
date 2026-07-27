@@ -32,6 +32,11 @@ type CreateDepositResponse = {
   error?: string;
   instructions?: any;
   request?: any;
+  mode?: "manual" | "mercadopago" | "oxxo";
+  initPoint?: string;
+  sandboxInitPoint?: string;
+  preferenceId?: string;
+  folio?: string;
 };
 
 type WithdrawResponse = {
@@ -40,6 +45,8 @@ type WithdrawResponse = {
   status?: string;
   externalId?: string;
 };
+
+type DepositMethod = "spei" | "card" | "oxxo";
 
 const CURRENCY_SYMBOL = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || "MXN";
 
@@ -67,6 +74,7 @@ export default function WalletClient() {
   const [amount, setAmount] = useState("");
 
   const [depositLoading, setDepositLoading] = useState(false);
+  const [depositMethod, setDepositMethod] = useState<DepositMethod>("card");
   const [instructions, setInstructions] = useState<any | null>(null);
   const [manualReq, setManualReq] = useState<any | null>(null);
 
@@ -163,13 +171,18 @@ export default function WalletClient() {
       return;
     }
 
+    if (amt < 20) {
+      setMessage("El depósito mínimo es de $20 MXN.");
+      return;
+    }
+
     setDepositLoading(true);
 
     try {
       const res = await fetch("/api/payments/create-deposit", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ amount: amt, method: "spei" }),
+        body: JSON.stringify({ amount: amt, method: depositMethod }),
       });
 
       const data = await safeJson<CreateDepositResponse>(res);
@@ -178,6 +191,17 @@ export default function WalletClient() {
         throw new Error(data.error || "No se pudo generar el depósito.");
       }
 
+      // Mercado Pago: redirect to checkout
+      if (data.mode === "mercadopago" && (data.initPoint || data.sandboxInitPoint)) {
+        setMessage("¡Listo! Te estamos mandando a Mercado Pago...");
+        const url = data.initPoint || data.sandboxInitPoint;
+        if (url) {
+          window.location.href = url;
+        }
+        return;
+      }
+
+      // OXXO or SPEI: show instructions
       setMessage(data.message || "Depósito generado.");
       setInstructions((data as any).instructions ?? null);
       setManualReq((data as any).request ?? null);
@@ -273,7 +297,7 @@ export default function WalletClient() {
             </div>
             <div>
               <div className="text-xs font-bold uppercase tracking-widest text-white/50">Chido Wallet</div>
-              <div className="text-[10px] text-white/30">Depósitos SPEI, retiros y saldo en vivo.</div>
+              <div className="text-[10px] text-white/30">Tarjeta, SPEI, OXXO y retiros en vivo.</div>
             </div>
           </div>
 
@@ -324,7 +348,47 @@ export default function WalletClient() {
           {selectedTab === "deposit" ? (
             <div className="rounded-3xl border border-white/10 bg-black/30 p-6">
               <div className="flex items-center gap-2 text-sm font-black">
-                <Sparkles size={18} /> Generar depósito SPEI
+                <Sparkles size={18} /> Depositar
+              </div>
+
+              {/* Payment method selector */}
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => setDepositMethod("card")}
+                  className={`rounded-2xl px-3 py-2 text-xs font-bold transition-all ${
+                    depositMethod === "card"
+                      ? "bg-[#00B0EF] text-white border border-[#00B0EF]/50"
+                      : "bg-white/5 text-white/50 border border-white/10 hover:bg-white/10"
+                  }`}
+                >
+                  💳 Tarjeta
+                </button>
+                <button
+                  onClick={() => setDepositMethod("spei")}
+                  className={`rounded-2xl px-3 py-2 text-xs font-bold transition-all ${
+                    depositMethod === "spei"
+                      ? "bg-[#32CD32] text-black border border-[#32CD32]/50"
+                      : "bg-white/5 text-white/50 border border-white/10 hover:bg-white/10"
+                  }`}
+                >
+                  🏦 SPEI
+                </button>
+                <button
+                  onClick={() => setDepositMethod("oxxo")}
+                  className={`rounded-2xl px-3 py-2 text-xs font-bold transition-all ${
+                    depositMethod === "oxxo"
+                      ? "bg-[#FF5E00] text-white border border-[#FF5E00]/50"
+                      : "bg-white/5 text-white/50 border border-white/10 hover:bg-white/10"
+                  }`}
+                >
+                  🏪 OXXO
+                </button>
+              </div>
+
+              <div className="mt-3 text-[11px] text-white/40">
+                {depositMethod === "card" && "Paga con tarjeta de débito/crédito vía Mercado Pago. El saldo se acredita al instante."}
+                {depositMethod === "spei" && "Transferencia bancaria SPEI. El saldo se acredita al confirmar el pago."}
+                {depositMethod === "oxxo" && "Paga en efectivo en cualquier OXXO. El saldo se acredita al procesar el pago."}
               </div>
 
               <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
@@ -332,9 +396,9 @@ export default function WalletClient() {
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   type="number"
-                  min="1"
+                  min="20"
                   step="1"
-                  placeholder="Monto a depositar"
+                  placeholder="Monto a depositar (mín. $20)"
                   className="h-12 rounded-2xl border border-white/10 bg-black/40 px-4 text-sm text-white outline-none placeholder:text-white/30"
                 />
                 <button
@@ -348,27 +412,50 @@ export default function WalletClient() {
 
               {instructions && (
                 <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
-                  <div className="font-black text-white mb-2">Instrucciones SPEI</div>
-                  <div className="space-y-1 text-xs text-white/60">
-                    <div>Folio: <span className="font-mono text-white">{instructions.folio}</span></div>
-                    <div>CLABE: <span className="font-mono text-white">{instructions.spei?.clabe}</span></div>
-                    <div>Beneficiario: {instructions.spei?.beneficiary}</div>
-                    <div>Concepto: <span className="font-mono text-white">{instructions.spei?.concept}</span></div>
+                  <div className="font-black text-white mb-2">
+                    {instructions.title || "Instrucciones de depósito"}
                   </div>
+                  {instructions.spei && (
+                    <div className="space-y-1 text-xs text-white/60">
+                      <div>Folio: <span className="font-mono text-white">{instructions.folio}</span></div>
+                      <div>CLABE: <span className="font-mono text-white">{instructions.spei?.clabe}</span></div>
+                      <div>Beneficiario: {instructions.spei?.beneficiary}</div>
+                      <div>Concepto: <span className="font-mono text-white">{instructions.spei?.concept}</span></div>
+                    </div>
+                  )}
+                  {instructions.oxxo && (
+                    <div className="space-y-1 text-xs text-white/60">
+                      <div>Folio: <span className="font-mono text-white">{instructions.folio}</span></div>
+                      <div>Referencia OXXO: <span className="font-mono text-white">{instructions.oxxo?.reference}</span></div>
+                      <div>Monto: <span className="font-mono text-white">${instructions.amount} MXN</span></div>
+                    </div>
+                  )}
 
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <button
-                      onClick={() => copy(instructions.spei?.clabe || "")}
-                      className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white/70"
-                    >
-                      <Copy size={13} /> Copiar CLABE
-                    </button>
-                    <button
-                      onClick={() => copy(instructions.spei?.concept || "")}
-                      className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white/70"
-                    >
-                      <Copy size={13} /> Copiar concepto
-                    </button>
+                    {instructions.spei && (
+                      <>
+                        <button
+                          onClick={() => copy(instructions.spei?.clabe || "")}
+                          className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white/70"
+                        >
+                          <Copy size={13} /> Copiar CLABE
+                        </button>
+                        <button
+                          onClick={() => copy(instructions.spei?.concept || "")}
+                          className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white/70"
+                        >
+                          <Copy size={13} /> Copiar concepto
+                        </button>
+                      </>
+                    )}
+                    {instructions.oxxo && (
+                      <button
+                        onClick={() => copy(instructions.oxxo?.reference || "")}
+                        className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white/70"
+                      >
+                        <Copy size={13} /> Copiar referencia
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -473,7 +560,7 @@ export default function WalletClient() {
               <Gift size={18} /> Producción real
             </div>
             <div className="mt-2 leading-relaxed">
-              Los depósitos SPEI quedan registrados con folio. Los retiros se bloquean por KYC y se actualizan en tiempo real cuando el backend mueve el saldo.
+              Depósitos con tarjeta vía Mercado Pago se acreditan al instante. Los depósitos SPEI y OXXO quedan registrados con folio. Los retiros se bloquean por KYC y se actualizan en tiempo real cuando el backend mueve el saldo.
             </div>
           </div>
         </div>

@@ -11,7 +11,7 @@ export default function LegalPage() {
         <div className="max-w-5xl mx-auto">
           <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight">Legal & Cumplimiento</h1>
           <p className="mt-2 text-white/55 text-sm">
-            Este documento describe reglas reales de uso según el sistema implementado (KYC para retiros, promos con rollover, antifraude, etc.).
+            Aquí van las reglas reales de uso según el sistema ya montado (KYC pa' retiros, promos con rollover, antifraude, etc.), sin inventar.
           </p>
           <div className="mt-4">
             <Link href="/lobby" className="text-xs text-white/60 hover:text-white inline-flex items-center gap-1">
@@ -49,9 +49,9 @@ export default function LegalPage() {
                 CHIDO es una plataforma de entretenimiento. Debes ser mayor de edad (18+). Si eres menor, no uses el sistema.
               </p>
               <ul className="list-disc pl-5 space-y-2">
-                <li>1 cuenta por persona. Multicuenta/abuso puede causar bloqueo de cuenta y/o reversión de bonos.</li>
+                <li>1 cuenta por persona. Andar de vivo con multicuentas puede causar bloqueo y/o que te jalen los bonos.</li>
                 <li>Promos: 1 promo activa por usuario a la vez (regla implementada en backend).</li>
-                <li>Pagos: por ahora el sistema implementa depósitos SPEI manuales/Bitso-Juno según configuración.</li>
+                <li>Pagos: el sistema ya cuenta con tarjeta (Mercado Pago), SPEI y OXXO para depósitos, y retiros vía Mercado Pago o manual según configuración.</li>
               </ul>
             </div>
           </Card>
@@ -60,7 +60,7 @@ export default function LegalPage() {
             <h2 className="text-xl font-black mb-3">2) Privacidad</h2>
             <div className="text-sm text-white/70 space-y-3 leading-relaxed">
               <p>
-                El sistema almacena datos mínimos necesarios para operar: cuenta, wallet, transacciones y métricas antifraude.
+                El sistema guarda lo mínimo necesario pa' operar: cuenta, wallet, transacciones y métricas antifraude.
               </p>
               <p>
                 Afiliados: los clicks pueden registrarse con hash de IP (no se guarda la IP en claro si hay salt configurado).
@@ -72,7 +72,7 @@ export default function LegalPage() {
             <h2 className="text-xl font-black mb-3">3) KYC / AML (implementado)</h2>
             <div className="text-sm text-white/70 space-y-3 leading-relaxed">
               <p>
-                Para solicitar retiros, el sistema exige KYC aprobado (bloqueo real en /api/payments/withdraw).
+                Pa' sacar tu lana, el sistema exige KYC aprobado (bloqueo real en /api/payments/withdraw).
               </p>
               <p>
                 Si necesitas KYC, solicítalo en <Link className="underline" href="/support">Soporte</Link>.
@@ -84,7 +84,7 @@ export default function LegalPage() {
             <h2 className="text-xl font-black mb-3">4) Juego responsable</h2>
             <div className="text-sm text-white/70 space-y-3 leading-relaxed">
               <p>
-                Juega por entretenimiento. Si sientes que pierdes control, pausa y contacta soporte para medidas manuales (bloqueo/limitación).
+                Juega por diversiones. Si sientes que se te va el avión, pausa y mándale a soporte pa' medidas (bloqueo/limitación).
               </p>
               <p className="text-xs text-white/50">
                 Nota: límites automáticos y autoexclusión “en UI” no se prometen aquí si no están desplegados.

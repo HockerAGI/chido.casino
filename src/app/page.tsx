@@ -23,14 +23,14 @@ export default function Home() {
               href="/signup"
               className="px-6 py-2.5 rounded-full bg-white text-black text-sm font-black hover:bg-chido-cyan transition-colors shadow-[0_0_20px_rgba(255,255,255,0.2)]"
             >
-              REGISTRARME
+              ÁRMAME MI CUENTA
             </Link>
           </div>
         </header>
 
         <main className="flex-1 flex flex-col justify-center items-start max-w-4xl">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-chido-pink/30 bg-chido-pink/10 text-chido-pink text-xs font-black tracking-widest uppercase mb-6 backdrop-blur-md animate-fade-in shadow-lg">
-            <Flame size={12} className="animate-pulse" /> Chido Casino • Lanzamiento
+            <Flame size={12} className="animate-pulse" /> Chido Casino • Ya llegó la buena
           </div>
 
           <h1 className="text-6xl md:text-9xl font-black tracking-tighter leading-[0.9] mb-8 animate-fade-in drop-shadow-2xl">
@@ -42,7 +42,7 @@ export default function Home() {
           </h1>
 
           <p className="text-xl md:text-2xl text-zinc-300 mb-10 max-w-xl leading-relaxed animate-fade-in font-medium drop-shadow-md">
-            Juegos originales, bonos claros y una wallet lista para depósitos, retiros y control en vivo.
+            Juegos bien chidos, bonos sin trucos y una wallet lista para meter y sacar lana cuando quieras. Aquí no hay maice, puro real.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 animate-fade-in w-full sm:w-auto">
@@ -50,26 +50,26 @@ export default function Home() {
               href="/signup"
               className="px-10 py-5 rounded-full bg-gradient-to-r from-chido-pink to-chido-red text-white font-black text-xl hover:scale-105 transition-transform shadow-[0_0_40px_rgba(255,0,153,0.5)] flex items-center justify-center gap-3 group"
             >
-              ENTRAR
+              ÁNDALE, ENTRAR
               <ArrowRight className="group-hover:translate-x-1 transition-transform" />
             </Link>
             <Link
               href="/lobby"
               className="px-10 py-5 rounded-full bg-white/10 border border-white/10 text-white font-black text-xl hover:bg-white/15 transition-colors flex items-center justify-center"
             >
-              Ver lobby
+              Echar un ojo al lobby
             </Link>
           </div>
 
           <div className="mt-8 grid gap-3 sm:grid-cols-3 text-sm text-white/65">
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 flex items-center gap-2">
-              <ShieldCheck size={16} className="text-[#32CD32]" /> KYC para retiros
+              <ShieldCheck size={16} className="text-[#32CD32]" /> KYC para sacar tu lana
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 flex items-center gap-2">
-              <Wallet size={16} className="text-[#00F0FF]" /> Wallet en vivo
+              <Wallet size={16} className="text-[#00F0FF]" /> Wallet en vivo, sin tramoya
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 flex items-center gap-2">
-              <Crown size={16} className="text-[#FFD700]" /> VIP y promociones
+              <Crown size={16} className="text-[#FFD700]" /> VIP y promos bien ricas
             </div>
           </div>
         </main>

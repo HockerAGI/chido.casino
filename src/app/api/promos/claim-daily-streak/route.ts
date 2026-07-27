@@ -1,10 +1,9 @@
-
 import { NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/session";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { walletApplyDelta } from "@/lib/walletApplyDelta";
 
-// Define the rewards for each day of the streak
+// Define the rewards for each day of the streak (in MXN bonus)
 const DAILY_STREAK_REWARDS = [100, 200, 300, 400, 500, 600, 1000];
 
 // Helper to check if two dates are on the same day in UTC
@@ -27,35 +26,45 @@ export async function POST(req: Request) {
   try {
     const user = await requireSessionUser();
 
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from("profiles")
-      .select("daily_streak_last_claimed_at, daily_streak_count")
+    // Get the last streak claim from the daily_streak_claims table.
+    // If the table doesn't exist yet (pre-migration), fall back gracefully.
+    const { data: lastClaim, error: claimErr } = await supabaseAdmin
+      .from("daily_streak_claims")
+      .select("streak_count, claimed_at")
       .eq("user_id", user.id)
-      .single();
+      .order("claimed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (profileError && profileError.code !== "PGRST116") {
-      // PGRST116 means no rows were found, which is fine for a first-time claimer.
-      // Any other error is a real problem.
-      throw new Error(profileError.message);
+    const isMissingTable =
+      claimErr &&
+      String(claimErr.message || "")
+        .toLowerCase()
+        .includes("does not exist");
+
+    let lastClaimedAt: Date | null = null;
+    let currentStreak = 0;
+
+    if (!claimErr && lastClaim) {
+      lastClaimedAt = lastClaim.claimed_at ? new Date(lastClaim.claimed_at) : null;
+      currentStreak = Number(lastClaim.streak_count ?? 0);
     }
 
-    const lastClaimedAt = profile?.daily_streak_last_claimed_at
-      ? new Date(profile.daily_streak_last_claimed_at)
-      : null;
-    const currentStreak = profile?.daily_streak_count ?? 0;
     const today = new Date();
 
+    // Already claimed today?
     if (lastClaimedAt && isSameDay(lastClaimedAt, today)) {
       return NextResponse.json(
         {
           ok: false,
-          message: "Ya has reclamado tu premio de racha hoy. Vuelve mañana.",
+          message: "¡Ya te llevaste tu premio de racha hoy! Regresa mañana, no hay prisa.",
         },
         { status: 400 }
       );
     }
 
-    let newStreakCount = 1; // Default to 1 (streak reset)
+    // Calculate new streak
+    let newStreakCount = 1; // Default: streak reset
     if (lastClaimedAt && isYesterday(lastClaimedAt, today)) {
       newStreakCount = currentStreak + 1;
     }
@@ -66,43 +75,63 @@ export async function POST(req: Request) {
     );
     const todaysReward = DAILY_STREAK_REWARDS[rewardIndex];
 
+    // Credit the reward as bonus balance
+    const refId = `daily_streak:${user.id}:${today.toISOString().slice(0, 10)}`;
     const { error: walletError } = await walletApplyDelta(supabaseAdmin, {
       userId: user.id,
-      deltaBalance: todaysReward,
-      reason: "daily-streak-claim",
-      metadata: { day: newStreakCount },
+      deltaBalance: 0,
+      deltaBonus: todaysReward,
+      deltaLocked: 0,
+      reason: "daily_streak_claim",
+      refId,
+      metadata: { day: newStreakCount, reward: todaysReward },
     });
 
     if (walletError) {
-      throw new Error(`Failed to apply wallet delta: ${walletError}`);
+      const msg = String(walletError || "");
+      // Idempotency: if already claimed (duplicate ref), treat as success
+      if (msg.toLowerCase().includes("duplicate") || msg.includes("23505")) {
+        return NextResponse.json(
+          {
+            ok: false,
+            message: "¡Ya te llevaste tu premio de racha hoy! Regresa mañana.",
+          },
+          { status: 400 }
+        );
+      }
+      throw new Error(`No se pudo acreditar la recompensa: ${walletError}`);
     }
 
-    const { error: updateError } = await supabaseAdmin
-      .from("profiles")
-      .upsert({
-        user_id: user.id,
-        daily_streak_last_claimed_at: today.toISOString(),
-        daily_streak_count: newStreakCount,
-      }, { onConflict: 'user_id' })
-      .eq("user_id", user.id);
+    // Record the claim in daily_streak_claims table
+    if (!isMissingTable) {
+      const { error: insertErr } = await supabaseAdmin
+        .from("daily_streak_claims")
+        .insert({
+          user_id: user.id,
+          streak_count: newStreakCount,
+          reward_amount: todaysReward,
+          claimed_at: today.toISOString(),
+        });
 
-    if (updateError) {
-      console.error(
-        `CRITICAL: Failed to update streak for user ${user.id} after payment.`,
-        updateError
-      );
+      if (insertErr) {
+        console.error(
+          `CRITICAL: Failed to record streak claim for user ${user.id} after payment.`,
+          insertErr
+        );
+        // Don't fail the request — the bonus was already credited
+      }
     }
 
     return NextResponse.json({
       ok: true,
-      message: "¡Qué curado! Tu recompensa de racha diaria ha sido acreditada. ¡No hay falla!",
+      message: `¡Qué chido! Tu recompensa de racha diaria de ${todaysReward} MXN ha sido acreditada. ¡Racha de ${newStreakCount} día(s)!`,
       awarded: todaysReward,
       streak: newStreakCount,
     });
   } catch (error) {
     console.error("Daily streak claim error:", error);
     const errorMessage =
-      error instanceof Error ? error.message : "An unexpected error occurred.";
+      error instanceof Error ? error.message : "Ocurrió un error inesperado.";
     if (errorMessage === "UNAUTHORIZED") {
       return NextResponse.json(
         { ok: false, message: "Acceso no autorizado." },
