@@ -7,7 +7,7 @@ Chido Casino (chido.casino) is a Mexico-focused gaming and wallet app built with
 - Framework: Next.js App Router
 - Auth/DB: Supabase
 - Styling: Tailwind CSS
-- Runtime: Node.js 20
+- Runtime: Node.js 24
 - Local dev: `npm run dev` on port 3000
 
 ## Key Routes

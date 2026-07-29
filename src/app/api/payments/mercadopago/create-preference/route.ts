@@ -1,1 +1,3 @@
-export { runtime, POST } from "../../create-deposit/route";
+export const runtime = "nodejs";
+
+export { POST } from "../../create-deposit/route";
