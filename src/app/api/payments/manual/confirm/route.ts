@@ -1,9 +1,9 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { auditAdminAction, requireAdmin } from "@/lib/adminAuth";
 import { applyPromoForDeposit } from "@/lib/applyPromoForDeposit";
-
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 function isArgMismatch(msg: string) {
   const m = msg.toLowerCase();
@@ -27,61 +27,43 @@ async function notifyTelegram(text: string) {
     await fetch(`https://api.telegram.org/bot${bot}/sendMessage`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        disable_web_page_preview: true,
-      }),
+      body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }),
     });
   } catch {
-    // no truena si Telegram está vacío o falla
+    // Telegram is best effort.
   }
 }
 
 async function confirmManualDeposit(folio: string, amount?: number | null) {
   const refId = folio;
 
-  // intento 1: params “modernos”
   const a = await supabaseAdmin.rpc("admin_confirm_manual_deposit", {
     p_folio: folio,
     p_amount: amount ?? null,
     p_ref_id: refId,
   } as any);
-
   if (!a.error) return a;
+  if (!isArgMismatch(String(a.error?.message || ""))) return a;
 
-  const msgA = String(a.error?.message || "");
-  if (!isArgMismatch(msgA)) return a;
-
-  // intento 2: params alternos
   const b = await supabaseAdmin.rpc("admin_confirm_manual_deposit", {
     folio,
     amount: amount ?? null,
     ref_id: refId,
   } as any);
-
   if (!b.error) return b;
+  if (!isArgMismatch(String(b.error?.message || ""))) return b;
 
-  const msgB = String(b.error?.message || "");
-  if (!isArgMismatch(msgB)) return b;
-
-  // intento 3: legacy p_method
-  const c = await supabaseAdmin.rpc("admin_confirm_manual_deposit", {
+  return supabaseAdmin.rpc("admin_confirm_manual_deposit", {
     p_folio: folio,
     p_amount: amount ?? null,
     p_method: refId,
   } as any);
-
-  return c;
 }
 
 export async function POST(req: Request) {
   try {
-    const token = req.headers.get("x-admin-token") || "";
-    const expected = process.env.ADMIN_API_TOKEN || "";
-    if (!expected || token !== expected) {
-      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireAdmin(req, "payments:write");
+    if (!auth.ok) return auth.response;
 
     const body = (await req.json()) as { folio?: string; amount?: number };
     const folio = String(body.folio || "").trim();
@@ -91,35 +73,40 @@ export async function POST(req: Request) {
     }
 
     const res = await confirmManualDeposit(folio, body.amount ?? null);
-
     if (res.error) {
       return NextResponse.json({ ok: false, error: res.error.message }, { status: 500 });
     }
 
     const data = res.data ?? { ok: true };
-    // Si el RPC aprobó y nos dio user_id + amount, intentamos aplicar promo activa.
-// No bloquea el flujo de confirmación.
-try {
-  if (data?.ok && data?.user_id && data?.amount) {
-    const amount = Number(data.amount);
-    const depositRef = String(data.deposit_id || data.id || folio);
 
-    if (Number.isFinite(amount) && amount > 0) {
-      data.promo = await applyPromoForDeposit(supabaseAdmin, {
-        userId: data.user_id,
-        depositAmount: amount,
-        depositRef,
-      });
+    try {
+      if (data?.ok && data?.user_id && data?.amount) {
+        const amount = Number(data.amount);
+        const depositRef = String(data.deposit_id || data.id || folio);
+
+        if (Number.isFinite(amount) && amount > 0) {
+          data.promo = await applyPromoForDeposit(supabaseAdmin, {
+            userId: data.user_id,
+            depositAmount: amount,
+            depositRef,
+          });
+        }
+      }
+    } catch {
+      // Promo is best effort.
     }
-  }
-} catch {
-  // ignore
-}
 
+    await auditAdminAction(auth.admin, "admin_confirm_manual_deposit", {
+      folio,
+      amount: body.amount ?? null,
+      result: data?.ok ? "ok" : "unknown",
+    });
 
     if (data?.ok) {
       await notifyTelegram(
-        `✅ CHIDO — Depósito manual aprobado\nFolio: ${folio}\nMonto: ${data.amount ?? "?"} MXN\nUsuario: ${data.user_id ?? "?"}`
+        `CHIDO - Deposito manual aprobado\nFolio: ${folio}\nMonto: ${data.amount ?? "?"} MXN\nUsuario: ${
+          data.user_id ?? "?"
+        }`
       );
     }
 

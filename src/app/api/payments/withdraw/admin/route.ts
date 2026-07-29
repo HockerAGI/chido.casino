@@ -1,6 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
+import { auditAdminAction, requireAdmin } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { walletApplyDelta } from "@/lib/walletApplyDelta";
 
@@ -13,11 +14,8 @@ type Action = "paid" | "reject" | "failed" | "refund";
 
 export async function POST(req: Request) {
   try {
-    const token = req.headers.get("x-admin-token") || "";
-    const expected = process.env.ADMIN_API_TOKEN || "";
-    if (!expected || token !== expected) {
-      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireAdmin(req, "payments:write");
+    if (!auth.ok) return auth.response;
 
     const body = (await req.json()) as {
       externalId?: string;
@@ -33,15 +31,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "externalId requerido" }, { status: 400 });
     }
     if (!["paid", "reject", "failed", "refund"].includes(action)) {
-      return NextResponse.json({ ok: false, error: "action inválida" }, { status: 400 });
+      return NextResponse.json({ ok: false, error: "action invalida" }, { status: 400 });
     }
 
-    // =========================================================
-    // Fetch request (schema new -> fallback legacy)
-    // ✅ FIX TS strict: NO reasignamos responses tipados con selects distintos.
-    // =========================================================
     let row: any | null = null;
-
     const reqNew = await supabaseAdmin
       .from("withdraw_requests")
       .select("user_id, amount, status, external_id")
@@ -74,26 +67,16 @@ export async function POST(req: Request) {
     const status = String(row.status || "pending");
 
     if (!userId || !Number.isFinite(amount) || amount <= 0) {
-      return NextResponse.json({ ok: false, error: "Registro inválido" }, { status: 500 });
+      return NextResponse.json({ ok: false, error: "Registro invalido" }, { status: 500 });
     }
 
-    // idempotencia
     if (["paid", "rejected", "failed", "refunded"].includes(status)) {
       return NextResponse.json({ ok: true, status, alreadyFinal: true });
     }
 
     const finalStatus =
-      action === "paid"
-        ? "paid"
-        : action === "reject"
-          ? "rejected"
-          : action === "failed"
-            ? "failed"
-            : "refunded";
+      action === "paid" ? "paid" : action === "reject" ? "rejected" : action === "failed" ? "failed" : "refunded";
 
-    // =========================================================
-    // Update request (schema new -> fallback legacy)
-    // =========================================================
     const upNew = await supabaseAdmin
       .from("withdraw_requests")
       .update({
@@ -118,9 +101,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: upNew.error.message }, { status: 500 });
     }
 
-    // =========================================================
-    // Wallet settle
-    // =========================================================
     if (action === "paid") {
       const r = await walletApplyDelta(supabaseAdmin, {
         userId,
@@ -144,6 +124,13 @@ export async function POST(req: Request) {
       });
       if (r.error) return NextResponse.json({ ok: false, error: r.error }, { status: 500 });
     }
+
+    await auditAdminAction(auth.admin, "admin_settle_withdraw", {
+      external_id: externalId,
+      action,
+      final_status: finalStatus,
+      note: body.note ?? null,
+    });
 
     return NextResponse.json({ ok: true, status: finalStatus });
   } catch (e: any) {

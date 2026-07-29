@@ -1,21 +1,6 @@
 import "server-only";
 
-/**
- * Mercado Pago Integration for Chido Casino
- *
- * Handles:
- * - Deposits: Creates checkout preferences for card/SPEI/OXXO payments
- * - Withdrawals: Creates payouts to CLABE bank accounts (Mexican bank transfers)
- * - Webhook verification: Validates IPN/webhook notifications
- *
- * Uses the Mercado Pago API v1 (https://api.mercadopago.com)
- *
- * Environment variables needed:
- * - MERCADOPAGO_ACCESS_TOKEN  (APP_USR-... production token)
- * - MERCADOPAGO_PUBLIC_KEY    (APP_USR-... public key for frontend)
- * - NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY (exposed to client for SDK)
- * - MERCADOPAGO_WEBHOOK_SECRET (optional: for webhook signature verification)
- */
+import crypto from "crypto";
 
 const MP_BASE_URL = "https://api.mercadopago.com";
 
@@ -25,23 +10,15 @@ function getAccessToken(): string {
   return token;
 }
 
-function getPublicKey(): string {
-  return process.env.MERCADOPAGO_PUBLIC_KEY || process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY || "";
-}
-
 export function isMercadoPagoConfigured(): boolean {
-  return Boolean(getAccessToken());
+  return Boolean(process.env.MERCADOPAGO_ACCESS_TOKEN);
 }
-
-export type MPCurrency = "MXN";
-
-export type MPPaymentMethod = "card" | "spei" | "oxxo" | "atm";
 
 export type CreatePreferenceInput = {
   userId: string;
   userEmail: string | null;
-  amount: number; // in MXN
-  concept: string; // folio / reference
+  amount: number;
+  concept: string;
   notificationUrl?: string;
   backUrl?: string;
 };
@@ -49,47 +26,36 @@ export type CreatePreferenceInput = {
 export type CreatePreferenceResult = {
   ok: boolean;
   preferenceId?: string;
-  initPoint?: string; // production checkout URL
-  sandboxInitPoint?: string; // sandbox checkout URL
+  initPoint?: string;
+  sandboxInitPoint?: string;
   error?: string;
 };
 
-/**
- * Create a Mercado Pago checkout preference for deposits.
- * This generates a hosted checkout page where the user pays with card, SPEI, or OXXO.
- */
 export async function createCheckoutPreference(
   input: CreatePreferenceInput
 ): Promise<CreatePreferenceResult> {
   try {
-    const accessToken = getAccessToken();
-    const { userId, userEmail, amount, concept, notificationUrl, backUrl } = input;
+    const { userEmail, amount, concept, notificationUrl, backUrl } = input;
 
     if (!Number.isFinite(amount) || amount <= 0) {
-      return { ok: false, error: "Monto inválido" };
+      return { ok: false, error: "Monto invalido" };
     }
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chido.casino";
-
     const body: any = {
       items: [
         {
           id: concept,
-          title: `Depósito Chido Casino — Folio ${concept}`,
-          description: "Depósito a tu cuenta de Chido Casino",
+          title: `Deposito Chido Casino - Folio ${concept}`,
+          description: "Deposito a tu cuenta de Chido Casino",
           quantity: 1,
           currency_id: "MXN",
           unit_price: Math.round(amount * 100) / 100,
         },
       ],
-      payer: {
-        email: userEmail || undefined,
-      },
+      payer: { email: userEmail || undefined },
       external_reference: concept,
-      // Allow all Mexican payment methods
       payment_methods: {
-        // Let Mercado Pago decide which methods to show based on the amount
-        // (card is always available; SPEI for bank transfer; OXXO for cash)
         installments: 1,
         default_installments: 1,
       },
@@ -102,14 +68,12 @@ export async function createCheckoutPreference(
       statement_descriptor: "CHIDO CASINO",
     };
 
-    if (notificationUrl) {
-      body.notification_url = notificationUrl;
-    }
+    if (notificationUrl) body.notification_url = notificationUrl;
 
     const res = await fetch(`${MP_BASE_URL}/checkout/preferences`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${getAccessToken()}`,
         "Content-Type": "application/json",
         "X-Idempotency-Key": `chido-deposit-${concept}`,
       },
@@ -118,7 +82,6 @@ export async function createCheckoutPreference(
     });
 
     const data: any = await res.json().catch(() => ({}));
-
     if (!res.ok) {
       const msg = data?.message || data?.error || `Mercado Pago error (${res.status})`;
       console.error("Mercado Pago createPreference error:", data);
@@ -141,7 +104,7 @@ export async function createCheckoutPreference(
 export type GetPaymentResult = {
   ok: boolean;
   paymentId?: string;
-  status?: string; // approved | pending | rejected | in_process | cancelled
+  status?: string;
   statusDetail?: string;
   amount?: number;
   currency?: string;
@@ -151,25 +114,18 @@ export type GetPaymentResult = {
   error?: string;
 };
 
-/**
- * Get payment details by payment ID from Mercado Pago.
- * Used by the webhook handler to verify the payment status.
- */
 export async function getPayment(paymentId: string | number): Promise<GetPaymentResult> {
   try {
-    const accessToken = getAccessToken();
-
     const res = await fetch(`${MP_BASE_URL}/v1/payments/${paymentId}`, {
       method: "GET",
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${getAccessToken()}`,
         "Content-Type": "application/json",
       },
       cache: "no-store",
     });
 
     const data: any = await res.json().catch(() => ({}));
-
     if (!res.ok) {
       const msg = data?.message || data?.error || `Mercado Pago error (${res.status})`;
       return { ok: false, error: msg };
@@ -193,11 +149,10 @@ export async function getPayment(paymentId: string | number): Promise<GetPayment
 
 export type CreatePayoutInput = {
   userId: string;
-  amount: number; // in MXN
-  clabe: string; // 18-digit CLABE
-  beneficiary: string; // account holder name
-  concept: string; // withdrawal reference/folio
-  bankCode?: string; // optional bank code
+  amount: number;
+  clabe: string;
+  beneficiary: string;
+  concept: string;
 };
 
 export type CreatePayoutResult = {
@@ -207,49 +162,31 @@ export type CreatePayoutResult = {
   error?: string;
 };
 
-/**
- * Create a payout (withdrawal) via Mercado Pago.
- *
- * NOTE: Mercado Pago's Payouts API (payouts/v1/transfers) requires a specific
- * integration with a Mercado Pago account that has payouts enabled.
- * For Mexican bank transfers, the CLABE is used as the destination.
- *
- * This uses the /payouts/v1/transfers endpoint which creates a bank transfer
- * to the specified CLABE account.
- */
 export async function createPayout(input: CreatePayoutInput): Promise<CreatePayoutResult> {
   try {
-    const accessToken = getAccessToken();
     const { amount, clabe, beneficiary, concept } = input;
 
     if (!Number.isFinite(amount) || amount <= 0) {
-      return { ok: false, error: "Monto inválido para retiro" };
+      return { ok: false, error: "Monto invalido para retiro" };
     }
     if (!/^[0-9]{18}$/.test(clabe)) {
-      return { ok: false, error: "CLABE inválida (debe tener 18 dígitos)" };
+      return { ok: false, error: "CLABE invalida (debe tener 18 digitos)" };
     }
     if (beneficiary.trim().length < 3) {
-      return { ok: false, error: "Nombre del beneficiario inválido" };
+      return { ok: false, error: "Nombre del beneficiario invalido" };
     }
 
-    // Mercado Pago Payouts API for bank transfers (CLABE-based)
-    // The transfer goes to the specified CLABE using SPEI
     const body: any = {
       external_reference: concept,
       transaction_amount: Math.round(amount * 100) / 100,
       currency_id: "MXN",
-      description: `Retiro Chido Casino — Folio ${concept}`,
-      payer: {
-        email: "pagos@chido.casino",
-      },
-      // For Mexican bank transfers via SPEI, we use the receiver_data with CLABE
+      description: `Retiro Chido Casino - Folio ${concept}`,
+      payer: { email: "pagos@chido.casino" },
       receiver: {
         bank_account: {
           type: "checking_account",
           number: clabe,
-          holder: {
-            name: beneficiary,
-          },
+          holder: { name: beneficiary },
         },
       },
     };
@@ -257,7 +194,7 @@ export async function createPayout(input: CreatePayoutInput): Promise<CreatePayo
     const res = await fetch(`${MP_BASE_URL}/payouts/v1/transfers`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${getAccessToken()}`,
         "Content-Type": "application/json",
         "X-Idempotency-Key": `chido-withdraw-${concept}`,
       },
@@ -266,7 +203,6 @@ export async function createPayout(input: CreatePayoutInput): Promise<CreatePayo
     });
 
     const data: any = await res.json().catch(() => ({}));
-
     if (!res.ok) {
       const msg = data?.message || data?.error || data?.cause || `Mercado Pago payout error (${res.status})`;
       console.error("Mercado Pago payout error:", data);
@@ -285,53 +221,34 @@ export async function createPayout(input: CreatePayoutInput): Promise<CreatePayo
   }
 }
 
-/**
- * Verify a Mercado Pago webhook/IPN notification.
- *
- * Mercado Pago sends either:
- * - x-signature header: base64(HMAC-SHA256(secret, "id:topic"))
- * - Or a simple GET with payment_id and topic parameters
- *
- * For production, we verify the x-signature header using the webhook secret.
- */
 export function verifyWebhookSignature(
-  rawBody: string,
   signatureHeader: string | null,
-  xRequestId: string | null
+  xRequestId: string | null,
+  dataId: string | number | null | undefined
 ): { enforced: boolean; ok: boolean } {
   const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET || "";
+  const requireSignature = process.env.MERCADOPAGO_REQUIRE_WEBHOOK_SIGNATURE === "1";
 
-  // If no secret is configured, we don't enforce signature verification
-  // (the payment status is still verified via the API in the handler)
-  if (!secret) return { enforced: false, ok: true };
-
-  if (!signatureHeader) return { enforced: true, ok: false };
+  if (!secret) return { enforced: requireSignature, ok: !requireSignature };
+  if (!signatureHeader || !xRequestId || !dataId) return { enforced: true, ok: false };
 
   try {
-    // Mercado Pago x-signature format: "ts=...,v1=..."
-    const parts = signatureHeader.split(",");
     let ts = "";
     let v1 = "";
-    for (const part of parts) {
+    for (const part of signatureHeader.split(",")) {
       const [key, val] = part.trim().split("=");
-      if (key === "ts") ts = val;
-      if (key === "v1") v1 = val;
+      if (key === "ts") ts = val || "";
+      if (key === "v1") v1 = val || "";
     }
 
     if (!ts || !v1) return { enforced: true, ok: false };
 
-    // Build the manifest string: "id:topic" or "data.id:x-request-id:ts"
-    const manifest = xRequestId ? `${xRequestId}:${ts}` : ts;
-    const crypto = require("crypto");
-    const expected = crypto
-      .createHmac("sha256", secret)
-      .update(manifest)
-      .digest("hex");
-
-    // Timing-safe comparison
-    const a = Buffer.from(v1);
-    const b = Buffer.from(expected);
+    const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
+    const expected = crypto.createHmac("sha256", secret).update(manifest).digest("hex");
+    const a = Buffer.from(v1, "hex");
+    const b = Buffer.from(expected, "hex");
     if (a.length !== b.length) return { enforced: true, ok: false };
+
     return { enforced: true, ok: crypto.timingSafeEqual(a, b) };
   } catch {
     return { enforced: true, ok: false };

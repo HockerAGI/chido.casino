@@ -1,13 +1,8 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-
-function mustAdmin(req: Request) {
-  const token = req.headers.get("x-admin-token") || "";
-  const expected = process.env.ADMIN_API_TOKEN || "";
-  return Boolean(expected && token === expected);
-}
 
 function isSchemaMismatch(msg: string) {
   const m = (msg || "").toLowerCase();
@@ -15,11 +10,9 @@ function isSchemaMismatch(msg: string) {
 }
 
 export async function GET(req: Request) {
-  if (!mustAdmin(req)) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAdmin(req, "payments:read");
+  if (!auth.ok) return auth.response;
 
-  // Depósitos manuales pendientes
   const depositsRes = await supabaseAdmin
     .from("manual_deposit_requests")
     .select("id,folio,user_id,amount,currency,status,created_at,instructions")
@@ -31,12 +24,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: depositsRes.error.message }, { status: 500 });
   }
 
-  // Retiros pendientes
-  // ✅ FIX TS strict:
-  // NO reasignamos un response tipado de Supabase con un select distinto.
-  // Guardamos solo "data" en una variable suelta.
   let withdrawsData: any[] = [];
-
   const withdrawNew = await supabaseAdmin
     .from("withdraw_requests")
     .select("external_id,user_id,amount,currency,status,created_at,clabe,beneficiary,provider")

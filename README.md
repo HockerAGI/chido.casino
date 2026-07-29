@@ -1,102 +1,82 @@
-# Chido Casino — Project Documentation
+# Chido Casino
 
-## Overview
-Chido Casino (chidocasino.com) — plataforma de entretenimiento de juegos de azar para México. Stack: Next.js 14 (App Router), Supabase, Tailwind CSS, TypeScript. Port 5000.
+Chido Casino (chido.casino) is a Mexico-focused gaming and wallet app built with Next.js App Router, Supabase, Tailwind CSS and TypeScript.
 
 ## Architecture
-- **Framework**: Next.js 14 App Router
-- **Auth/DB**: Supabase (env vars required: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`)
-- **Styling**: Tailwind CSS with custom design tokens
-- **Runtime**: Node.js on Replit, port 5000
+
+- Framework: Next.js App Router
+- Auth/DB: Supabase
+- Styling: Tailwind CSS
+- Runtime: Node.js 20
+- Local dev: `npm run dev` on port 3000
 
 ## Key Routes
+
 | Route | Description |
-|-------|-------------|
-| `/` | Landing page — hero, CTA |
+| --- | --- |
+| `/` | Landing page and main CTA |
 | `/login`, `/signup` | Auth pages |
-| `/lobby` | Main game lobby — 12 games, categories, promo |
-| `/games/crash` | Chido Crash (live) |
-| `/games/taco-slot` | Taco Slot (live) |
-| `/games/azteca-wild` | Azteca Wild (coming soon stub) |
-| `/games/catrina-bonanza` | Catrina Bonanza (coming soon stub) |
-| `/games/lucha-megaways` | Lucha Megaways (coming soon stub) |
-| `/games/piñata-fiesta` | Piñata Fiesta stub |
-| `/games/turbo-plinko` | Turbo Plinko stub |
-| `/games/bonanza-dulce` | Bonanza Dulce stub |
-| `/wallet` | Chido Wallet (deposit/withdraw/SPEI) |
-| `/vip` | VIP Club — 5 levels, perks, cashback |
-| `/promos` | Bonos y promociones |
-| `/tournaments` | Torneos |
-| `/profile` | Cuenta del usuario |
-| `/affiliates` | Programa de afiliados |
-| `/support` | Soporte (WhatsApp, FAQ) |
-| `/legal` | Términos y privacidad |
-
-## Critical Resilience — No Supabase Crash
-All Supabase-dependent code guards against missing env vars:
-- `src/lib/supabaseClient.ts` — returns `null` if vars missing
-- `src/lib/session.ts` — returns `null` if vars missing (no crash)
-- `src/lib/useProfile.ts` — handles null client gracefully
-- `src/app/(auth)/login/page.tsx` — shows config banner, doesn't crash
-- `src/app/(auth)/signup/page.tsx` — shows config banner, doesn't crash
-- `src/middleware.ts` — resilient to missing vars
-
-## Engagement Mechanics
-- `src/components/ui/daily-streak-bar.tsx` — Daily 7-day streak bonus widget (lobby)
-- Betting from `$0.10 MXN` on Crash and Taco Slot
-
-## Design System
-- **Primary accent**: #FF0099 (pink)
-- **Secondary accents**: #FF5E00 (orange), #00F0FF (cyan), #32CD32 (green), #FFD700 (gold)
-- **Background**: #0a0a0b (near-black)
-- **Font style**: font-black for headings, commercial/marketing tone
-- **Language**: Mexican slang in UI (¡Que curado!, ¡No hay falla!, ¡A todo dar!, ¡Órale!) — NOT in footer
-
-## Key Files
-| File | Purpose |
-|------|---------|
-| `src/lib/games.ts` | 12-game catalog with RTP/maxWin/volatility metadata |
-| `src/lib/playerLevel.ts` | 5 VIP levels (Verde → Jalapeño → Serrano → Habanero → Salsa Pro) |
-| `src/app/lobby/page.tsx` | Full lobby: 6 category filters, game grid, hero banner, win feed, Chidowins widget |
-| `src/app/wallet/wallet-client.tsx` | Chido Wallet UI (SPEI deposit, CLABE withdrawal, tx history) |
-| `src/app/vip/page.tsx` | VIP Club page |
-| `src/components/layout/main-layout.tsx` | Navigation (desktop sidebar + mobile bottom nav + drawer) |
-| `src/components/layout/footer.tsx` | Footer (no slang per requirements) |
-| `src/middleware.ts` | Auth guard (gracefully handles missing Supabase env vars) |
-| `public/manifest.json` | PWA manifest with shortcuts |
-
-## Branding Rules
-- NEVER use "bóveda" — always "Chido Wallet"
-- Mexican slang ONLY in UI content, never in footer
-- AGI characters: Chidowins (AI assistant widget), Chido Gerente (VIP optimizer, stub), Curvewind (future)
-- Logo variants: `iso-color` (nav/CTA), `iso-bw` (footer), `full` (desktop sidebar)
+| `/lobby` | Main game lobby |
+| `/games/crash` | Chido Crash |
+| `/games/taco-slot` | Taco Slot |
+| `/wallet` | Mercado Pago deposits, Stripe fallback deposits, CLABE withdrawals |
+| `/vip` | VIP Club |
+| `/promos` | Promotions |
+| `/tournaments` | Tournaments |
+| `/profile` | User account |
+| `/affiliates` | Affiliate program |
+| `/support` | Support |
+| `/legal` | Terms and privacy |
 
 ## Payment Integration
-- Current: Manual SPEI via `/api/payments/create-deposit`
-- Planned: Conekta, OpenPay, Juno (stubs ready for env vars)
-- Required env vars: `PAYMENTS_PROVIDER`, `ASTROPAY_*`, `ADMIN_API_TOKEN`
 
-## VIP System
-5 levels via XP accumulation (each bet awards XP automatically):
-1. Verde — 0 XP (0% cashback)
-2. Jalapeño — 500 XP (2% cashback)
-3. Serrano — 1,500 XP (5% cashback)
-4. Habanero — 3,000 XP (8% cashback, priority withdrawals)
-5. Salsa Pro — 6,000 XP (12% cashback, private games access)
+- Primary deposit gateway: Mercado Pago Checkout Pro.
+- Secondary deposit gateway: Stripe Checkout.
+- Deposit creation endpoint: `/api/payments/create-deposit`.
+- Mercado Pago webhook: `/api/webhooks/mercadopago`.
+- Stripe webhook: `/api/webhooks/stripe`.
+- Removed providers: AstroPay, Juno/Bitso and new manual deposit generation.
+- Manual deposit admin endpoints remain only to settle historical pending records and require a server-verified admin session.
+
+## Admin Security
+
+Admin API routes require a Supabase session that passes at least one of:
+
+- `profiles.role` is `admin`, `owner` or `super_admin`.
+- `project_members.project_id = chido-casino` and role is `admin` or `owner`.
+- An active `hocker_portal_grants` record covering the requested admin permission.
+
+The legacy `x-admin-token` path is disabled by default. It only works when `ALLOW_LEGACY_ADMIN_TOKEN=1` and `ADMIN_API_TOKEN` is configured.
 
 ## Required Environment Variables
-```
+
+```text
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY
 NEXT_PUBLIC_SITE_URL
-ADMIN_API_TOKEN
+MERCADOPAGO_ACCESS_TOKEN
+MERCADOPAGO_WEBHOOK_SECRET
+MERCADOPAGO_REQUIRE_WEBHOOK_SIGNATURE=1
+STRIPE_SECRET_KEY
+STRIPE_WEBHOOK_SECRET
+ALLOW_LEGACY_ADMIN_TOKEN=0
 TELEGRAM_BOT_TOKEN (optional)
 NEXT_PUBLIC_SUPPORT_WHATSAPP
 NEXT_PUBLIC_SUPPORT_EMAIL
 ```
 
-## PWA
-- manifest.json configured with shortcuts (Crash, Wallet)
-- theme_color: #FF0099
-- start_url: /lobby
+## Supabase
+
+- `supabase/schema.sql` and `supabase/migration_hardening.sql` contain earlier hardening work.
+- `supabase/migrations/20260729_000001_payment_admin_grants_hardening.sql` narrows grants, blocks profile role/KYC self-escalation and limits new `deposit_intents.provider` values to `mercadopago` or `stripe`.
+
+## CI
+
+`.github/workflows/ci.yml` runs install, typecheck and build. Use this check as required branch protection on `main`.
+
+## Branding Rules
+
+- Always use "Chido Wallet" for the wallet.
+- Mexican slang can appear in UI content but not in legal/footer content.
+- Logo assets are in `public/`.

@@ -1,13 +1,8 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
+import { auditAdminAction, requireAdmin } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-
-function mustAdmin(req: Request) {
-  const token = req.headers.get("x-admin-token") || "";
-  const expected = process.env.ADMIN_API_TOKEN || "";
-  return Boolean(expected && token === expected);
-}
 
 function isArgMismatch(msg: string) {
   const m = (msg || "").toLowerCase();
@@ -22,29 +17,24 @@ function isArgMismatch(msg: string) {
 }
 
 async function rejectManualDepositRPC(folio: string, note?: string | null) {
-  // Intento 1: moderno
   const a = await supabaseAdmin.rpc("admin_reject_manual_deposit", {
     p_folio: folio,
     p_ref_id: folio,
     p_note: note ?? null,
   } as any);
   if (!a.error) return a;
-
   if (!isArgMismatch(String(a.error.message || ""))) return a;
 
-  // Intento 2: alterno
-  const b = await supabaseAdmin.rpc("admin_reject_manual_deposit", {
+  return supabaseAdmin.rpc("admin_reject_manual_deposit", {
     folio,
     ref_id: folio,
     note: note ?? null,
   } as any);
-  if (!b.error) return b;
-
-  return b;
 }
 
 export async function POST(req: Request) {
-  if (!mustAdmin(req)) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  const auth = await requireAdmin(req, "payments:write");
+  if (!auth.ok) return auth.response;
 
   const body = await req.json().catch(() => ({} as any));
   const folio = String(body?.folio || "").trim();
@@ -52,14 +42,12 @@ export async function POST(req: Request) {
 
   if (!folio) return NextResponse.json({ ok: false, error: "Folio requerido" }, { status: 400 });
 
-  // 1) Si existe RPC, úsalo (más “correcto” si tu DB lo trae)
   const rpc = await rejectManualDepositRPC(folio, note);
   if (!rpc.error) {
+    await auditAdminAction(auth.admin, "admin_reject_manual_deposit", { folio, note, mode: "rpc" });
     return NextResponse.json({ ok: true, mode: "rpc", data: rpc.data ?? { ok: true } });
   }
 
-  // 2) Fallback REAL: update manual_deposit_requests.status = rejected (no inventa wallet)
-  // (Solo cambia estado, porque la wallet NO fue acreditada)
   const up = await supabaseAdmin
     .from("manual_deposit_requests")
     .update({ status: "rejected" } as any)
@@ -70,5 +58,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: rpc.error.message, fallbackError: up.error.message }, { status: 500 });
   }
 
+  await auditAdminAction(auth.admin, "admin_reject_manual_deposit", { folio, note, mode: "fallback" });
   return NextResponse.json({ ok: true, mode: "fallback", folio, status: "rejected" });
 }
