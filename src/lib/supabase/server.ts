@@ -5,19 +5,23 @@ import { createServerClient } from "@supabase/ssr";
 import type { CookieOptions, CookieMethodsServer } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+export function isSupabaseServerConfigured() {
+  return Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+  );
+}
+
 function getSupabaseUrl() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!url) throw new Error("SUPABASE_URL_NOT_CONFIGURED");
-  return url;
+  return process.env.NEXT_PUBLIC_SUPABASE_URL || "https://example.supabase.co";
 }
 
 function getSupabaseKey() {
-  const key =
+  return (
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!key) throw new Error("SUPABASE_KEY_NOT_CONFIGURED");
-  return key;
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+    "missing-anon-key"
+  );
 }
 
 type CookieToSet = {
