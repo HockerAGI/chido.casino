@@ -21,6 +21,7 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: dummy-service-role-key
       MERCADOPAGO_ACCESS_TOKEN: TEST-0000000000
       MERCADOPAGO_WEBHOOK_SECRET: dummy-mp-webhook-secret
+      MERCADOPAGO_REQUIRE_WEBHOOK_SIGNATURE: "1"
       STRIPE_SECRET_KEY: sk_test_dummy
       STRIPE_WEBHOOK_SECRET: whsec_dummy
 
@@ -36,6 +37,9 @@ jobs:
 
       - name: Install
         run: npm ci
+
+      - name: Lint
+        run: npm run lint
 
       - name: Typecheck
         run: npm run typecheck
