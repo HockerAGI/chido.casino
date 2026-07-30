@@ -1,6 +1,7 @@
 import "server-only";
 
 const STRIPE_BASE_URL = "https://api.stripe.com/v1";
+const DEFAULT_SITE_URL = "https://chido-casino.vercel.app";
 
 function getSecretKey() {
   const key = process.env.STRIPE_SECRET_KEY || "";
@@ -36,7 +37,7 @@ export async function createStripeCheckoutSession(
       return { ok: false, error: "Monto invalido" };
     }
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chido.casino";
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || DEFAULT_SITE_URL;
     const amountCents = Math.round(input.amount * 100);
     const body = new URLSearchParams();
 
