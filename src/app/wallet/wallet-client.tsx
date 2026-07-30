@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabaseClient";
 import { safeJson } from "@/lib/safeJson";
 import { triggerWalletRefresh } from "@/lib/wallet-refresh";
+import MercadoPagoPaymentBrick from "./mercadopago-payment-brick";
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -47,6 +48,13 @@ type WithdrawResponse = {
 
 type DepositMethod = "mercadopago" | "stripe";
 
+type PaymentBrickIntent = {
+  amount: number;
+  folio: string;
+  preferenceId: string;
+  fallbackUrl?: string | null;
+};
+
 const CURRENCY_SYMBOL = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || "MXN";
 
 function mxn(n: number) {
@@ -74,6 +82,7 @@ export default function WalletClient() {
 
   const [depositLoading, setDepositLoading] = useState(false);
   const [depositMethod, setDepositMethod] = useState<DepositMethod>("mercadopago");
+  const [mpBrickIntent, setMpBrickIntent] = useState<PaymentBrickIntent | null>(null);
 
   const [withdrawLoading, setWithdrawLoading] = useState(false);
   const [clabe, setClabe] = useState("");
@@ -90,6 +99,10 @@ export default function WalletClient() {
     if (t === "deposit") setSelectedTab("deposit");
     if (type === "commission") setWithdrawType("commission");
   }, [searchParams]);
+
+  useEffect(() => {
+    setMpBrickIntent(null);
+  }, [amount, depositMethod]);
 
   const loadWallet = async () => {
     const { data: userRes } = await supabase.auth.getUser();
@@ -176,16 +189,33 @@ export default function WalletClient() {
       }
 
       const checkoutUrl = data.checkoutUrl || data.initPoint || data.sandboxInitPoint;
-      if (!checkoutUrl) {
-        throw new Error("La pasarela no devolvio URL de checkout.");
+      if (data.mode === "stripe") {
+        if (!checkoutUrl) {
+          throw new Error("Stripe no devolvio URL de checkout.");
+        }
+
+        setMessage("Listo. Te estamos mandando a Stripe...");
+        window.location.href = checkoutUrl;
+        return;
       }
 
-      setMessage(
-        data.mode === "stripe"
-          ? "Listo. Te estamos mandando a Stripe..."
-          : "Listo. Te estamos mandando a Mercado Pago..."
-      );
-      window.location.href = checkoutUrl;
+      if (!data.preferenceId || !data.folio) {
+        if (!checkoutUrl) {
+          throw new Error("Mercado Pago no devolvio datos para continuar.");
+        }
+
+        setMessage("Listo. Te estamos mandando a Mercado Pago...");
+        window.location.href = checkoutUrl;
+        return;
+      }
+
+      setMpBrickIntent({
+        amount: amt,
+        folio: data.folio,
+        preferenceId: data.preferenceId,
+        fallbackUrl: checkoutUrl,
+      });
+      setMessage("Completa el pago con Mercado Pago.");
     } catch (e: any) {
       setMessage(e?.message || "No se pudo generar el deposito.");
     } finally {
@@ -374,12 +404,37 @@ export default function WalletClient() {
                 />
                 <button
                   onClick={handleDeposit}
-                  disabled={depositLoading}
+                  disabled={depositLoading || (depositMethod === "mercadopago" && Boolean(mpBrickIntent))}
                   className="inline-flex h-12 items-center justify-center rounded-2xl bg-white px-5 text-sm font-black text-black transition hover:scale-[1.01] disabled:opacity-40"
                 >
-                  {depositLoading ? <Loader2 className="animate-spin" size={16} /> : "Crear deposito"}
+                  {depositLoading ? (
+                    <Loader2 className="animate-spin" size={16} />
+                  ) : depositMethod === "mercadopago" && mpBrickIntent ? (
+                    "Pago preparado"
+                  ) : depositMethod === "mercadopago" ? (
+                    "Continuar"
+                  ) : (
+                    "Crear deposito"
+                  )}
                 </button>
               </div>
+
+              {depositMethod === "mercadopago" && mpBrickIntent && (
+                <MercadoPagoPaymentBrick
+                  amount={mpBrickIntent.amount}
+                  folio={mpBrickIntent.folio}
+                  preferenceId={mpBrickIntent.preferenceId}
+                  fallbackUrl={mpBrickIntent.fallbackUrl}
+                  onDone={async (nextMessage) => {
+                    setMessage(nextMessage);
+                    setAmount("");
+                    setMpBrickIntent(null);
+                    triggerWalletRefresh();
+                    await loadWallet();
+                  }}
+                  onError={(nextMessage) => setMessage(nextMessage)}
+                />
+              )}
             </div>
           ) : (
             <div className="rounded-3xl border border-white/10 bg-black/30 p-6">
@@ -478,7 +533,7 @@ export default function WalletClient() {
               <ShieldCheck size={18} /> Pagos protegidos
             </div>
             <div className="mt-2 leading-relaxed">
-              Los depositos se procesan fuera de Chido Casino con Mercado Pago como pasarela principal y Stripe como segunda opcion. Los retiros requieren KYC aprobado.
+              Mercado Pago procesa los depositos como pasarela principal y Stripe queda como segunda opcion. Los retiros requieren KYC aprobado.
             </div>
           </div>
         </div>

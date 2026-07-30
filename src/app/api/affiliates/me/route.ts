@@ -98,7 +98,7 @@ export async function GET() {
     referred_user_id: c.referred_user_id,
   }));
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chido.casino";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chidocasino.vercel.app";
   const link = `${siteUrl.replace(/\/$/, "")}/?ref=${aff.code}`;
 
   return NextResponse.json({

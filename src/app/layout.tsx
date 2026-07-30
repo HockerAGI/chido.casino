@@ -5,7 +5,7 @@ import PWARegister from "./_components/PWARegister";
 import Providers from "./_components/Providers";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://chido.casino"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://chidocasino.vercel.app"),
   title: { default: "Chido Casino", template: "%s • Chido Casino" },
   description: "Juegos originales, promos reales y Chido Wallet para depósitos/retiros.",
   applicationName: "CHIDO",

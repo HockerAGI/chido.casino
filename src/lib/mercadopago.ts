@@ -119,6 +119,129 @@ export type GetPaymentResult = {
   error?: string;
 };
 
+function roundMoney(amount: number) {
+  return Math.round(amount * 100) / 100;
+}
+
+function cleanObject<T extends Record<string, any>>(value: T): T {
+  for (const key of Object.keys(value)) {
+    const v = value[key];
+    if (v === undefined || v === null || v === "") {
+      delete value[key];
+    } else if (typeof v === "object" && !Array.isArray(v)) {
+      cleanObject(v);
+      if (Object.keys(v).length === 0) delete value[key];
+    }
+  }
+  return value;
+}
+
+function asString(value: unknown): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  const text = String(value).trim();
+  return text || undefined;
+}
+
+function asPositiveInt(value: unknown): number | undefined {
+  const n = Number(value);
+  if (!Number.isInteger(n) || n <= 0) return undefined;
+  return n;
+}
+
+export type CreatePaymentInput = {
+  amount: number;
+  concept: string;
+  formData: Record<string, any>;
+  payerEmail: string | null;
+  notificationUrl?: string;
+};
+
+export type CreatePaymentResult = {
+  ok: boolean;
+  paymentId?: string;
+  status?: string;
+  statusDetail?: string;
+  amount?: number;
+  currency?: string;
+  externalReference?: string;
+  paymentMethod?: string;
+  redirectUrl?: string;
+  error?: string;
+};
+
+export async function createPayment(input: CreatePaymentInput): Promise<CreatePaymentResult> {
+  try {
+    const { amount, concept, formData, payerEmail, notificationUrl } = input;
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return { ok: false, error: "Monto invalido" };
+    }
+
+    const payer = (formData?.payer || {}) as Record<string, any>;
+    const identification = (payer.identification || {}) as Record<string, any>;
+    const email = asString(payer.email) || payerEmail || undefined;
+    const paymentMethodId = asString(formData?.payment_method_id);
+
+    if (!paymentMethodId) return { ok: false, error: "PAYMENT_METHOD_REQUIRED" };
+    if (!email) return { ok: false, error: "PAYER_EMAIL_REQUIRED" };
+
+    const body = cleanObject({
+      transaction_amount: roundMoney(amount),
+      token: asString(formData?.token),
+      description: `Deposito Chido Casino - Folio ${concept}`,
+      installments: asPositiveInt(formData?.installments),
+      payment_method_id: paymentMethodId,
+      issuer_id: asString(formData?.issuer_id),
+      payer: {
+        email,
+        identification: {
+          type: asString(identification.type),
+          number: asString(identification.number),
+        },
+      },
+      external_reference: concept,
+      notification_url: notificationUrl,
+      statement_descriptor: "CHIDO CASINO",
+    });
+
+    const res = await fetch(`${MP_BASE_URL}/v1/payments`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${getAccessToken()}`,
+        "Content-Type": "application/json",
+        "X-Idempotency-Key": `chido-mp-payment-${concept}`,
+      },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+
+    const data: any = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const msg = data?.message || data?.error || data?.cause?.[0]?.description || `Mercado Pago error (${res.status})`;
+      console.error("Mercado Pago createPayment error:", data);
+      return { ok: false, error: msg };
+    }
+
+    return {
+      ok: true,
+      paymentId: String(data.id || ""),
+      status: data.status,
+      statusDetail: data.status_detail,
+      amount: Number(data.transaction_amount ?? amount),
+      currency: data.currency_id,
+      externalReference: data.external_reference,
+      paymentMethod: data.payment_method_id,
+      redirectUrl:
+        data.point_of_interaction?.transaction_data?.ticket_url ||
+        data.transaction_details?.external_resource_url,
+    };
+  } catch (e: any) {
+    const msg = e?.message || "Error al crear pago de Mercado Pago";
+    console.error("Mercado Pago createPayment exception:", e);
+    return { ok: false, error: msg };
+  }
+}
+
 export async function getPayment(paymentId: string | number): Promise<GetPaymentResult> {
   try {
     const res = await fetch(`${MP_BASE_URL}/v1/payments/${paymentId}`, {
