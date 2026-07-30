@@ -30,9 +30,11 @@ Chido Casino (`https://chidocasino.vercel.app`) is a Mexico-focused gaming and w
 
 ## Payment Integration
 
-- Primary deposit gateway: Mercado Pago Checkout Pro.
+- Primary deposit gateway: Mercado Pago Checkout API through the Payment Brick frontend component.
+- Mercado Pago external Checkout Pro URLs are retained as a safe fallback from the same deposit intent.
 - Secondary deposit gateway: Stripe Checkout.
 - Deposit creation endpoint: `/api/payments/create-deposit`.
+- Mercado Pago Checkout API payment endpoint: `/api/payments/mercadopago/process-payment`.
 - Mercado Pago webhook: `/api/webhooks/mercadopago`.
 - Mercado Pago production/test webhook URL: `https://chidocasino.vercel.app/api/webhooks/mercadopago` with the `payment` topic.
 - Stripe webhook: `/api/webhooks/stripe`.
@@ -56,6 +58,7 @@ NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY
 NEXT_PUBLIC_SITE_URL=https://chidocasino.vercel.app
+NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY
 MERCADOPAGO_ACCESS_TOKEN
 MERCADOPAGO_WEBHOOK_SECRET
 MERCADOPAGO_REQUIRE_WEBHOOK_SIGNATURE=1
