@@ -3,17 +3,8 @@ import "server-only";
 const STRIPE_BASE_URL = "https://api.stripe.com/v1";
 const DEFAULT_SITE_URL = "https://chidocasino.vercel.app";
 
-function normalizeSiteUrl(value: string | undefined) {
-  if (!value) return "";
-  try {
-    return new URL(value.trim()).origin;
-  } catch {
-    return "";
-  }
-}
-
 function getPaymentSiteUrl() {
-  return normalizeSiteUrl(process.env.PAYMENT_SITE_URL) || DEFAULT_SITE_URL;
+  return DEFAULT_SITE_URL;
 }
 
 function getSecretKey() {
