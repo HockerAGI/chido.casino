@@ -1,6 +1,6 @@
 # Chido Casino
 
-Chido Casino (chido.casino) is a Mexico-focused gaming and wallet app built with Next.js App Router, Supabase, Tailwind CSS and TypeScript.
+Chido Casino (`https://chidocasino.vercel.app`) is a Mexico-focused gaming and wallet app built with Next.js App Router, Supabase, Tailwind CSS and TypeScript.
 
 ## Architecture
 
@@ -34,6 +34,7 @@ Chido Casino (chido.casino) is a Mexico-focused gaming and wallet app built with
 - Secondary deposit gateway: Stripe Checkout.
 - Deposit creation endpoint: `/api/payments/create-deposit`.
 - Mercado Pago webhook: `/api/webhooks/mercadopago`.
+- Mercado Pago production/test webhook URL: `https://chidocasino.vercel.app/api/webhooks/mercadopago` with the `payment` topic.
 - Stripe webhook: `/api/webhooks/stripe`.
 - Removed providers: AstroPay, Juno/Bitso and new manual deposit generation.
 - Manual deposit admin endpoints remain only to settle historical pending records and require a server-verified admin session.
@@ -54,7 +55,7 @@ The legacy `x-admin-token` path is disabled by default. It only works when `ALLO
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY
-NEXT_PUBLIC_SITE_URL
+NEXT_PUBLIC_SITE_URL=https://chidocasino.vercel.app
 MERCADOPAGO_ACCESS_TOKEN
 MERCADOPAGO_WEBHOOK_SECRET
 MERCADOPAGO_REQUIRE_WEBHOOK_SIGNATURE=1
