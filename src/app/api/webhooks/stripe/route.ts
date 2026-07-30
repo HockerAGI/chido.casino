@@ -6,6 +6,8 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { walletApplyDelta } from "@/lib/walletApplyDelta";
 import { creditAffiliateFirstDepositBonus } from "@/lib/depositBonuses";
 
+const CREDITABLE_EVENTS = new Set(["checkout.session.completed", "checkout.session.async_payment_succeeded"]);
+
 function isDuplicate(msg: string) {
   const m = (msg || "").toLowerCase();
   return m.includes("duplicate") || m.includes("unique") || m.includes("23505");
@@ -40,6 +42,35 @@ function verifyStripeSignature(rawBody: string, signatureHeader: string | null) 
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
+async function findStripeIntent(checkoutSession: any) {
+  const folio = String(checkoutSession.metadata?.folio || checkoutSession.client_reference_id || "").trim();
+  const sessionId = String(checkoutSession.id || "").trim();
+
+  if (folio) {
+    const byFolio = await supabaseAdmin
+      .from("deposit_intents")
+      .select("*")
+      .eq("intent_id", folio)
+      .maybeSingle();
+
+    if (byFolio.error) return { intent: null, error: byFolio.error };
+    if (byFolio.data) return { intent: byFolio.data, error: null };
+  }
+
+  if (sessionId) {
+    const bySession = await supabaseAdmin
+      .from("deposit_intents")
+      .select("*")
+      .eq("external_id", sessionId)
+      .maybeSingle();
+
+    if (bySession.error) return { intent: null, error: bySession.error };
+    if (bySession.data) return { intent: bySession.data, error: null };
+  }
+
+  return { intent: null, error: null };
+}
+
 export async function POST(req: Request) {
   const rawBody = await req.text();
 
@@ -47,8 +78,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "INVALID_SIGNATURE" }, { status: 401 });
   }
 
-  const event = JSON.parse(rawBody);
-  if (event?.type !== "checkout.session.completed") {
+  let event: any;
+  try {
+    event = JSON.parse(rawBody);
+  } catch {
+    return NextResponse.json({ ok: false, error: "INVALID_JSON" }, { status: 400 });
+  }
+
+  if (!CREDITABLE_EVENTS.has(String(event?.type || ""))) {
     return NextResponse.json({ ok: true });
   }
 
@@ -57,25 +94,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  const folio = String(checkoutSession.metadata?.folio || checkoutSession.client_reference_id || "").trim();
-  if (!folio) return NextResponse.json({ ok: true });
-
-  let intent: any | null = null;
-  const byFolio = await supabaseAdmin
-    .from("deposit_intents")
-    .select("*")
-    .eq("intent_id", folio)
-    .maybeSingle();
-
-  if (!byFolio.error && byFolio.data) {
-    intent = byFolio.data;
-  } else {
-    const bySession = await supabaseAdmin
-      .from("deposit_intents")
-      .select("*")
-      .eq("external_id", String(checkoutSession.id || ""))
-      .maybeSingle();
-    if (!bySession.error && bySession.data) intent = bySession.data;
+  const { intent, error: lookupError } = await findStripeIntent(checkoutSession);
+  if (lookupError) {
+    console.error("Stripe deposit intent lookup error:", lookupError);
+    return NextResponse.json({ ok: false, error: "INTENT_LOOKUP_FAILED" }, { status: 500 });
   }
 
   if (!intent || String(intent.provider || "") !== "stripe") {

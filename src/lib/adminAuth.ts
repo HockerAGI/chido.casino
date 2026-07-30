@@ -49,7 +49,7 @@ function grantCovers(row: any, permission: string) {
     permissions.includes(wanted) ||
     permissions.includes(wanted.split(":")[0]);
 
-  return moduleOk || permissionOk;
+  return moduleOk && permissionOk;
 }
 
 function grantIsActive(row: any) {

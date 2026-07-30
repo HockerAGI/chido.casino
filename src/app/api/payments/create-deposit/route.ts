@@ -116,6 +116,10 @@ export async function POST(req: Request) {
 
       if (insErr) {
         console.error("Failed to record Stripe deposit intent:", insErr);
+        return NextResponse.json(
+          { ok: false, error: "No se pudo registrar el deposito de Stripe. No se inicio ningun pago." },
+          { status: 500 }
+        );
       }
 
       await fraudLog(supabaseAdmin as any, req, {
@@ -174,6 +178,10 @@ export async function POST(req: Request) {
 
     if (insErr) {
       console.error("Failed to record Mercado Pago deposit intent:", insErr);
+      return NextResponse.json(
+        { ok: false, error: "No se pudo registrar el deposito de Mercado Pago. No se inicio ningun pago." },
+        { status: 500 }
+      );
     }
 
     await fraudLog(supabaseAdmin as any, req, {
