@@ -3,19 +3,31 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getServerSession } from "@/lib/session";
-import { junoCreateClabe } from "@/lib/juno";
 import { getSelfExclusionState } from "@/lib/responsibleGaming";
 import { fraudLog, velocityLimit } from "@/lib/fraud";
 import { createCheckoutPreference, isMercadoPagoConfigured } from "@/lib/mercadopago";
+import { createStripeCheckoutSession, isStripeConfigured } from "@/lib/stripe";
 
-type Method = "spei" | "oxxo" | "card" | "mercadopago";
+type DepositMethod = "mercadopago" | "stripe" | "card" | "spei" | "oxxo";
+type Provider = "mercadopago" | "stripe";
 
-function folio() {
-  return `CHIDO-${Math.random().toString(36).slice(2, 8).toUpperCase()}-${Date.now().toString().slice(-5)}`;
+function folio(provider: Provider) {
+  const prefix = provider === "stripe" ? "CHDST" : "CHDMP";
+  return `${prefix}-${Math.random().toString(36).slice(2, 8).toUpperCase()}-${Date.now()
+    .toString()
+    .slice(-5)}`;
 }
 
-function folioMP() {
-  return `CHDMP-${Math.random().toString(36).slice(2, 8).toUpperCase()}-${Date.now().toString().slice(-5)}`;
+function normalizeMethod(value: unknown): DepositMethod {
+  const method = String(value || "mercadopago").toLowerCase();
+  if (["stripe", "card", "spei", "oxxo", "mercadopago"].includes(method)) {
+    return method as DepositMethod;
+  }
+  return "mercadopago";
+}
+
+function providerFor(method: DepositMethod): Provider {
+  return method === "stripe" ? "stripe" : "mercadopago";
 }
 
 export async function POST(req: Request) {
@@ -23,22 +35,20 @@ export async function POST(req: Request) {
     const session = await getServerSession(req);
     if (!session) return NextResponse.json({ ok: false, error: "No autorizado" }, { status: 401 });
 
-    // Self-exclusion: block deposits
     const ex = await getSelfExclusionState(supabaseAdmin as any, session.user.id);
     if (ex.ok && ex.excluded) {
       return NextResponse.json(
         {
           ok: false,
           error: "SELF_EXCLUDED",
-          message: "Autoexclusión activa. No puedes depositar por ahora.",
+          message: "Autoexclusion activa. No puedes depositar por ahora.",
           until: ex.until,
         },
         { status: 403 }
       );
     }
 
-    // Anti-spam deposits: 5 in 30 min
-    const lim = await velocityLimit(supabaseAdmin as any, "manual_deposit_requests", {
+    const lim = await velocityLimit(supabaseAdmin as any, "deposit_intents", {
       userId: session.user.id,
       minutes: 30,
       max: 5,
@@ -49,248 +59,138 @@ export async function POST(req: Request) {
 
     const body = await req.json().catch(() => ({}));
     const amount = Number(body?.amount);
-    const method = (body?.method as Method) || "spei";
+    const requestedMethod = normalizeMethod(body?.method);
+    const provider = providerFor(requestedMethod);
 
     if (!Number.isFinite(amount) || amount <= 0) {
-      return NextResponse.json({ ok: false, error: "Monto inválido" }, { status: 400 });
+      return NextResponse.json({ ok: false, error: "Monto invalido" }, { status: 400 });
+    }
+    if (amount < 20) {
+      return NextResponse.json({ ok: false, error: "El deposito minimo es de $20 MXN." }, { status: 400 });
+    }
+    if (amount > 50000) {
+      return NextResponse.json(
+        { ok: false, error: "El deposito maximo es de $50,000 MXN por transaccion." },
+        { status: 400 }
+      );
     }
 
-    // ========================================
-    // MERCADO PAGO (Card / SPEI / OXXO via MP)
-    // ========================================
-    if (method === "card" || method === "mercadopago") {
-      if (!isMercadoPagoConfigured()) {
-        return NextResponse.json(
-          { ok: false, error: "Mercado Pago no está configurado todavía." },
-          { status: 503 }
-          );
+    const f = folio(provider);
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chido.casino";
+
+    if (provider === "stripe") {
+      if (!isStripeConfigured()) {
+        return NextResponse.json({ ok: false, error: "Stripe no esta configurado." }, { status: 503 });
       }
 
-      if (amount < 20) {
-        return NextResponse.json(
-          { ok: false, error: "El depósito mínimo es de $20 MXN." },
-          { status: 400 }
-        );
-      }
-      if (amount > 50000) {
-        return NextResponse.json(
-          { ok: false, error: "El depósito máximo es de $50,000 MXN por transacción." },
-          { status: 400 }
-        );
-      }
-
-      const f = folioMP();
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chido.casino";
-      const notificationUrl = `${siteUrl}/api/webhooks/mercadopago`;
-
-      const pref = await createCheckoutPreference({
+      const sessionResult = await createStripeCheckoutSession({
         userId: session.user.id,
         userEmail: session.user.email ?? null,
         amount,
         concept: f,
-        notificationUrl,
       });
 
-      if (!pref.ok) {
-        return NextResponse.json({ ok: false, error: pref.error }, { status: 500 });
+      if (!sessionResult.ok || !sessionResult.checkoutUrl) {
+        return NextResponse.json(
+          { ok: false, error: sessionResult.error || "No se pudo crear el checkout de Stripe." },
+          { status: 500 }
+        );
       }
 
-      // Record the deposit intent
       const { error: insErr } = await supabaseAdmin.from("deposit_intents").insert({
         user_id: session.user.id,
-        provider: "mercadopago",
-        method: "card",
+        provider: "stripe",
+        method: "stripe",
         amount,
         currency: "MXN",
         status: "pending",
         intent_id: f,
-        external_id: pref.preferenceId ?? null,
-        checkout_url: pref.initPoint || pref.sandboxInitPoint || null,
+        external_id: sessionResult.sessionId ?? null,
+        checkout_url: sessionResult.checkoutUrl,
         metadata: {
           folio: f,
-          preference_id: pref.preferenceId,
-          provider: "mercadopago",
+          provider: "stripe",
+          checkout_session_id: sessionResult.sessionId,
         },
       } as any);
 
       if (insErr) {
-        console.error("Failed to record Mercado Pago deposit intent:", insErr);
+        console.error("Failed to record Stripe deposit intent:", insErr);
       }
 
       await fraudLog(supabaseAdmin as any, req, {
         userId: session.user.id,
-        eventType: "mp_deposit_created",
-        metadata: { folio: f, amount, preference_id: pref.preferenceId },
+        eventType: "stripe_deposit_created",
+        metadata: { folio: f, amount, checkout_session_id: sessionResult.sessionId },
       });
 
       return NextResponse.json({
         ok: true,
-        mode: "mercadopago",
-        message: "¡Listo! Te mandamos al checkout de Mercado Pago.",
-        preferenceId: pref.preferenceId,
-        initPoint: pref.initPoint,
-        sandboxInitPoint: pref.sandboxInitPoint,
+        mode: "stripe",
+        message: "Listo. Te mandamos al checkout de Stripe.",
+        checkoutUrl: sessionResult.checkoutUrl,
+        sessionId: sessionResult.sessionId,
         folio: f,
       });
     }
 
-    // ========================================
-    // OXXO (cash deposit via SPEI/manual)
-    // ========================================
-    if (method === "oxxo") {
-      // OXXO is a cash payment method — we create a manual deposit request
-      // with instructions to go to an OXXO store with a reference code.
-      // For production, this would be integrated with a provider that generates
-      // OXXO barcodes. For now, we create a manual request with OXXO instructions.
-      const f = folio();
-      const oxxoReference = `OXXO${Date.now().toString().slice(-10)}`;
-
-      const instructions = {
-        title: "Depósito en OXXO",
-        mode: "manual" as const,
-        folio: f,
-        amount,
-        currency: "MXN",
-        oxxo: {
-          reference: oxxoReference,
-          concept: f,
-        },
-        steps: [
-          "Acércate a la tienda OXXO más cercana.",
-          `Dile al cajero que quieres hacer un pago de servicio con la referencia: ${oxxoReference}`,
-          `Indica el monto exacto: $${amount} MXN`,
-          "Conserva tu comprobante. El saldo se acredita en cuanto se procese el pago.",
-        ],
-      };
-
-      const { data: row, error } = await supabaseAdmin
-        .from("manual_deposit_requests")
-        .insert({
-          user_id: session.user.id,
-          amount,
-          currency: "MXN",
-          method: "oxxo",
-          folio: f,
-          status: "pending",
-          instructions,
-        })
-        .select("id, folio, amount, currency, status, created_at")
-        .single();
-
-      if (error) {
-        return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-      }
-
-      await fraudLog(supabaseAdmin as any, req, {
-        userId: session.user.id,
-        eventType: "oxxo_deposit_created",
-        metadata: { folio: f, amount, reference: oxxoReference },
-      });
-
-      return NextResponse.json({
-        ok: true,
-        mode: "oxxo",
-        message: "Depósito OXXO generado. Sigue las instrucciones.",
-        instructions,
-        request: row,
-      });
-    }
-
-    // ========================================
-    // SPEI (bank transfer — manual or Juno)
-    // ========================================
-    const useJuno = ["juno", "bitso", "bitso_juno"].includes(
-      (process.env.PAYMENTS_PROVIDER || "").toLowerCase()
-    );
-
-    const f = folio();
-    const currency = "MXN" as const;
-
-    let clabe = process.env.MANUAL_SPEI_CLABE || "";
-    let beneficiary = process.env.MANUAL_SPEI_BENEFICIARY || "CHIDO CASINO";
-    let institution = process.env.MANUAL_SPEI_INSTITUTION || "";
-    const dimoPhone = process.env.MANUAL_SPEI_DIMO_PHONE || "";
-    const telegramUsername = process.env.SUPPORT_TELEGRAM || "";
-    const whatsappPhone = process.env.SUPPORT_WHATSAPP || "";
-
-    if (useJuno) {
-      clabe = await junoCreateClabe();
-      beneficiary = "Bitso Business (Juno)";
-      institution = "SPEI";
-    }
-
-    if (!clabe) {
+    if (!isMercadoPagoConfigured()) {
       return NextResponse.json(
-        { ok: false, error: "SPEI no está configurado (falta la CLABE)." },
-        { status: 500 }
+        { ok: false, error: "Mercado Pago no esta configurado todavia." },
+        { status: 503 }
       );
     }
 
-    const concept = f;
-
-    const instructions = {
-      title: useJuno ? "Depósito SPEI (Bitso Business)" : "Depósito SPEI",
-      mode: "manual" as const,
-      folio: f,
+    const pref = await createCheckoutPreference({
+      userId: session.user.id,
+      userEmail: session.user.email ?? null,
       amount,
-      currency,
-      spei: {
-        clabe,
-        beneficiary,
-        institution: institution || null,
-        concept,
-        dimo_phone: dimoPhone || null,
-      },
-      steps: [
-        "Haz una transferencia SPEI con la CLABE indicada.",
-        `Usa el concepto exactamente como aparece: ${concept}`,
-        "Conserva tu comprobante. Si el saldo no se refleja, soporte lo valida con tu folio.",
-      ],
-      whatsapp: {
-        ready: Boolean(whatsappPhone),
-        phone: whatsappPhone || null,
-        link: whatsappPhone
-          ? `https://wa.me/${whatsappPhone.replace(/\D/g, "")}?text=${encodeURIComponent(
-              `Depósito CHIDO folio ${f}. Adj. comprobante.`
-            )}`
-          : null,
-      },
-      telegram: {
-        ready: Boolean(telegramUsername),
-        username: telegramUsername || null,
-      },
-    };
+      concept: f,
+      notificationUrl: `${siteUrl}/api/webhooks/mercadopago`,
+    });
 
-    const { data: row, error } = await supabaseAdmin
-      .from("manual_deposit_requests")
-      .insert({
-        user_id: session.user.id,
-        amount,
-        currency,
-        method: "spei",
+    if (!pref.ok) {
+      return NextResponse.json({ ok: false, error: pref.error }, { status: 500 });
+    }
+
+    const checkoutUrl = pref.initPoint || pref.sandboxInitPoint || null;
+    const { error: insErr } = await supabaseAdmin.from("deposit_intents").insert({
+      user_id: session.user.id,
+      provider: "mercadopago",
+      method: requestedMethod === "stripe" ? "mercadopago" : requestedMethod,
+      amount,
+      currency: "MXN",
+      status: "pending",
+      intent_id: f,
+      external_id: pref.preferenceId ?? null,
+      checkout_url: checkoutUrl,
+      metadata: {
         folio: f,
-        status: "pending",
-        instructions,
-      })
-      .select("id, folio, amount, currency, status, created_at")
-      .single();
+        preference_id: pref.preferenceId,
+        provider: "mercadopago",
+        requested_method: requestedMethod,
+      },
+    } as any);
 
-    if (error) {
-      return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    if (insErr) {
+      console.error("Failed to record Mercado Pago deposit intent:", insErr);
     }
 
     await fraudLog(supabaseAdmin as any, req, {
       userId: session.user.id,
-      eventType: "deposit_request_created",
-      metadata: { folio: f, amount, provider: useJuno ? "juno" : "manual" },
+      eventType: "mercadopago_deposit_created",
+      metadata: { folio: f, amount, preference_id: pref.preferenceId, requested_method: requestedMethod },
     });
 
     return NextResponse.json({
       ok: true,
-      mode: "manual",
-      message: "Depósito generado. Sigue las instrucciones.",
-      instructions,
-      request: row,
+      mode: "mercadopago",
+      message: "Listo. Te mandamos al checkout de Mercado Pago.",
+      preferenceId: pref.preferenceId,
+      initPoint: pref.initPoint,
+      sandboxInitPoint: pref.sandboxInitPoint,
+      checkoutUrl,
+      folio: f,
     });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || "Error interno" }, { status: 500 });

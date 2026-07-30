@@ -2,15 +2,16 @@ import "server-only";
 import { createClient } from "@supabase/supabase-js";
 import { APP_NAME, APP_SLUG } from "@/lib/appContext";
 
-function mustEnv(name: "NEXT_PUBLIC_SUPABASE_URL" | "SUPABASE_SERVICE_ROLE_KEY") {
-  const v = process.env[name];
-  if (!v) throw new Error(`CONFIG_MISSING:${name}`);
-  return v;
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://example.supabase.co";
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "missing-service-role-key";
+
+export function isSupabaseAdminConfigured() {
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
 export const supabaseAdmin = createClient(
-  mustEnv("NEXT_PUBLIC_SUPABASE_URL"),
-  mustEnv("SUPABASE_SERVICE_ROLE_KEY"),
+  SUPABASE_URL,
+  SERVICE_ROLE_KEY,
   {
     auth: { persistSession: false, autoRefreshToken: false },
     global: {

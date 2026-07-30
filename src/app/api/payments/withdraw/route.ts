@@ -35,7 +35,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error: "SELF_EXCLUDED",
-          message: "Autoexclusión activa. No puedes solicitar retiros por ahora.",
+          message: "AutoexclusiÃ³n activa. No puedes solicitar retiros por ahora.",
           until: ex.until,
         },
         { status: 403 }
@@ -57,13 +57,13 @@ export async function POST(req: Request) {
     const beneficiary = String(body?.beneficiary || "").trim();
 
     if (!Number.isFinite(amount) || amount <= 0) {
-      return NextResponse.json({ error: "Monto inválido" }, { status: 400 });
+      return NextResponse.json({ error: "Monto invÃ¡lido" }, { status: 400 });
     }
     if (!isValidClabe(clabe)) {
-      return NextResponse.json({ error: "CLABE inválida (18 dígitos)" }, { status: 400 });
+      return NextResponse.json({ error: "CLABE invÃ¡lida (18 dÃ­gitos)" }, { status: 400 });
     }
     if (beneficiary.length < 3) {
-      return NextResponse.json({ error: "Beneficiario inválido" }, { status: 400 });
+      return NextResponse.json({ error: "Beneficiario invÃ¡lido" }, { status: 400 });
     }
 
     const { data: p } = await supabaseAdmin
@@ -104,11 +104,8 @@ export async function POST(req: Request) {
 
     const externalId = `wd_${session.user.id}_${Date.now()}`;
 
-    // Determine the payout provider: mercadopago, astropay, or manual
-    const payoutProvider =
-      (body?.provider as string) ||
-      process.env.DEFAULT_PAYOUT_PROVIDER ||
-      "manual";
+    const configuredPayoutProvider = String(process.env.DEFAULT_PAYOUT_PROVIDER || "mercadopago").toLowerCase();
+    const payoutProvider = configuredPayoutProvider === "manual" ? "manual" : "mercadopago";
 
     const lock = await walletApplyDelta(supabaseAdmin as any, {
       userId: session.user.id,

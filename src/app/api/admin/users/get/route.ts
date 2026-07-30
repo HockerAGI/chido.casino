@@ -1,20 +1,17 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-function mustAdmin(req: Request) {
-  const token = req.headers.get("x-admin-token") || "";
-  const expected = process.env.ADMIN_API_TOKEN || "";
-  return Boolean(expected && token === expected);
-}
 function isMissingTable(msg: string) {
   const m = (msg || "").toLowerCase();
   return m.includes("relation") && m.includes("does not exist");
 }
 
 export async function POST(req: Request) {
-  if (!mustAdmin(req)) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  const auth = await requireAdmin(req, "users:read");
+  if (!auth.ok) return auth.response;
 
   const body = await req.json().catch(() => ({} as any));
   const userId = String(body?.userId || "").trim();
@@ -58,14 +55,15 @@ export async function POST(req: Request) {
     .order("created_at", { ascending: false })
     .limit(15);
 
-  // Si slot_spins no existe, no truena el endpoint (no “finge”)
   const slotsSafe = slots.error && isMissingTable(String(slots.error.message || "")) ? { data: [] as any[] } : slots;
 
   if (balances.error) return NextResponse.json({ ok: false, error: balances.error.message }, { status: 500 });
   if (txs.error) return NextResponse.json({ ok: false, error: txs.error.message }, { status: 500 });
   if (promo.error) return NextResponse.json({ ok: false, error: promo.error.message }, { status: 500 });
   if (crash.error) return NextResponse.json({ ok: false, error: crash.error.message }, { status: 500 });
-  if ((slotsSafe as any).error) return NextResponse.json({ ok: false, error: (slotsSafe as any).error.message }, { status: 500 });
+  if ((slotsSafe as any).error) {
+    return NextResponse.json({ ok: false, error: (slotsSafe as any).error.message }, { status: 500 });
+  }
 
   return NextResponse.json({
     ok: true,

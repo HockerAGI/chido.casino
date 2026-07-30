@@ -1,12 +1,9 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 
-// Tipos para la data que esperamos de la API
 type KycRequest = {
   id: string;
   user_id: string;
@@ -22,34 +19,17 @@ type KycRequest = {
 };
 
 export default function AdminKycPage() {
-  const [token, setToken] = useState<string>("");
-  const [tokenInput, setTokenInput] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
   const [requests, setRequests] = useState<KycRequest[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
 
-  // Cargar el token desde localStorage al iniciar
-  useEffect(() => {
-    const storedToken = localStorage.getItem("admin-api-token");
-    if (storedToken) {
-      setToken(storedToken);
-    }
-  }, []);
-
-  // Función para obtener las solicitudes pendientes
   const fetchRequests = async () => {
-    if (!token) {
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/kyc/pending", {
-        headers: { "x-admin-token": token },
-      });
+      const res = await fetch("/api/admin/kyc/pending");
       const json = await res.json();
       if (!res.ok || !json.ok) {
         throw new Error(json.error || "Failed to fetch data");
@@ -63,18 +43,10 @@ export default function AdminKycPage() {
     }
   };
 
-  // Obtener las solicitudes cuando el token cambia
   useEffect(() => {
-    fetchRequests();
+    void fetchRequests();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
-
-  const handleSetToken = () => {
-    if (tokenInput) {
-      localStorage.setItem("admin-api-token", tokenInput);
-      setToken(tokenInput);
-    }
-  };
+  }, []);
 
   const getPublicUrl = (path: string | undefined | null) => {
     if (!path) return "#";
@@ -83,14 +55,10 @@ export default function AdminKycPage() {
   };
 
   const handleUpdateRequest = async (userId: string, status: "approved" | "rejected") => {
-    if (!token) return;
     try {
       const res = await fetch("/api/admin/users/set-kyc", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-admin-token": token,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, kyc_status: status }),
       });
       const json = await res.json();
@@ -103,26 +71,6 @@ export default function AdminKycPage() {
     }
   };
 
-  if (!token) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="p-6 space-y-4 bg-black/30 border-white/10 w-96">
-          <h1 className="font-bold text-xl">Admin KYC Panel</h1>
-          <p className="text-sm text-white/70">Please enter the Admin API Token to proceed.</p>
-          <Input
-            type="password"
-            value={tokenInput}
-            onChange={(e) => setTokenInput(e.target.value)}
-            placeholder="Enter token..."
-          />
-          <Button onClick={handleSetToken} className="w-full font-bold">
-            Set Token & Enter
-          </Button>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen p-6 sm:p-8">
       <div className="max-w-7xl mx-auto">
@@ -133,13 +81,17 @@ export default function AdminKycPage() {
           </Button>
         </div>
 
-        {error && <p className="text-red-500 mb-4">Error: {error}</p>}
+        {error && (
+          <p className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            Error: {error}
+          </p>
+        )}
 
         <div className="bg-black/30 border border-white/10 rounded-2xl">
           {loading ? (
             <p className="p-6 text-center text-white/60">Loading requests...</p>
           ) : requests.length === 0 ? (
-            <p className="p-6 text-center text-white/60">No pending KYC requests. ¡Qué chido!</p>
+            <p className="p-6 text-center text-white/60">No pending KYC requests.</p>
           ) : (
             <div className="divide-y divide-white/10">
               {requests.map((req) => (
@@ -171,7 +123,10 @@ export default function AdminKycPage() {
                     <Button variant="destructive" onClick={() => handleUpdateRequest(req.user_id, "rejected")}>
                       Reject
                     </Button>
-                    <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleUpdateRequest(req.user_id, "approved")}>
+                    <Button
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                      onClick={() => handleUpdateRequest(req.user_id, "approved")}
+                    >
                       Approve
                     </Button>
                   </div>

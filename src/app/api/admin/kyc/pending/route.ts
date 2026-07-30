@@ -1,26 +1,18 @@
+export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-// Helper para verificar el token de admin desde las cabeceras
-function mustAdmin(req: Request) {
-  const token = req.headers.get("x-admin-token") || "";
-  const expected = process.env.ADMIN_API_TOKEN || "";
-  // Asegurarse que el token esperado no esté vacío y que coincida
-  return Boolean(expected && token === expected);
-}
-
 export async function GET(req: Request) {
-  // Primero, asegurar que quien llama es un administrador
-  if (!mustAdmin(req)) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAdmin(req, "kyc:read");
+  if (!auth.ok) return auth.response;
 
   try {
-    // Consultar a la base de datos por solicitudes de KYC pendientes
     const { data, error } = await supabaseAdmin
       .from("kyc_requests")
-      .select(`
+      .select(
+        `
         id,
         user_id,
         status,
@@ -32,20 +24,15 @@ export async function GET(req: Request) {
           username,
           email
         )
-      `)
+      `
+      )
       .eq("status", "pending")
       .order("submitted_at", { ascending: true });
 
-    // Si Supabase devuelve un error, lo lanzamos para que el catch lo maneje
-    if (error) {
-      throw new Error(error.message);
-    }
+    if (error) throw new Error(error.message);
 
-    // Si todo va bien, devolvemos la lista de solicitudes
     return NextResponse.json({ ok: true, requests: data });
-
   } catch (e: any) {
-    // Manejo de errores generales
     return NextResponse.json({ ok: false, error: e?.message || "KYC_PENDING_ERROR" }, { status: 500 });
   }
 }
