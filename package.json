@@ -10,7 +10,7 @@
     "dev": "next dev -p 3000",
     "build": "next build --webpack",
     "start": "next start -p 3000",
-    "lint": "echo \"Lint pendiente: migrar a eslint.config.mjs\"",
+    "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit"
   },
