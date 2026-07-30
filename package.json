@@ -10,7 +10,8 @@
     "dev": "next dev -p 3000",
     "build": "next build --webpack",
     "start": "next start -p 3000",
-    "lint": "echo \"Lint pendiente: migrar a eslint.config.mjs\"",
+    "lint": "eslint src/app/api/promos/claim-daily-streak/route.ts src/app/api/games/taco-slot/spin/route.ts src/app/api/games/crash/play/route.ts src/app/api/webhooks/mercadopago/route.ts src/lib/mercadopago.ts src/lib/promoWagering.ts src/lib/walletApplyDelta.ts",
+    "lint:all": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit"
   },

@@ -1,6 +1,6 @@
 import "server-only";
 
-import crypto from "crypto";
+import crypto from "node:crypto";
 
 const MP_BASE_URL = "https://api.mercadopago.com";
 const DEFAULT_SITE_URL = "https://chidocasino.vercel.app";
@@ -11,7 +11,11 @@ function getPaymentSiteUrl() {
 
 function getAccessToken(): string {
   const token = process.env.MERCADOPAGO_ACCESS_TOKEN || "";
-  if (!token) throw new Error("MERCADOPAGO_NOT_CONFIGURED: falta MERCADOPAGO_ACCESS_TOKEN");
+  if (!token) {
+    throw new Error(
+      "MERCADOPAGO_NOT_CONFIGURED: falta MERCADOPAGO_ACCESS_TOKEN"
+    );
+  }
   return token;
 }
 
@@ -47,7 +51,7 @@ export async function createCheckoutPreference(
     }
 
     const siteUrl = getPaymentSiteUrl();
-    const body: any = {
+    const body: Record<string, unknown> = {
       items: [
         {
           id: concept,
@@ -75,7 +79,7 @@ export async function createCheckoutPreference(
 
     if (notificationUrl) body.notification_url = notificationUrl;
 
-    const res = await fetch(`${MP_BASE_URL}/checkout/preferences`, {
+    const response = await fetch(`${MP_BASE_URL}/checkout/preferences`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${getAccessToken()}`,
@@ -86,11 +90,14 @@ export async function createCheckoutPreference(
       cache: "no-store",
     });
 
-    const data: any = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const msg = data?.message || data?.error || `Mercado Pago error (${res.status})`;
+    const data: any = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message =
+        data?.message ||
+        data?.error ||
+        `Mercado Pago error (${response.status})`;
       console.error("Mercado Pago createPreference error:", data);
-      return { ok: false, error: msg };
+      return { ok: false, error: message };
     }
 
     return {
@@ -99,10 +106,11 @@ export async function createCheckoutPreference(
       initPoint: data.init_point,
       sandboxInitPoint: data.sandbox_init_point,
     };
-  } catch (e: any) {
-    const msg = e?.message || "Error al crear preferencia de Mercado Pago";
-    console.error("Mercado Pago createPreference exception:", e);
-    return { ok: false, error: msg };
+  } catch (error: any) {
+    const message =
+      error?.message || "Error al crear preferencia de Mercado Pago";
+    console.error("Mercado Pago createPreference exception:", error);
+    return { ok: false, error: message };
   }
 }
 
@@ -116,6 +124,8 @@ export type GetPaymentResult = {
   externalReference?: string;
   paymentMethod?: string;
   payerEmail?: string;
+  statusCode?: number;
+  retryable?: boolean;
   error?: string;
 };
 
@@ -125,12 +135,12 @@ function roundMoney(amount: number) {
 
 function cleanObject<T extends Record<string, any>>(value: T): T {
   for (const key of Object.keys(value)) {
-    const v = value[key];
-    if (v === undefined || v === null || v === "") {
+    const current = value[key];
+    if (current === undefined || current === null || current === "") {
       delete value[key];
-    } else if (typeof v === "object" && !Array.isArray(v)) {
-      cleanObject(v);
-      if (Object.keys(v).length === 0) delete value[key];
+    } else if (typeof current === "object" && !Array.isArray(current)) {
+      cleanObject(current);
+      if (Object.keys(current).length === 0) delete value[key];
     }
   }
   return value;
@@ -143,9 +153,9 @@ function asString(value: unknown): string | undefined {
 }
 
 function asPositiveInt(value: unknown): number | undefined {
-  const n = Number(value);
-  if (!Number.isInteger(n) || n <= 0) return undefined;
-  return n;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) return undefined;
+  return parsed;
 }
 
 export type CreatePaymentInput = {
@@ -169,7 +179,9 @@ export type CreatePaymentResult = {
   error?: string;
 };
 
-export async function createPayment(input: CreatePaymentInput): Promise<CreatePaymentResult> {
+export async function createPayment(
+  input: CreatePaymentInput
+): Promise<CreatePaymentResult> {
   try {
     const { amount, concept, formData, payerEmail, notificationUrl } = input;
 
@@ -182,7 +194,9 @@ export async function createPayment(input: CreatePaymentInput): Promise<CreatePa
     const email = asString(payer.email) || payerEmail || undefined;
     const paymentMethodId = asString(formData?.payment_method_id);
 
-    if (!paymentMethodId) return { ok: false, error: "PAYMENT_METHOD_REQUIRED" };
+    if (!paymentMethodId) {
+      return { ok: false, error: "PAYMENT_METHOD_REQUIRED" };
+    }
     if (!email) return { ok: false, error: "PAYER_EMAIL_REQUIRED" };
 
     const body = cleanObject({
@@ -204,7 +218,7 @@ export async function createPayment(input: CreatePaymentInput): Promise<CreatePa
       statement_descriptor: "CHIDO CASINO",
     });
 
-    const res = await fetch(`${MP_BASE_URL}/v1/payments`, {
+    const response = await fetch(`${MP_BASE_URL}/v1/payments`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${getAccessToken()}`,
@@ -215,11 +229,15 @@ export async function createPayment(input: CreatePaymentInput): Promise<CreatePa
       cache: "no-store",
     });
 
-    const data: any = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const msg = data?.message || data?.error || data?.cause?.[0]?.description || `Mercado Pago error (${res.status})`;
+    const data: any = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message =
+        data?.message ||
+        data?.error ||
+        data?.cause?.[0]?.description ||
+        `Mercado Pago error (${response.status})`;
       console.error("Mercado Pago createPayment error:", data);
-      return { ok: false, error: msg };
+      return { ok: false, error: message };
     }
 
     return {
@@ -235,16 +253,28 @@ export async function createPayment(input: CreatePaymentInput): Promise<CreatePa
         data.point_of_interaction?.transaction_data?.ticket_url ||
         data.transaction_details?.external_resource_url,
     };
-  } catch (e: any) {
-    const msg = e?.message || "Error al crear pago de Mercado Pago";
-    console.error("Mercado Pago createPayment exception:", e);
-    return { ok: false, error: msg };
+  } catch (error: any) {
+    const message = error?.message || "Error al crear pago de Mercado Pago";
+    console.error("Mercado Pago createPayment exception:", error);
+    return { ok: false, error: message };
   }
 }
 
-export async function getPayment(paymentId: string | number): Promise<GetPaymentResult> {
+export async function getPayment(
+  paymentId: string | number
+): Promise<GetPaymentResult> {
   try {
-    const res = await fetch(`${MP_BASE_URL}/v1/payments/${paymentId}`, {
+    const normalizedId = String(paymentId).trim();
+    if (!/^\d+$/.test(normalizedId)) {
+      return {
+        ok: false,
+        statusCode: 400,
+        retryable: false,
+        error: "INVALID_PAYMENT_ID",
+      };
+    }
+
+    const response = await fetch(`${MP_BASE_URL}/v1/payments/${normalizedId}`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${getAccessToken()}`,
@@ -253,10 +283,18 @@ export async function getPayment(paymentId: string | number): Promise<GetPayment
       cache: "no-store",
     });
 
-    const data: any = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const msg = data?.message || data?.error || `Mercado Pago error (${res.status})`;
-      return { ok: false, error: msg };
+    const data: any = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message =
+        data?.message ||
+        data?.error ||
+        `Mercado Pago error (${response.status})`;
+      return {
+        ok: false,
+        statusCode: response.status,
+        retryable: response.status === 404 || response.status === 429 || response.status >= 500,
+        error: message,
+      };
     }
 
     return {
@@ -269,9 +307,15 @@ export async function getPayment(paymentId: string | number): Promise<GetPayment
       externalReference: data.external_reference,
       paymentMethod: data.payment_method_id,
       payerEmail: data.payer?.email,
+      statusCode: response.status,
+      retryable: false,
     };
-  } catch (e: any) {
-    return { ok: false, error: e?.message || "Error al obtener pago de Mercado Pago" };
+  } catch (error: any) {
+    return {
+      ok: false,
+      retryable: true,
+      error: error?.message || "Error al obtener pago de Mercado Pago",
+    };
   }
 }
 
@@ -290,7 +334,9 @@ export type CreatePayoutResult = {
   error?: string;
 };
 
-export async function createPayout(input: CreatePayoutInput): Promise<CreatePayoutResult> {
+export async function createPayout(
+  input: CreatePayoutInput
+): Promise<CreatePayoutResult> {
   try {
     const { amount, clabe, beneficiary, concept } = input;
 
@@ -304,7 +350,7 @@ export async function createPayout(input: CreatePayoutInput): Promise<CreatePayo
       return { ok: false, error: "Nombre del beneficiario invalido" };
     }
 
-    const body: any = {
+    const body = {
       external_reference: concept,
       transaction_amount: Math.round(amount * 100) / 100,
       currency_id: "MXN",
@@ -319,7 +365,7 @@ export async function createPayout(input: CreatePayoutInput): Promise<CreatePayo
       },
     };
 
-    const res = await fetch(`${MP_BASE_URL}/payouts/v1/transfers`, {
+    const response = await fetch(`${MP_BASE_URL}/payouts/v1/transfers`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${getAccessToken()}`,
@@ -330,11 +376,15 @@ export async function createPayout(input: CreatePayoutInput): Promise<CreatePayo
       cache: "no-store",
     });
 
-    const data: any = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const msg = data?.message || data?.error || data?.cause || `Mercado Pago payout error (${res.status})`;
+    const data: any = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message =
+        data?.message ||
+        data?.error ||
+        data?.cause ||
+        `Mercado Pago payout error (${response.status})`;
       console.error("Mercado Pago payout error:", data);
-      return { ok: false, error: msg };
+      return { ok: false, error: message };
     }
 
     return {
@@ -342,10 +392,10 @@ export async function createPayout(input: CreatePayoutInput): Promise<CreatePayo
       payoutId: String(data.id || data.transfer_id || ""),
       status: data.status || "processing",
     };
-  } catch (e: any) {
-    const msg = e?.message || "Error al crear retiro en Mercado Pago";
-    console.error("Mercado Pago payout exception:", e);
-    return { ok: false, error: msg };
+  } catch (error: any) {
+    const message = error?.message || "Error al crear retiro en Mercado Pago";
+    console.error("Mercado Pago payout exception:", error);
+    return { ok: false, error: message };
   }
 }
 
@@ -355,29 +405,45 @@ export function verifyWebhookSignature(
   dataId: string | number | null | undefined
 ): { enforced: boolean; ok: boolean } {
   const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET || "";
-  const requireSignature = process.env.MERCADOPAGO_REQUIRE_WEBHOOK_SIGNATURE === "1";
+  const requireSignature =
+    process.env.NODE_ENV === "production" ||
+    process.env.MERCADOPAGO_REQUIRE_WEBHOOK_SIGNATURE === "1";
 
-  if (!secret) return { enforced: requireSignature, ok: !requireSignature };
-  if (!signatureHeader || !xRequestId || !dataId) return { enforced: true, ok: false };
+  if (!secret) {
+    return { enforced: requireSignature, ok: !requireSignature };
+  }
+  if (!signatureHeader || !xRequestId || !dataId) {
+    return { enforced: true, ok: false };
+  }
 
   try {
-    let ts = "";
-    let v1 = "";
+    let timestamp = "";
+    let receivedDigest = "";
+
     for (const part of signatureHeader.split(",")) {
-      const [key, val] = part.trim().split("=");
-      if (key === "ts") ts = val || "";
-      if (key === "v1") v1 = val || "";
+      const [key, value] = part.trim().split("=");
+      if (key === "ts") timestamp = value || "";
+      if (key === "v1") receivedDigest = value || "";
     }
 
-    if (!ts || !v1) return { enforced: true, ok: false };
+    if (!timestamp || !/^[a-fA-F0-9]{64}$/.test(receivedDigest)) {
+      return { enforced: true, ok: false };
+    }
 
-    const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
-    const expected = crypto.createHmac("sha256", secret).update(manifest).digest("hex");
-    const a = Buffer.from(v1, "hex");
-    const b = Buffer.from(expected, "hex");
-    if (a.length !== b.length) return { enforced: true, ok: false };
+    const manifest = `id:${dataId};request-id:${xRequestId};ts:${timestamp};`;
+    const expectedDigest = crypto
+      .createHmac("sha256", secret)
+      .update(manifest)
+      .digest("hex");
+    const received = Buffer.from(receivedDigest, "hex");
+    const expected = Buffer.from(expectedDigest, "hex");
 
-    return { enforced: true, ok: crypto.timingSafeEqual(a, b) };
+    return {
+      enforced: true,
+      ok:
+        received.length === expected.length &&
+        crypto.timingSafeEqual(received, expected),
+    };
   } catch {
     return { enforced: true, ok: false };
   }
