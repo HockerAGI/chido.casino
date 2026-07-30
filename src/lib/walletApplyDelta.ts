@@ -6,9 +6,8 @@ export type WalletApplyDeltaInput = {
   reason?: string;
   refId?: string;
   method?: string;
-  // Agregamos estos campos opcionales para evitar el error de build:
-  currency?: string; 
-  metadata?: any;
+  currency?: string;
+  metadata?: Record<string, unknown>;
 };
 
 export type WalletApplyDeltaResult = {
@@ -58,6 +57,7 @@ export async function walletApplyDelta(
     reason = "wallet_delta",
     refId,
     method,
+    metadata = {},
   } = input;
 
   const args: Record<string, any> = {
@@ -68,6 +68,7 @@ export async function walletApplyDelta(
     p_reason: reason,
     p_ref_id: refId ?? null,
     p_method: method ?? null,
+    p_metadata: metadata,
   };
 
   const res: any = await supabase.rpc("wallet_apply_delta", args);
