@@ -3,6 +3,11 @@ import "server-only";
 import crypto from "crypto";
 
 const MP_BASE_URL = "https://api.mercadopago.com";
+const DEFAULT_SITE_URL = "https://chidocasino.vercel.app";
+
+function getPaymentSiteUrl() {
+  return DEFAULT_SITE_URL;
+}
 
 function getAccessToken(): string {
   const token = process.env.MERCADOPAGO_ACCESS_TOKEN || "";
@@ -41,7 +46,7 @@ export async function createCheckoutPreference(
       return { ok: false, error: "Monto invalido" };
     }
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chido.casino";
+    const siteUrl = getPaymentSiteUrl();
     const body: any = {
       items: [
         {
