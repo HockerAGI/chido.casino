@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-const VERSION = "stripe-webhook-v3-20260729";
-const DEFAULT_TARGET_URL = "https://chido-casino.vercel.app/api/webhooks/stripe";
+const VERSION = "stripe-webhook-v4-20260729";
+const DEFAULT_TARGET_URL = "https://chidocasino.vercel.app/api/webhooks/stripe";
 
 function json(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify({ ...body, version: VERSION }), {
