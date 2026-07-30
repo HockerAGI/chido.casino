@@ -13,17 +13,8 @@ type Provider = "mercadopago" | "stripe";
 
 const DEFAULT_SITE_URL = "https://chidocasino.vercel.app";
 
-function normalizeSiteUrl(value: string | undefined) {
-  if (!value) return "";
-  try {
-    return new URL(value.trim()).origin;
-  } catch {
-    return "";
-  }
-}
-
 function getPaymentSiteUrl() {
-  return normalizeSiteUrl(process.env.PAYMENT_SITE_URL) || DEFAULT_SITE_URL;
+  return DEFAULT_SITE_URL;
 }
 
 function folio(provider: Provider) {
