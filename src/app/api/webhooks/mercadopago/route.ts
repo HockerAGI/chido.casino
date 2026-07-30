@@ -11,15 +11,21 @@ function isDuplicate(msg: string) {
   return m.includes("duplicate") || m.includes("unique") || m.includes("23505");
 }
 
+function extractQueryDataId(req: Request) {
+  const url = new URL(req.url);
+  return url.searchParams.get("data.id") || url.searchParams.get("data_id");
+}
+
 function extractPaymentId(payload: any, req: Request) {
   const url = new URL(req.url);
   return (
+    extractQueryDataId(req) ||
+    url.searchParams.get("payment_id") ||
+    url.searchParams.get("id") ||
     payload?.data?.id ||
     payload?.data?.payment_id ||
     payload?.payment_id ||
-    payload?.id ||
-    url.searchParams.get("data.id") ||
-    url.searchParams.get("payment_id")
+    payload?.id
   );
 }
 
@@ -45,7 +51,7 @@ export async function POST(req: Request) {
     const sig = verifyWebhookSignature(
       req.headers.get("x-signature"),
       req.headers.get("x-request-id"),
-      paymentId
+      extractQueryDataId(req) || paymentId
     );
     if (sig.enforced && !sig.ok) {
       return NextResponse.json({ ok: false, error: "INVALID_SIGNATURE" }, { status: 401 });
@@ -61,7 +67,7 @@ export async function POST(req: Request) {
     const payment = await getPayment(paymentId);
     if (!payment.ok) {
       console.error("Mercado Pago webhook: failed to fetch payment", payment.error);
-      return NextResponse.json({ ok: true });
+      return NextResponse.json({ ok: false, error: "PAYMENT_FETCH_FAILED" }, { status: 502 });
     }
 
     const externalRef = payment.externalReference;
@@ -76,7 +82,7 @@ export async function POST(req: Request) {
 
       if (byRef.error) {
         console.error("Mercado Pago webhook: intent lookup error", byRef.error);
-        return NextResponse.json({ ok: true });
+        return NextResponse.json({ ok: false, error: "INTENT_LOOKUP_FAILED" }, { status: 500 });
       }
       intent = byRef.data || null;
     }
@@ -90,7 +96,7 @@ export async function POST(req: Request) {
 
       if (byExternalId.error) {
         console.error("Mercado Pago webhook: external intent lookup error", byExternalId.error);
-        return NextResponse.json({ ok: true });
+        return NextResponse.json({ ok: false, error: "EXTERNAL_INTENT_LOOKUP_FAILED" }, { status: 500 });
       }
       intent = byExternalId.data || null;
     }
@@ -118,7 +124,7 @@ async function processPayment(
   const status = String(payment.status || "").toLowerCase();
 
   if (status !== "approved") {
-    await supabaseAdmin
+    const { error } = await supabaseAdmin
       .from("deposit_intents")
       .update({
         status: ["rejected", "cancelled", "failure"].includes(status) ? "failed" : "pending",
@@ -126,6 +132,11 @@ async function processPayment(
         provider_payload: { payment_id: paymentId, status: payment.status },
       } as any)
       .eq("id", intent.id);
+
+    if (error) {
+      console.error("Mercado Pago pending intent update error:", error);
+      return NextResponse.json({ ok: false, error: "INTENT_UPDATE_FAILED" }, { status: 500 });
+    }
 
     return NextResponse.json({ ok: true });
   }
@@ -151,17 +162,23 @@ async function processPayment(
 
   if (apply.error) {
     if (isDuplicate(String(apply.error))) {
-      await supabaseAdmin
+      const { error } = await supabaseAdmin
         .from("deposit_intents")
         .update({ status: "credited", external_id: paymentId })
         .eq("id", intent.id);
+
+      if (error) {
+        console.error("Mercado Pago duplicate credit intent update error:", error);
+        return NextResponse.json({ ok: false, error: "INTENT_UPDATE_FAILED" }, { status: 500 });
+      }
+
       return NextResponse.json({ ok: true });
     }
     console.error("Mercado Pago wallet credit error:", apply.error);
     return NextResponse.json({ ok: false, error: apply.error }, { status: 500 });
   }
 
-  await supabaseAdmin
+  const { error: updateError } = await supabaseAdmin
     .from("deposit_intents")
     .update({
       status: "credited",
@@ -169,6 +186,11 @@ async function processPayment(
       provider_payload: { payment_id: paymentId, status: payment.status, amount },
     } as any)
     .eq("id", intent.id);
+
+  if (updateError) {
+    console.error("Mercado Pago credited intent update error:", updateError);
+    return NextResponse.json({ ok: false, error: "INTENT_UPDATE_FAILED" }, { status: 500 });
+  }
 
   await creditAffiliateFirstDepositBonus(supabaseAdmin, { userId, amount, intentId: intent.intent_id });
 
