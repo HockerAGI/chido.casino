@@ -11,6 +11,8 @@ import { createStripeCheckoutSession, isStripeConfigured } from "@/lib/stripe";
 type DepositMethod = "mercadopago" | "stripe" | "card" | "spei" | "oxxo";
 type Provider = "mercadopago" | "stripe";
 
+const DEFAULT_SITE_URL = "https://chido-casino.vercel.app";
+
 function folio(provider: Provider) {
   const prefix = provider === "stripe" ? "CHDST" : "CHDMP";
   return `${prefix}-${Math.random().toString(36).slice(2, 8).toUpperCase()}-${Date.now()
@@ -76,7 +78,7 @@ export async function POST(req: Request) {
     }
 
     const f = folio(provider);
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chido.casino";
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || DEFAULT_SITE_URL;
 
     if (provider === "stripe") {
       if (!isStripeConfigured()) {
