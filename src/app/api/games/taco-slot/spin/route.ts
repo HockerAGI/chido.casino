@@ -1,9 +1,9 @@
 export const runtime = "nodejs";
 
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { walletApplyDelta } from "@/lib/walletApplyDelta";
 import { fairFloat, generateServerSeed, serverSeedHash } from "@/lib/provablyFair";
 import { promoWageringProgress } from "@/lib/promoWagering";
 import { getPromoLimitState } from "@/lib/promoLimits";
@@ -18,79 +18,88 @@ const SYMBOLS: { key: SymbolKey; img: string; weight: number }[] = [
   { key: "habanero", img: "/badge-habanero.png", weight: 8 },
 ];
 
-// RTP esperado ≈ 94.7376%
 const PAIR_MULTIPLIER = 0.82;
 
-function pickWeighted(serverSeed: string, clientSeed: string, nonce: number, round: number) {
-  const total = SYMBOLS.reduce((s, x) => s + x.weight, 0);
-  const r = fairFloat(serverSeed, clientSeed, nonce, round) * total;
+function pickWeighted(
+  serverSeed: string,
+  clientSeed: string,
+  nonce: number,
+  round: number
+) {
+  const total = SYMBOLS.reduce((sum, symbol) => sum + symbol.weight, 0);
+  const random = fairFloat(serverSeed, clientSeed, nonce, round) * total;
 
-  let acc = 0;
-  for (const s of SYMBOLS) {
-    acc += s.weight;
-    if (r <= acc) return { key: s.key, img: s.img };
+  let accumulated = 0;
+  for (const symbol of SYMBOLS) {
+    accumulated += symbol.weight;
+    if (random <= accumulated) {
+      return { key: symbol.key, img: symbol.img };
+    }
   }
+
   return { key: SYMBOLS[0].key, img: SYMBOLS[0].img };
 }
 
 function calcMultiplier(reels: { key: SymbolKey }[]) {
-  const [a, b, c] = reels.map((x) => x.key);
+  const [first, second, third] = reels.map((item) => item.key);
 
-  if (a === b && b === c) {
-    if (a === "habanero") return 20;
-    if (a === "serrano") return 10;
-    if (a === "jalapeno") return 5;
+  if (first === second && second === third) {
+    if (first === "habanero") return 20;
+    if (first === "serrano") return 10;
+    if (first === "jalapeno") return 5;
     return 3;
   }
 
-  if (a === b || b === c || a === c) return PAIR_MULTIPLIER;
+  if (first === second || second === third || first === third) {
+    return PAIR_MULTIPLIER;
+  }
+
   return 0;
 }
 
 function levelFromBet(bet: number) {
-  if (bet <= 20) return { key: "verde" as const, label: "Nivel Verde", badge: "/badge-verde.png" };
-  if (bet <= 50) return { key: "jalapeno" as const, label: "Nivel Jalapeño", badge: "/badge-jalapeno.png" };
-  if (bet <= 120) return { key: "serrano" as const, label: "Nivel Serrano", badge: "/badge-serrano.png" };
-  return { key: "habanero" as const, label: "Nivel Habanero", badge: "/badge-habanero.png" };
+  if (bet <= 20) {
+    return { key: "verde" as const, label: "Nivel Verde", badge: "/badge-verde.png" };
+  }
+  if (bet <= 50) {
+    return {
+      key: "jalapeno" as const,
+      label: "Nivel Jalapeño",
+      badge: "/badge-jalapeno.png",
+    };
+  }
+  if (bet <= 120) {
+    return {
+      key: "serrano" as const,
+      label: "Nivel Serrano",
+      badge: "/badge-serrano.png",
+    };
+  }
+  return {
+    key: "habanero" as const,
+    label: "Nivel Habanero",
+    badge: "/badge-habanero.png",
+  };
 }
 
-function isInsufficient(msg: string) {
-  const m = (msg || "").toLowerCase();
-  return m.includes("insufficient") || m.includes("saldo") || m.includes("balance") || m.includes("not enough");
-}
-function isMissingTable(msg: string) {
-  const m = (msg || "").toLowerCase();
-  return m.includes("relation") && m.includes("does not exist");
-}
-function round2(n: number) {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
+function roundMoney(value: number) {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
-async function spendBet(userId: string, bet: number, refId: string) {
-  const a = await walletApplyDelta(supabaseAdmin as any, {
-    userId,
-    deltaBalance: -bet,
-    deltaBonus: 0,
-    deltaLocked: 0,
-    reason: "taco_slot_bet_balance",
-    refId,
-  });
-  if (!a.error) return { source: "balance" as const };
+function safeRequestKey(value: unknown) {
+  const candidate = String(value || "").trim();
+  return /^[a-zA-Z0-9:_-]{8,128}$/.test(candidate)
+    ? candidate
+    : randomUUID();
+}
 
-  if (!isInsufficient(String(a.error || ""))) return { source: "error" as const, error: "WALLET_ERROR" };
-
-  const b = await walletApplyDelta(supabaseAdmin as any, {
-    userId,
-    deltaBalance: 0,
-    deltaBonus: -bet,
-    deltaLocked: 0,
-    reason: "taco_slot_bet_bonus",
-    refId,
-  });
-  if (!b.error) return { source: "bonus" as const };
-
-  if (isInsufficient(String(b.error || ""))) return { source: "error" as const, error: "Saldo insuficiente" };
-  return { source: "error" as const, error: "WALLET_ERROR" };
+function isInsufficientFunds(message: string) {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("insufficient") ||
+    normalized.includes("saldo") ||
+    normalized.includes("funds")
+  );
 }
 
 export async function POST(req: Request) {
@@ -100,109 +109,108 @@ export async function POST(req: Request) {
       data: { session },
     } = await supabase.auth.getSession();
 
-    if (!session) return NextResponse.json({ ok: false, error: "No autorizado" }, { status: 401 });
+    if (!session) {
+      return NextResponse.json(
+        { ok: false, error: "No autorizado" },
+        { status: 401 }
+      );
+    }
 
-    // Global kill-switch: honor Hocker ONE admin pause immediately
     const paused = await assertGamesNotPaused();
     if (paused) return paused;
 
-    const body = await req.json().catch(() => ({} as any));
-    const bet = Number(body?.bet);
+    const body = await req.json().catch(() => ({} as Record<string, unknown>));
+    const bet = roundMoney(Number(body?.bet));
 
     if (!Number.isFinite(bet) || bet <= 0) {
-      return NextResponse.json({ ok: false, error: "Apuesta inválida" }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: "Apuesta inválida" },
+        { status: 400 }
+      );
     }
 
-    const promoState = await getPromoLimitState(supabaseAdmin as any, session.user.id);
-    if (promoState.ok && promoState.hasRollover) {
-      if (bet > promoState.maxBet) {
-        return NextResponse.json(
-          {
-            ok: false,
-            error: "PROMO_MAX_BET",
-            message: `Con bono activo (rollover), la apuesta máxima por jugada es ${promoState.maxBet} MXN.`,
-            maxBet: promoState.maxBet,
-            required: promoState.required,
-            progress: promoState.progress,
-          },
-          { status: 400 }
-        );
-      }
+    const promoState = await getPromoLimitState(
+      supabaseAdmin as any,
+      session.user.id
+    );
+    if (promoState.ok && promoState.hasRollover && bet > promoState.maxBet) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "PROMO_MAX_BET",
+          message: `Con bono activo (rollover), la apuesta máxima por jugada es ${promoState.maxBet} MXN.`,
+          maxBet: promoState.maxBet,
+          required: promoState.required,
+          progress: promoState.progress,
+        },
+        { status: 400 }
+      );
     }
 
-    const { data: maxRow, error: maxErr } = await supabaseAdmin
-      .from("slot_spins")
-      .select("nonce")
-      .order("nonce", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    let nonce = 0;
-    if (!maxErr && maxRow?.nonce != null) nonce = Number(maxRow.nonce) + 1;
-    if (maxErr && isMissingTable(String((maxErr as any)?.message || ""))) nonce = Date.now();
-
-    const spinId = `ts_${session.user.id}_${Date.now()}`;
-
-    const spent = await spendBet(session.user.id, bet, `${spinId}:bet`);
-    if (spent.source === "error") {
-      return NextResponse.json({ ok: false, error: spent.error }, { status: 400 });
+    const { data: nonceData, error: nonceError } = await supabaseAdmin.rpc(
+      "next_slot_nonce"
+    );
+    if (nonceError) {
+      throw new Error(`NONCE_ERROR: ${nonceError.message}`);
     }
 
+    const nonce = Number(nonceData);
+    if (!Number.isSafeInteger(nonce) || nonce <= 0) {
+      throw new Error("NONCE_INVALID");
+    }
+
+    const requestKey = safeRequestKey(
+      req.headers.get("idempotency-key") || body?.requestId
+    );
+    const spinId = `ts_${session.user.id}_${requestKey}`;
     const serverSeed = generateServerSeed(32);
     const serverSeedHashHex = serverSeedHash(serverSeed);
     const clientSeed = String(body?.clientSeed || session.user.id);
-
-    const reels = [0, 1, 2].map((i) => pickWeighted(serverSeed, clientSeed, Number(nonce), i));
-
+    const reels = [0, 1, 2].map((round) =>
+      pickWeighted(serverSeed, clientSeed, nonce, round)
+    );
     const multiplier = calcMultiplier(reels);
-    const payout = multiplier > 0 ? round2(bet * multiplier) : 0;
+    const payout = multiplier > 0 ? roundMoney(bet * multiplier) : 0;
 
-    if (payout > 0) {
-      const credit = await walletApplyDelta(supabaseAdmin as any, {
-        userId: session.user.id,
-        deltaBalance: +payout,
-        deltaBonus: 0,
-        deltaLocked: 0,
-        reason: "taco_slot_payout",
-        refId: `${spinId}:payout`,
-      });
-
-      if (credit.error) {
-        await walletApplyDelta(supabaseAdmin as any, {
-          userId: session.user.id,
-          deltaBalance: spent.source === "balance" ? +bet : 0,
-          deltaBonus: spent.source === "bonus" ? +bet : 0,
-          deltaLocked: 0,
-          reason: "taco_slot_rollback",
-          refId: `${spinId}:rb`,
-        });
-        return NextResponse.json({ ok: false, error: "PAYOUT_ERROR" }, { status: 500 });
+    const { data: settlement, error: settlementError } = await supabaseAdmin.rpc(
+      "casino_settle_taco_slot",
+      {
+        p_user_id: session.user.id,
+        p_round_ref: spinId,
+        p_bet_amount: bet,
+        p_payout_amount: payout,
+        p_multiplier: multiplier,
+        p_reels: reels,
+        p_server_seed_hash: serverSeedHashHex,
+        p_server_seed: serverSeed,
+        p_client_seed: clientSeed,
+        p_nonce: nonce,
+        p_metadata: {
+          pair_multiplier: PAIR_MULTIPLIER,
+          expected_rtp: 0.947376,
+        },
       }
+    );
+
+    if (settlementError) {
+      if (isInsufficientFunds(settlementError.message)) {
+        return NextResponse.json(
+          { ok: false, error: "Saldo insuficiente" },
+          { status: 400 }
+        );
+      }
+      throw new Error(`SETTLEMENT_ERROR: ${settlementError.message}`);
     }
 
-    const ins = await supabaseAdmin.from("slot_spins").insert({
-      user_id: session.user.id,
-      bet_amount: bet,
-      payout_amount: payout,
-      multiplier,
-      reels,
-      server_seed_hash: serverSeedHashHex,
-      server_seed: serverSeed,
-      client_seed: clientSeed,
-      nonce: Number(nonce),
-      metadata: { pair_multiplier: PAIR_MULTIPLIER, expected_rtp: 0.947376 },
-    });
-
-    if (ins.error && !isMissingTable(String((ins.error as any)?.message || ""))) {
-      console.error("slot_spins insert error:", ins.error);
-    }
-
-    await promoWageringProgress(supabaseAdmin as any, {
+    const wagering = await promoWageringProgress(supabaseAdmin as any, {
       userId: session.user.id,
       wagerAmount: bet,
       wagerRef: `slot:${spinId}`,
       game: "taco_slot",
     });
+    if (!wagering.ok) {
+      console.error("Taco slot wagering progress error:", wagering.error);
+    }
 
     return NextResponse.json({
       ok: true,
@@ -213,16 +221,23 @@ export async function POST(req: Request) {
       reels,
       level: levelFromBet(bet),
       rtp: 0.947376,
+      idempotent: Boolean((settlement as any)?.idempotent),
       fair: {
         serverSeedHash: serverSeedHashHex,
         serverSeed,
         clientSeed,
-        nonce: Number(nonce),
+        nonce,
       },
       message: payout > 0 ? `Ganaste x${multiplier} 🔥` : "No pegó… otra 🔁",
     });
-  } catch (e: any) {
-    console.error(e);
-    return NextResponse.json({ ok: false, error: e?.message || "Error interno" }, { status: 500 });
+  } catch (error) {
+    console.error("Taco slot error:", error);
+    return NextResponse.json(
+      {
+        ok: false,
+        error: error instanceof Error ? error.message : "Error interno",
+      },
+      { status: 500 }
+    );
   }
 }
