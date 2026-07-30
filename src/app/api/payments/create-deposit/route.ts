@@ -11,28 +11,10 @@ import { createStripeCheckoutSession, isStripeConfigured } from "@/lib/stripe";
 type DepositMethod = "mercadopago" | "stripe" | "card" | "spei" | "oxxo";
 type Provider = "mercadopago" | "stripe";
 
-const DEFAULT_SITE_URL = "https://chido-casino.vercel.app";
-const UNRESOLVED_CANONICAL_SITE_URLS = new Set(["https://chido.casino", "http://chido.casino"]);
-
-function normalizeSiteUrl(value: string | undefined) {
-  if (!value) return "";
-  try {
-    return new URL(value.trim()).origin;
-  } catch {
-    return "";
-  }
-}
+const DEFAULT_SITE_URL = "https://chidocasino.vercel.app";
 
 function getPaymentSiteUrl() {
-  const explicitPaymentUrl = normalizeSiteUrl(process.env.PAYMENT_SITE_URL);
-  if (explicitPaymentUrl) return explicitPaymentUrl;
-
-  const publicSiteUrl = normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL);
-  if (!publicSiteUrl || UNRESOLVED_CANONICAL_SITE_URLS.has(publicSiteUrl)) {
-    return DEFAULT_SITE_URL;
-  }
-
-  return publicSiteUrl;
+  return DEFAULT_SITE_URL;
 }
 
 function folio(provider: Provider) {

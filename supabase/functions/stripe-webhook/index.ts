@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-const VERSION = "stripe-webhook-v3-20260729";
-const DEFAULT_TARGET_URL = "https://chido-casino.vercel.app/api/webhooks/stripe";
+const VERSION = "stripe-webhook-v4-20260729";
+const DEFAULT_TARGET_URL = "https://chidocasino.vercel.app/api/webhooks/stripe";
 
 function json(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify({ ...body, version: VERSION }), {
@@ -16,7 +16,7 @@ function json(body: Record<string, unknown>, status = 200) {
 
 Deno.serve(async (req: Request) => {
   if (req.method === "GET") {
-    return json({ ok: true, status: "ready", target: Deno.env.get("CHIDO_STRIPE_WEBHOOK_URL") ? "configured" : DEFAULT_TARGET_URL });
+    return json({ ok: true, status: "ready", target: DEFAULT_TARGET_URL });
   }
 
   if (req.method !== "POST") {
@@ -28,7 +28,6 @@ Deno.serve(async (req: Request) => {
     return json({ ok: false, error: "MISSING_STRIPE_SIGNATURE" }, 400);
   }
 
-  const targetUrl = Deno.env.get("CHIDO_STRIPE_WEBHOOK_URL") || DEFAULT_TARGET_URL;
   const rawBody = await req.arrayBuffer();
   const headers = new Headers();
   headers.set("content-type", req.headers.get("content-type") || "application/json");
@@ -36,7 +35,7 @@ Deno.serve(async (req: Request) => {
   headers.set("x-chido-edge-version", VERSION);
 
   try {
-    const upstream = await fetch(targetUrl, {
+    const upstream = await fetch(DEFAULT_TARGET_URL, {
       method: "POST",
       headers,
       body: rawBody,
