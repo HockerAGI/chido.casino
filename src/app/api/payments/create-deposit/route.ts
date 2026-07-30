@@ -12,6 +12,28 @@ type DepositMethod = "mercadopago" | "stripe" | "card" | "spei" | "oxxo";
 type Provider = "mercadopago" | "stripe";
 
 const DEFAULT_SITE_URL = "https://chido-casino.vercel.app";
+const UNRESOLVED_CANONICAL_SITE_URLS = new Set(["https://chido.casino", "http://chido.casino"]);
+
+function normalizeSiteUrl(value: string | undefined) {
+  if (!value) return "";
+  try {
+    return new URL(value.trim()).origin;
+  } catch {
+    return "";
+  }
+}
+
+function getPaymentSiteUrl() {
+  const explicitPaymentUrl = normalizeSiteUrl(process.env.PAYMENT_SITE_URL);
+  if (explicitPaymentUrl) return explicitPaymentUrl;
+
+  const publicSiteUrl = normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL);
+  if (!publicSiteUrl || UNRESOLVED_CANONICAL_SITE_URLS.has(publicSiteUrl)) {
+    return DEFAULT_SITE_URL;
+  }
+
+  return publicSiteUrl;
+}
 
 function folio(provider: Provider) {
   const prefix = provider === "stripe" ? "CHDST" : "CHDMP";
@@ -78,7 +100,7 @@ export async function POST(req: Request) {
     }
 
     const f = folio(provider);
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || DEFAULT_SITE_URL;
+    const siteUrl = getPaymentSiteUrl();
 
     if (provider === "stripe") {
       if (!isStripeConfigured()) {
