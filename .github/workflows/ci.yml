@@ -5,17 +5,21 @@ on:
   push:
     branches:
       - main
+      - fix/full-hardening-20260730
+
+permissions:
+  contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
-      NEXT_PUBLIC_SITE_URL: https://chido.casino
+      NEXT_PUBLIC_SITE_URL: https://chidocasino.vercel.app
       NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
       NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
       SUPABASE_SERVICE_ROLE_KEY: dummy-service-role-key
@@ -24,6 +28,7 @@ jobs:
       MERCADOPAGO_REQUIRE_WEBHOOK_SIGNATURE: "1"
       STRIPE_SECRET_KEY: sk_test_dummy
       STRIPE_WEBHOOK_SECRET: whsec_dummy
+      DEFAULT_PAYOUT_PROVIDER: manual
 
     steps:
       - name: Checkout
@@ -35,8 +40,14 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Install
-        run: npm ci
+      - name: Install reproducibly
+        run: npm ci --include=optional
+
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Critical regression tests
+        run: npm test
 
       - name: Lint
         run: npm run lint
