@@ -10,7 +10,7 @@
     "dev": "next dev -p 3000",
     "build": "next build --webpack",
     "start": "next start -p 3000",
-    "lint": "eslint . --max-warnings=0",
+    "lint": "eslint . --quiet",
     "lint:all": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
