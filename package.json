@@ -19,10 +19,9 @@
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.49.1",
-    "@trigger.dev/sdk": "^3.3.17",
     "clsx": "^2.1.1",
     "framer-motion": "^11.0.0",
-    "langfuse-node": "^3.38.6",
+    "langfuse-node": "3.38.20",
     "lucide-react": "^0.451.0",
     "next": "16.2.12",
     "node-cron": "^4.2.1",
@@ -41,8 +40,12 @@
     "autoprefixer": "^10.4.20",
     "eslint": "^9.0.0",
     "eslint-config-next": "^16.2.12",
-    "postcss": "^8.5.1",
+    "postcss": "8.5.18",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.9.0"
+  },
+  "overrides": {
+    "sharp": "0.35.3",
+    "postcss": "8.5.18"
   }
 }
