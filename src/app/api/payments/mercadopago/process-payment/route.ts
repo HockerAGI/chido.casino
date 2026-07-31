@@ -4,21 +4,14 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getServerSession } from "@/lib/session";
 import { fraudLog } from "@/lib/fraud";
-import { creditAffiliateFirstDepositBonus } from "@/lib/depositBonuses";
 import { createPayment, isMercadoPagoConfigured } from "@/lib/mercadopago";
-import { walletApplyDelta } from "@/lib/walletApplyDelta";
 
 const DEFAULT_SITE_URL = "https://chidocasino.vercel.app";
 
-function isDuplicate(msg: string) {
-  const m = (msg || "").toLowerCase();
-  return m.includes("duplicate") || m.includes("unique") || m.includes("23505");
-}
-
 function depositStatusFromPayment(status?: string) {
-  const s = String(status || "").toLowerCase();
-  if (s === "approved") return "credited";
-  if (["rejected", "cancelled", "canceled", "failure"].includes(s)) return "failed";
+  const normalized = String(status || "").toLowerCase();
+  if (normalized === "approved") return "credited";
+  if (["rejected", "cancelled", "canceled", "failure"].includes(normalized)) return "failed";
   return "pending";
 }
 
@@ -27,15 +20,22 @@ function normalizeFolio(value: unknown) {
   return /^CHDMP-[A-Z0-9]{6}-[0-9]{5}$/.test(folio) ? folio : "";
 }
 
+function roundMoney(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.round(number * 100) / 100 : Number.NaN;
+}
+
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(req);
-    if (!session) return NextResponse.json({ ok: false, error: "No autorizado" }, { status: 401 });
+    if (!session) {
+      return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
+    }
     if (!isMercadoPagoConfigured()) {
-      return NextResponse.json({ ok: false, error: "Mercado Pago no esta configurado." }, { status: 503 });
+      return NextResponse.json({ ok: false, error: "MERCADOPAGO_NOT_CONFIGURED" }, { status: 503 });
     }
 
-    const body = await req.json().catch(() => ({}));
+    const body = await req.json().catch(() => ({} as Record<string, any>));
     const folio = normalizeFolio(body?.folio);
     const preferenceId = String(body?.preferenceId || "").trim();
     const formData = body?.formData && typeof body.formData === "object" ? body.formData : null;
@@ -45,15 +45,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "PAYMENT_DATA_REQUIRED" }, { status: 400 });
     }
 
-    const { data: intent, error: intentErr } = await supabaseAdmin
+    const { data: intent, error: intentError } = await supabaseAdmin
       .from("deposit_intents")
       .select("*")
       .eq("intent_id", folio)
       .eq("user_id", session.user.id)
       .maybeSingle();
 
-    if (intentErr) {
-      console.error("Mercado Pago Checkout API intent lookup error:", intentErr);
+    if (intentError) {
+      console.error("Mercado Pago Checkout intent lookup failed", intentError);
       return NextResponse.json({ ok: false, error: "INTENT_LOOKUP_FAILED" }, { status: 500 });
     }
     if (!intent || String(intent.provider || "") !== "mercadopago") {
@@ -62,23 +62,27 @@ export async function POST(req: Request) {
     if (intent.status === "credited") {
       return NextResponse.json({ ok: true, status: "approved", alreadyCredited: true });
     }
+    if (["failed", "cancelled", "canceled", "rejected"].includes(String(intent.status || ""))) {
+      return NextResponse.json({ ok: false, error: "INTENT_FINAL" }, { status: 409 });
+    }
 
     const recordedPreferenceId = String(intent.external_id || intent.metadata?.preference_id || "");
     if (preferenceId && recordedPreferenceId && preferenceId !== recordedPreferenceId) {
       return NextResponse.json({ ok: false, error: "PREFERENCE_MISMATCH" }, { status: 400 });
     }
 
-    const amount = Number(intent.amount || 0);
-    if (!Number.isFinite(amount) || amount <= 0) {
-      return NextResponse.json({ ok: false, error: "INTENT_AMOUNT_INVALID" }, { status: 400 });
+    const amount = roundMoney(intent.amount);
+    if (!Number.isFinite(amount) || amount <= 0 || String(intent.currency || "MXN").toUpperCase() !== "MXN") {
+      return NextResponse.json({ ok: false, error: "INTENT_AMOUNT_OR_CURRENCY_INVALID" }, { status: 400 });
     }
 
+    const siteUrl = String(process.env.NEXT_PUBLIC_SITE_URL || DEFAULT_SITE_URL).replace(/\/$/, "");
     const payment = await createPayment({
       amount,
       concept: folio,
       formData,
       payerEmail: session.user.email ?? null,
-      notificationUrl: `${DEFAULT_SITE_URL}/api/webhooks/mercadopago`,
+      notificationUrl: `${siteUrl}/api/webhooks/mercadopago`,
     });
 
     if (!payment.ok || !payment.paymentId) {
@@ -91,6 +95,7 @@ export async function POST(req: Request) {
             selected_payment_method: selectedPaymentMethod || null,
             error: payment.error || "PAYMENT_CREATE_FAILED",
           },
+          updated_at: new Date().toISOString(),
         } as any)
         .eq("id", intent.id);
 
@@ -98,6 +103,17 @@ export async function POST(req: Request) {
         { ok: false, error: payment.error || "PAYMENT_CREATE_FAILED" },
         { status: 400 }
       );
+    }
+
+    const providerAmount = roundMoney(payment.amount);
+    if (Number.isFinite(providerAmount) && providerAmount !== amount) {
+      console.error("Mercado Pago Checkout amount mismatch", {
+        folio,
+        expectedAmount: amount,
+        providerAmount,
+        paymentId: payment.paymentId,
+      });
+      return NextResponse.json({ ok: false, error: "PAYMENT_AMOUNT_MISMATCH" }, { status: 422 });
     }
 
     await fraudLog(supabaseAdmin as any, req, {
@@ -114,26 +130,31 @@ export async function POST(req: Request) {
     });
 
     const nextStatus = depositStatusFromPayment(payment.status);
+    const providerPayload = {
+      payment_id: payment.paymentId,
+      preference_id: recordedPreferenceId || preferenceId || null,
+      selected_payment_method: selectedPaymentMethod || null,
+      status: payment.status,
+      status_detail: payment.statusDetail,
+      amount: providerAmount,
+      currency: "MXN",
+      redirect_url: payment.redirectUrl || null,
+      source: "checkout_api",
+    };
+
     if (nextStatus !== "credited") {
-      const { error: updateErr } = await supabaseAdmin
+      const { error: updateError } = await supabaseAdmin
         .from("deposit_intents")
         .update({
           status: nextStatus,
           external_id: payment.paymentId,
-          provider_payload: {
-            payment_id: payment.paymentId,
-            preference_id: recordedPreferenceId || preferenceId || null,
-            selected_payment_method: selectedPaymentMethod || null,
-            status: payment.status,
-            status_detail: payment.statusDetail,
-            amount: payment.amount,
-            redirect_url: payment.redirectUrl || null,
-          },
+          provider_payload: providerPayload,
+          updated_at: new Date().toISOString(),
         } as any)
         .eq("id", intent.id);
 
-      if (updateErr) {
-        console.error("Mercado Pago Checkout API pending intent update error:", updateErr);
+      if (updateError) {
+        console.error("Mercado Pago pending intent update failed", updateError);
         return NextResponse.json({ ok: false, error: "INTENT_UPDATE_FAILED" }, { status: 500 });
       }
 
@@ -146,59 +167,31 @@ export async function POST(req: Request) {
       });
     }
 
-    const apply = await walletApplyDelta(supabaseAdmin, {
-      userId: session.user.id,
-      deltaBalance: amount,
-      deltaBonus: 0,
-      deltaLocked: 0,
-      reason: "deposit_mercadopago",
-      refId: `mp_deposit:${folio}`,
-      metadata: {
-        payment_id: payment.paymentId,
-        intent_id: folio,
-        method: payment.paymentMethod,
-        source: "checkout_api",
-      },
+    const { data, error } = await supabaseAdmin.rpc("credit_deposit_atomic", {
+      p_intent_id: folio,
+      p_provider: "mercadopago",
+      p_external_id: payment.paymentId,
+      p_user_id: session.user.id,
+      p_amount: amount,
+      p_currency: "MXN",
+      p_provider_payload: providerPayload,
     });
 
-    if (apply.error && !isDuplicate(String(apply.error))) {
-      console.error("Mercado Pago Checkout API wallet credit error:", apply.error);
-      return NextResponse.json({ ok: false, error: apply.error }, { status: 500 });
+    if (error) {
+      console.error("Mercado Pago Checkout atomic credit failed", error);
+      return NextResponse.json({ ok: false, error: "ATOMIC_CREDIT_FAILED" }, { status: 500 });
     }
-
-    const { error: updateErr } = await supabaseAdmin
-      .from("deposit_intents")
-      .update({
-        status: "credited",
-        external_id: payment.paymentId,
-        provider_payload: {
-          payment_id: payment.paymentId,
-          preference_id: recordedPreferenceId || preferenceId || null,
-          selected_payment_method: selectedPaymentMethod || null,
-          status: payment.status,
-          status_detail: payment.statusDetail,
-          amount,
-          source: "checkout_api",
-        },
-      } as any)
-      .eq("id", intent.id);
-
-    if (updateErr) {
-      console.error("Mercado Pago Checkout API credited intent update error:", updateErr);
-      return NextResponse.json({ ok: false, error: "INTENT_UPDATE_FAILED" }, { status: 500 });
-    }
-
-    await creditAffiliateFirstDepositBonus(supabaseAdmin, { userId: session.user.id, amount, intentId: folio });
 
     return NextResponse.json({
       ok: true,
       status: payment.status,
       statusDetail: payment.statusDetail,
       paymentId: payment.paymentId,
-      credited: true,
+      credited: Boolean((data as any)?.credited),
+      idempotent: Boolean((data as any)?.idempotent),
     });
-  } catch (e: any) {
-    console.error("Mercado Pago Checkout API process-payment error:", e);
-    return NextResponse.json({ ok: false, error: e?.message || "Error interno" }, { status: 500 });
+  } catch (error) {
+    console.error("Mercado Pago Checkout process error", error);
+    return NextResponse.json({ ok: false, error: "INTERNAL_ERROR" }, { status: 500 });
   }
 }
