@@ -50,7 +50,7 @@ export async function POST(req: Request) {
       p_status: status,
       p_reason: String(body.reason || "").trim() || null,
       p_meta: {
-        reviewed_by: auth.admin.email || auth.admin.id || "chido-admin",
+        reviewed_by: auth.admin.email || auth.admin.userId || "chido-admin",
         source: "chido.casino",
         route: "/api/payments/manual/confirm",
       },
