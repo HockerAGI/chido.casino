@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { safeJson } from "@/lib/safeJson";
 
@@ -73,7 +73,8 @@ export default function MercadoPagoPaymentBrick({
   onError,
 }: MercadoPagoPaymentBrickProps) {
   const publicKey = process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY || "";
-  const containerId = useMemo(() => `mp-payment-brick-${Math.random().toString(36).slice(2)}`, []);
+  const reactId = useId();
+  const containerId = `mp-payment-brick-${reactId.replace(/:/g, "")}`;
   const onDoneRef = useRef(onDone);
   const onErrorRef = useRef(onError);
   const [ready, setReady] = useState(false);
