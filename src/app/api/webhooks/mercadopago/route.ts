@@ -2,47 +2,38 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { walletApplyDelta } from "@/lib/walletApplyDelta";
-import { creditAffiliateFirstDepositBonus } from "@/lib/depositBonuses";
 import {
   getPayment,
   verifyWebhookSignature,
   type GetPaymentResult,
 } from "@/lib/mercadopago";
 
-function isDuplicate(message: string) {
-  const normalized = message.toLowerCase();
-  return (
-    normalized.includes("duplicate") ||
-    normalized.includes("unique") ||
-    normalized.includes("23505")
-  );
-}
-
 function extractQueryDataId(req: Request) {
   const url = new URL(req.url);
   return url.searchParams.get("data.id") || url.searchParams.get("data_id");
 }
 
-function extractPaymentId(payload: any, req: Request) {
+function extractPaymentId(payload: unknown, req: Request) {
+  const data = payload && typeof payload === "object" ? (payload as Record<string, any>) : {};
   const url = new URL(req.url);
   return (
     extractQueryDataId(req) ||
     url.searchParams.get("payment_id") ||
-    payload?.data?.id ||
-    payload?.data?.payment_id ||
-    payload?.payment_id
+    data?.data?.id ||
+    data?.data?.payment_id ||
+    data?.payment_id
   );
 }
 
-function isPaymentNotification(payload: any, req: Request) {
+function isPaymentNotification(payload: unknown, req: Request) {
+  const data = payload && typeof payload === "object" ? (payload as Record<string, any>) : {};
   const url = new URL(req.url);
   const markers = [
     url.searchParams.get("type"),
     url.searchParams.get("topic"),
-    payload?.type,
-    payload?.topic,
-    payload?.action,
+    data?.type,
+    data?.topic,
+    data?.action,
   ]
     .filter(Boolean)
     .map((value) => String(value).toLowerCase());
@@ -50,7 +41,7 @@ function isPaymentNotification(payload: any, req: Request) {
   return Boolean(extractQueryDataId(req)) || markers.some((value) => value.includes("payment"));
 }
 
-function parsePayload(rawBody: string) {
+function parsePayload(rawBody: string): unknown {
   if (!rawBody) return null;
   try {
     return JSON.parse(rawBody);
@@ -85,6 +76,28 @@ async function fetchPaymentWithRetry(paymentId: string): Promise<GetPaymentResul
   return lastResult;
 }
 
+async function findIntent(paymentId: string, externalReference: string) {
+  if (externalReference) {
+    const byReference = await supabaseAdmin
+      .from("deposit_intents")
+      .select("*")
+      .eq("intent_id", externalReference)
+      .maybeSingle();
+    if (byReference.error) return { intent: null, error: byReference.error.message };
+    if (byReference.data) return { intent: byReference.data, error: null };
+  }
+
+  const byExternalId = await supabaseAdmin
+    .from("deposit_intents")
+    .select("*")
+    .eq("external_id", paymentId)
+    .maybeSingle();
+  return {
+    intent: byExternalId.data || null,
+    error: byExternalId.error?.message || null,
+  };
+}
+
 export async function POST(req: Request) {
   try {
     const rawBody = await req.text();
@@ -96,10 +109,7 @@ export async function POST(req: Request) {
 
     const paymentId = String(extractPaymentId(payload, req) || "").trim();
     if (!/^\d+$/.test(paymentId)) {
-      return NextResponse.json(
-        { ok: false, error: "INVALID_PAYMENT_ID" },
-        { status: 400 }
-      );
+      return NextResponse.json({ ok: false, error: "INVALID_PAYMENT_ID" }, { status: 400 });
     }
 
     const signature = verifyWebhookSignature(
@@ -108,15 +118,12 @@ export async function POST(req: Request) {
       extractQueryDataId(req) || paymentId
     );
     if (signature.enforced && !signature.ok) {
-      return NextResponse.json(
-        { ok: false, error: "INVALID_SIGNATURE" },
-        { status: 401 }
-      );
+      return NextResponse.json({ ok: false, error: "INVALID_SIGNATURE" }, { status: 401 });
     }
 
     const payment = await fetchPaymentWithRetry(paymentId);
     if (!payment.ok) {
-      console.warn("Mercado Pago webhook: payment fetch deferred", {
+      console.warn("Mercado Pago payment fetch deferred", {
         paymentId,
         statusCode: payment.statusCode,
         error: payment.error,
@@ -128,199 +135,101 @@ export async function POST(req: Request) {
     }
 
     const externalReference = String(payment.externalReference || "").trim();
-    let intent: any | null = null;
-
-    if (externalReference) {
-      const byReference = await supabaseAdmin
-        .from("deposit_intents")
-        .select("*")
-        .eq("intent_id", externalReference)
-        .maybeSingle();
-
-      if (byReference.error) {
-        console.error("Mercado Pago webhook: intent lookup error", byReference.error);
-        return NextResponse.json(
-          { ok: false, error: "INTENT_LOOKUP_FAILED" },
-          { status: 500 }
-        );
-      }
-      intent = byReference.data || null;
+    const lookup = await findIntent(paymentId, externalReference);
+    if (lookup.error) {
+      console.error("Mercado Pago intent lookup failed", lookup.error);
+      return NextResponse.json({ ok: false, error: "INTENT_LOOKUP_FAILED" }, { status: 500 });
     }
 
-    if (!intent) {
-      const byExternalId = await supabaseAdmin
-        .from("deposit_intents")
-        .select("*")
-        .eq("external_id", paymentId)
-        .maybeSingle();
-
-      if (byExternalId.error) {
-        console.error(
-          "Mercado Pago webhook: external intent lookup error",
-          byExternalId.error
-        );
-        return NextResponse.json(
-          { ok: false, error: "EXTERNAL_INTENT_LOOKUP_FAILED" },
-          { status: 500 }
-        );
-      }
-      intent = byExternalId.data || null;
-    }
-
+    const intent = lookup.intent;
     if (!intent || String(intent.provider || "") !== "mercadopago") {
-      console.warn("Mercado Pago webhook ignored: deposit intent not found", {
-        paymentId,
-        externalReference,
-      });
       return NextResponse.json({ ok: true, ignored: "INTENT_NOT_FOUND" });
     }
 
-    return processPayment(paymentId, payment, intent);
-  } catch (error: any) {
-    console.error("Mercado Pago webhook error:", error);
-    return NextResponse.json(
-      { ok: false, error: error?.message || "Error interno" },
-      { status: 500 }
-    );
-  }
-}
-
-async function processPayment(
-  paymentId: string,
-  payment: GetPaymentResult,
-  intent: any
-) {
-  if (intent.status === "credited") {
-    return NextResponse.json({ ok: true, idempotent: true });
-  }
-
-  const status = String(payment.status || "").toLowerCase();
-  if (status !== "approved") {
-    const { error } = await supabaseAdmin
-      .from("deposit_intents")
-      .update({
-        status: ["rejected", "cancelled", "failure"].includes(status)
-          ? "failed"
-          : "pending",
-        external_id: paymentId,
-        provider_payload: {
-          payment_id: paymentId,
-          status: payment.status,
-          status_detail: payment.statusDetail,
-        },
-      } as any)
-      .eq("id", intent.id);
-
-    if (error) {
-      console.error("Mercado Pago pending intent update error:", error);
-      return NextResponse.json(
-        { ok: false, error: "INTENT_UPDATE_FAILED" },
-        { status: 500 }
-      );
+    if (intent.status === "credited") {
+      return NextResponse.json({ ok: true, idempotent: true });
     }
 
-    return NextResponse.json({ ok: true });
-  }
+    const status = String(payment.status || "").toLowerCase();
+    if (status !== "approved") {
+      const { error } = await supabaseAdmin
+        .from("deposit_intents")
+        .update({
+          status: ["rejected", "cancelled", "canceled", "failure"].includes(status)
+            ? "failed"
+            : "pending",
+          external_id: paymentId,
+          provider_payload: {
+            payment_id: paymentId,
+            status: payment.status,
+            status_detail: payment.statusDetail,
+          },
+          updated_at: new Date().toISOString(),
+        } as any)
+        .eq("id", intent.id);
 
-  const userId = String(intent.user_id || "").trim();
-  const expectedAmount = roundMoney(intent.amount);
-  const paidAmount = roundMoney(payment.amount);
-  const currency = String(payment.currency || "").toUpperCase();
-  const externalReference = String(payment.externalReference || "").trim();
-
-  if (!userId || !Number.isFinite(expectedAmount) || expectedAmount <= 0) {
-    return NextResponse.json(
-      { ok: false, error: "INVALID_DEPOSIT_INTENT" },
-      { status: 422 }
-    );
-  }
-
-  if (!Number.isFinite(paidAmount) || paidAmount !== expectedAmount || currency !== "MXN") {
-    console.error("Mercado Pago webhook: payment validation mismatch", {
-      paymentId,
-      expectedAmount,
-      paidAmount,
-      currency,
-      intentId: intent.intent_id,
-    });
-    return NextResponse.json(
-      { ok: false, error: "PAYMENT_VALIDATION_MISMATCH" },
-      { status: 422 }
-    );
-  }
-
-  if (externalReference && externalReference !== String(intent.intent_id)) {
-    console.error("Mercado Pago webhook: external reference mismatch", {
-      paymentId,
-      externalReference,
-      intentId: intent.intent_id,
-    });
-    return NextResponse.json(
-      { ok: false, error: "EXTERNAL_REFERENCE_MISMATCH" },
-      { status: 409 }
-    );
-  }
-
-  const refId = `mp_deposit:${intent.intent_id}`;
-  const applied = await walletApplyDelta(supabaseAdmin, {
-    userId,
-    deltaBalance: expectedAmount,
-    deltaBonus: 0,
-    deltaLocked: 0,
-    reason: "deposit_mercadopago",
-    refId,
-    metadata: {
-      payment_id: paymentId,
-      intent_id: intent.intent_id,
-      method: payment.paymentMethod,
-      currency,
-      verified_amount: paidAmount,
-    },
-  });
-
-  if (applied.error) {
-    if (!isDuplicate(String(applied.error))) {
-      console.error("Mercado Pago wallet credit error:", applied.error);
-      return NextResponse.json(
-        { ok: false, error: applied.error },
-        { status: 500 }
-      );
+      if (error) {
+        console.error("Mercado Pago intent update failed", error);
+        return NextResponse.json({ ok: false, error: "INTENT_UPDATE_FAILED" }, { status: 500 });
+      }
+      return NextResponse.json({ ok: true });
     }
-  }
 
-  const { error: updateError } = await supabaseAdmin
-    .from("deposit_intents")
-    .update({
-      status: "credited",
-      external_id: paymentId,
-      provider_payload: {
+    const userId = String(intent.user_id || "").trim();
+    const expectedAmount = roundMoney(intent.amount);
+    const paidAmount = roundMoney(payment.amount);
+    const currency = String(payment.currency || "").toUpperCase();
+
+    if (!userId || !Number.isFinite(expectedAmount) || expectedAmount <= 0) {
+      return NextResponse.json({ ok: false, error: "INVALID_DEPOSIT_INTENT" }, { status: 422 });
+    }
+    if (!Number.isFinite(paidAmount) || paidAmount !== expectedAmount || currency !== "MXN") {
+      console.error("Mercado Pago validation mismatch", {
+        paymentId,
+        expectedAmount,
+        paidAmount,
+        currency,
+        intentId: intent.intent_id,
+      });
+      return NextResponse.json({ ok: false, error: "PAYMENT_VALIDATION_MISMATCH" }, { status: 422 });
+    }
+    if (externalReference && externalReference !== String(intent.intent_id)) {
+      return NextResponse.json({ ok: false, error: "EXTERNAL_REFERENCE_MISMATCH" }, { status: 409 });
+    }
+
+    const { data, error } = await supabaseAdmin.rpc("credit_deposit_atomic", {
+      p_intent_id: String(intent.intent_id),
+      p_provider: "mercadopago",
+      p_external_id: paymentId,
+      p_user_id: userId,
+      p_amount: paidAmount,
+      p_currency: currency,
+      p_provider_payload: {
         payment_id: paymentId,
         status: payment.status,
         status_detail: payment.statusDetail,
-        amount: paidAmount,
-        currency,
+        payment_method: payment.paymentMethod,
+        external_reference: externalReference || null,
+        verified_amount: paidAmount,
+        verified_currency: currency,
+        source: "webhook",
       },
-    } as any)
-    .eq("id", intent.id);
+    });
 
-  if (updateError) {
-    console.error("Mercado Pago credited intent update error:", updateError);
-    return NextResponse.json(
-      { ok: false, error: "INTENT_UPDATE_FAILED" },
-      { status: 500 }
-    );
+    if (error) {
+      console.error("Mercado Pago atomic credit failed", error);
+      return NextResponse.json({ ok: false, error: "ATOMIC_CREDIT_FAILED" }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      credited: Boolean((data as any)?.credited),
+      idempotent: Boolean((data as any)?.idempotent),
+    });
+  } catch (error) {
+    console.error("Mercado Pago webhook error", error);
+    return NextResponse.json({ ok: false, error: "INTERNAL_ERROR" }, { status: 500 });
   }
-
-  await creditAffiliateFirstDepositBonus(supabaseAdmin, {
-    userId,
-    amount: expectedAmount,
-    intentId: intent.intent_id,
-  });
-
-  return NextResponse.json({
-    ok: true,
-    idempotent: Boolean(applied.idempotent),
-  });
 }
 
 export async function GET() {
