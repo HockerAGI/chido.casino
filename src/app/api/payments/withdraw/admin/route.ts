@@ -3,12 +3,6 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { auditAdminAction, requireAdmin } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { walletApplyDelta } from "@/lib/walletApplyDelta";
-
-function isSchemaMismatch(msg: string) {
-  const m = (msg || "").toLowerCase();
-  return m.includes("column") || m.includes("does not exist") || m.includes("unknown");
-}
 
 type Action = "paid" | "reject" | "failed" | "refund";
 
@@ -17,123 +11,61 @@ export async function POST(req: Request) {
     const auth = await requireAdmin(req, "payments:write");
     if (!auth.ok) return auth.response;
 
-    const body = (await req.json()) as {
+    const body = (await req.json().catch(() => ({}))) as {
       externalId?: string;
       action?: Action;
-      providerPayload?: any;
+      providerPayload?: Record<string, unknown>;
       note?: string;
+      idempotencyKey?: string;
     };
 
     const externalId = String(body.externalId || "").trim();
-    const action = (String(body.action || "") as Action) || "paid";
-
+    const action = String(body.action || "") as Action;
     if (!externalId) {
-      return NextResponse.json({ ok: false, error: "externalId requerido" }, { status: 400 });
+      return NextResponse.json({ ok: false, error: "EXTERNAL_ID_REQUIRED" }, { status: 400 });
     }
     if (!["paid", "reject", "failed", "refund"].includes(action)) {
-      return NextResponse.json({ ok: false, error: "action invalida" }, { status: 400 });
+      return NextResponse.json({ ok: false, error: "INVALID_ACTION" }, { status: 400 });
     }
 
-    let row: any | null = null;
-    const reqNew = await supabaseAdmin
-      .from("withdraw_requests")
-      .select("user_id, amount, status, external_id")
-      .eq("external_id", externalId)
-      .maybeSingle();
+    const idempotencyKey =
+      String(body.idempotencyKey || req.headers.get("idempotency-key") || "").trim() ||
+      `withdraw_settle:${externalId}:${action}`;
 
-    if (!reqNew.error && reqNew.data) {
-      row = reqNew.data as any;
-    } else if (reqNew.error && isSchemaMismatch(String(reqNew.error.message || ""))) {
-      const reqLegacy = await supabaseAdmin
-        .from("withdraw_requests")
-        .select("user_id, amount, status, id")
-        .eq("id", externalId)
-        .maybeSingle();
+    const { data, error } = await supabaseAdmin.rpc("admin_settle_withdrawal", {
+      p_external_id: externalId,
+      p_final_action: action,
+      p_provider_payload:
+        body.providerPayload && typeof body.providerPayload === "object"
+          ? body.providerPayload
+          : {},
+      p_note: String(body.note || "").trim() || null,
+      p_idempotency_key: idempotencyKey,
+    });
 
-      if (reqLegacy.error) {
-        return NextResponse.json({ ok: false, error: reqLegacy.error.message }, { status: 500 });
-      }
-      row = (reqLegacy.data as any) || null;
-    } else if (reqNew.error) {
-      return NextResponse.json({ ok: false, error: reqNew.error.message }, { status: 500 });
+    if (error) {
+      console.error("Atomic withdrawal settlement failed", error);
+      return NextResponse.json({ ok: false, error: "ATOMIC_SETTLEMENT_FAILED" }, { status: 500 });
     }
 
-    if (!row) {
-      return NextResponse.json({ ok: false, error: "No encontrado" }, { status: 404 });
-    }
-
-    const userId = String(row.user_id || "");
-    const amount = Number(row.amount || 0);
-    const status = String(row.status || "pending");
-
-    if (!userId || !Number.isFinite(amount) || amount <= 0) {
-      return NextResponse.json({ ok: false, error: "Registro invalido" }, { status: 500 });
-    }
-
-    if (["paid", "rejected", "failed", "refunded"].includes(status)) {
-      return NextResponse.json({ ok: true, status, alreadyFinal: true });
-    }
-
-    const finalStatus =
-      action === "paid" ? "paid" : action === "reject" ? "rejected" : action === "failed" ? "failed" : "refunded";
-
-    const upNew = await supabaseAdmin
-      .from("withdraw_requests")
-      .update({
-        status: finalStatus,
-        provider_payload: body.providerPayload ?? null,
-      } as any)
-      .eq("external_id", externalId);
-
-    if (upNew.error && isSchemaMismatch(String(upNew.error.message || ""))) {
-      const upLegacy = await supabaseAdmin
-        .from("withdraw_requests")
-        .update({
-          status: finalStatus,
-          metadata: { provider_payload: body.providerPayload ?? null, note: body.note ?? null },
-        } as any)
-        .eq("id", externalId);
-
-      if (upLegacy.error) {
-        return NextResponse.json({ ok: false, error: upLegacy.error.message }, { status: 500 });
-      }
-    } else if (upNew.error) {
-      return NextResponse.json({ ok: false, error: upNew.error.message }, { status: 500 });
-    }
-
-    if (action === "paid") {
-      const r = await walletApplyDelta(supabaseAdmin, {
-        userId,
-        deltaBalance: 0,
-        deltaBonus: 0,
-        deltaLocked: -amount,
-        reason: "withdraw_paid",
-        refId: `${externalId}:paid`,
-        metadata: { note: body.note ?? null },
-      });
-      if (r.error) return NextResponse.json({ ok: false, error: r.error }, { status: 500 });
-    } else {
-      const r = await walletApplyDelta(supabaseAdmin, {
-        userId,
-        deltaBalance: +amount,
-        deltaBonus: 0,
-        deltaLocked: -amount,
-        reason: "withdraw_refund",
-        refId: `${externalId}:${finalStatus}`,
-        metadata: { note: body.note ?? null },
-      });
-      if (r.error) return NextResponse.json({ ok: false, error: r.error }, { status: 500 });
+    const result = (data || {}) as Record<string, any>;
+    if (!result.ok) {
+      const code = String(result.error || "SETTLEMENT_REJECTED");
+      const status = code === "NOT_FOUND" ? 404 : code.includes("INVALID") ? 400 : 409;
+      return NextResponse.json({ ok: false, error: code, details: result }, { status });
     }
 
     await auditAdminAction(auth.admin, "admin_settle_withdraw", {
       external_id: externalId,
       action,
-      final_status: finalStatus,
+      final_status: result.status,
+      idempotent: Boolean(result.idempotent),
       note: body.note ?? null,
     });
 
-    return NextResponse.json({ ok: true, status: finalStatus });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || "Error interno" }, { status: 500 });
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error("Withdrawal settlement error", error);
+    return NextResponse.json({ ok: false, error: "INTERNAL_ERROR" }, { status: 500 });
   }
 }
