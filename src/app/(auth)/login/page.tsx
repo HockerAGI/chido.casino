@@ -6,18 +6,19 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2, Lock, Mail, Eye, EyeOff, Star, Zap, Shield } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  Loader2,
+  Lock,
+  Mail,
+  ShieldCheck,
+} from "lucide-react";
 
 const SUPABASE_CONFIGURED =
   typeof process !== "undefined" &&
-  !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
-  !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-const TRUST_BADGES = [
-  { icon: Shield, label: "SSL 256-bit" },
-  { icon: Zap, label: "Pago al toque" },
-  { icon: Star, label: "+50k jugando" },
-];
+  Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
+  Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
 type RiskAttemptResponse = {
   ok?: boolean;
@@ -25,11 +26,9 @@ type RiskAttemptResponse = {
   error?: string;
 };
 
-async function safeReadJson<T>(res: Response): Promise<T | null> {
-  const contentType = res.headers.get("content-type") || "";
-  if (!contentType.includes("application/json")) return null;
+async function readJson<T>(response: Response): Promise<T | null> {
   try {
-    return (await res.json()) as T;
+    return (await response.json()) as T;
   } catch {
     return null;
   }
@@ -38,7 +37,6 @@ async function safeReadJson<T>(res: Response): Promise<T | null> {
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
-
   const supabase = useMemo(() => {
     if (typeof window === "undefined" || !SUPABASE_CONFIGURED) return null;
     try {
@@ -50,71 +48,68 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPw, setShowPw] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-
+  async function handleLogin(event: React.FormEvent) {
+    event.preventDefault();
     if (!supabase) {
       toast({
-        title: "Config pendiente",
-        description: "Falta configurar las variables de entorno de Supabase.",
+        title: "Entorno no configurado",
+        description: "El inicio de sesión no está disponible.",
         variant: "destructive",
       });
       return;
     }
 
     setLoading(true);
-
     try {
-      const riskRes = await fetch("/api/auth/risk/attempt", {
+      const riskResponse = await fetch("/api/auth/risk/attempt", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ email }),
       }).catch(() => null);
 
-      if (riskRes) {
-        const riskData = await safeReadJson<RiskAttemptResponse>(riskRes);
-
-        if (!riskRes.ok || riskData?.ok === false) {
-          const cd = Number(riskData?.cooldownSeconds || 0);
-          toast({
-            title: "Protección activa",
-            description: cd > 0 ? `Espera ${cd}s e intenta de nuevo.` : "Espera un momento.",
-            variant: "destructive",
-          });
-          setLoading(false);
-          return;
-        }
+      if (!riskResponse) {
+        throw new Error("La protección de acceso no está disponible. Intenta más tarde.");
+      }
+      const risk = await readJson<RiskAttemptResponse>(riskResponse);
+      if (!riskResponse.ok || risk?.ok === false) {
+        const cooldown = Number(risk?.cooldownSeconds || 0);
+        throw new Error(
+          cooldown > 0
+            ? `Demasiados intentos. Espera ${cooldown} segundos.`
+            : "La protección de acceso bloqueó temporalmente el intento."
+        );
       }
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+      if (error) throw new Error(error.message);
+      if (!data.session) throw new Error("No se pudo crear una sesión válida.");
 
-      if (error) {
-        throw new Error(error.message);
+      const reset = await fetch("/api/auth/risk/reset", {
+        method: "POST",
+      }).catch(() => null);
+      if (!reset?.ok) {
+        console.warn("Authenticated login rate reset was not confirmed");
       }
 
-      if (!data.session) {
-        throw new Error("No se pudo crear la sesión. Revisa tu correo y contraseña.");
-      }
-
-      await fetch("/api/auth/risk/reset", { method: "POST" }).catch(() => {});
       await fetch("/api/affiliates/attribution", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({}),
-      }).catch(() => {});
+      }).catch(() => null);
 
       router.push("/lobby");
       router.refresh();
-    } catch (err: any) {
+    } catch (error) {
       toast({
-        title: "No se pudo entrar",
-        description: err?.message || "Error de autenticación.",
+        title: "No se pudo iniciar sesión",
+        description:
+          error instanceof Error ? error.message : "Error de autenticación.",
         variant: "destructive",
       });
     } finally {
@@ -123,120 +118,98 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="w-full max-w-sm mx-auto">
-      <div className="flex justify-center mb-8">
-        <div className="relative">
-          <div className="absolute -inset-4 rounded-full bg-[#FF0099]/20 blur-xl animate-pulse" />
-          <Image
-            src="/chido-logo.png"
-            alt="Chido Casino"
-            width={120}
-            height={120}
-            className="relative drop-shadow-[0_0_24px_rgba(255,0,153,0.6)]"
-          />
-        </div>
+    <div className="mx-auto w-full max-w-sm">
+      <div className="mb-7 flex justify-center">
+        <Image
+          src="/chido-logo.png"
+          alt="Chido Casino"
+          width={120}
+          height={120}
+          priority
+        />
       </div>
 
-      <div className="relative rounded-3xl border border-white/10 bg-gradient-to-b from-white/8 to-white/3 backdrop-blur-xl p-7 shadow-[0_32px_64px_rgba(0,0,0,0.6)]">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-px rounded-t-3xl bg-gradient-to-r from-transparent via-[#FF0099]/50 to-transparent" />
-
-        <div className="mb-6 text-center">
-          <h1 className="text-3xl font-black tracking-tight">
-            <span className="text-white">¡</span>
-            <span className="bg-gradient-to-r from-[#FF0099] to-[#FF5E00] bg-clip-text text-transparent">ÓRALE</span>
-            <span className="text-white">, entra!</span>
-          </h1>
-          <p className="mt-1 text-sm text-white/50">Tu cuenta de Chido Casino</p>
+      <div className="rounded-3xl border border-white/10 bg-white/5 p-7 backdrop-blur-xl">
+        <div className="mb-5 rounded-2xl border border-[#FFD700]/20 bg-[#FFD700]/5 p-4">
+          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[#FFD700]">
+            <ShieldCheck size={15} /> Prelaunch controlado
+          </div>
+          <p className="mt-2 text-xs leading-relaxed text-white/55">
+            Sin depósitos, apuestas con dinero real ni premios monetarios.
+          </p>
         </div>
 
-        {!SUPABASE_CONFIGURED && (
-          <div className="mb-5 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-xs text-yellow-400 font-medium">
-            ⚠️ Configura <code>NEXT_PUBLIC_SUPABASE_URL</code> y{" "}
-            <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> en Replit Secrets.
-          </div>
-        )}
+        <h1 className="text-2xl font-black text-white">Iniciar sesión</h1>
+        <p className="mt-1 text-sm text-white/45">
+          Acceso al entorno de validación de CHIDO.
+        </p>
 
-        <form onSubmit={handleLogin} className="space-y-3">
-          <div className="group relative">
+        <form onSubmit={handleLogin} className="mt-6 space-y-3">
+          <label className="relative block">
             <Mail
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-[#FF0099] transition-colors"
               size={16}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30"
             />
             <input
               type="email"
-              placeholder="correo@ejemplo.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-2xl border border-white/10 bg-black/50 text-white pl-11 pr-4 py-4 text-sm outline-none transition-all focus:border-[#FF0099]/60 focus:bg-black/70 focus:shadow-[0_0_0_3px_rgba(255,0,153,0.1)] placeholder:text-white/25"
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="correo@ejemplo.com"
+              autoComplete="email"
               required
+              className="w-full rounded-2xl border border-white/10 bg-black/50 py-4 pl-11 pr-4 text-sm text-white outline-none focus:border-[#00F0FF]/60"
             />
-          </div>
+          </label>
 
-          <div className="group relative">
+          <label className="relative block">
             <Lock
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-[#FF0099] transition-colors"
               size={16}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30"
             />
             <input
-              type={showPw ? "text" : "password"}
-              placeholder="Contraseña"
+              type={showPassword ? "text" : "password"}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-2xl border border-white/10 bg-black/50 text-white pl-11 pr-12 py-4 text-sm outline-none transition-all focus:border-[#FF0099]/60 focus:bg-black/70 focus:shadow-[0_0_0_3px_rgba(255,0,153,0.1)] placeholder:text-white/25"
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Contraseña"
+              autoComplete="current-password"
               required
+              className="w-full rounded-2xl border border-white/10 bg-black/50 py-4 pl-11 pr-12 text-sm text-white outline-none focus:border-[#00F0FF]/60"
             />
             <button
               type="button"
-              onClick={() => setShowPw(!showPw)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70 transition-colors"
+              onClick={() => setShowPassword((value) => !value)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-white/35"
+              aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
             >
-              {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+              {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
             </button>
-          </div>
+          </label>
 
           <div className="text-right">
-            <Link href="/forgot-password" className="text-xs text-white/40 hover:text-[#00F0FF] transition-colors">
-              ¿Olvidaste tu contraseña?
+            <Link
+              href="/forgot-password"
+              className="text-xs text-white/45 hover:text-[#00F0FF]"
+            >
+              Recuperar contraseña
             </Link>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="relative w-full h-14 rounded-2xl font-black text-base tracking-widest uppercase overflow-hidden transition-all active:scale-[0.98] disabled:opacity-60 group"
+            className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#00F0FF] to-[#32CD32] font-black text-black disabled:opacity-60"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-[#FF0099] to-[#FF5E00]" />
-            <div className="absolute inset-px rounded-[14px] bg-gradient-to-b from-white/15 to-transparent" />
-            <span className="relative text-white flex items-center justify-center gap-2">
-              {loading ? <Loader2 className="animate-spin" size={20} /> : "Entrar al casino"}
-            </span>
+            {loading ? <Loader2 className="animate-spin" size={20} /> : null}
+            {loading ? "Verificando…" : "Entrar a pruebas"}
           </button>
         </form>
 
-        <div className="my-5 flex items-center gap-3">
-          <div className="flex-1 h-px bg-white/10" />
-          <span className="text-xs text-white/30">o también</span>
-          <div className="flex-1 h-px bg-white/10" />
-        </div>
-
         <Link
           href="/signup"
-          className="flex items-center justify-center w-full h-12 rounded-2xl border border-[#00F0FF]/30 bg-[#00F0FF]/5 hover:bg-[#00F0FF]/10 hover:border-[#00F0FF]/50 transition-all font-bold text-sm text-[#00F0FF]"
+          className="mt-4 flex h-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-sm font-bold text-white/70 hover:bg-white/10"
         >
-          Crear cuenta — ¡Ahorita!
+          Crear cuenta prelaunch
         </Link>
-
-        <div className="mt-5 grid grid-cols-3 gap-2">
-          {TRUST_BADGES.map(({ icon: Icon, label }) => (
-            <div
-              key={label}
-              className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-center flex flex-col items-center gap-1"
-            >
-              <Icon size={14} className="text-white/60" />
-              <span className="text-[10px] uppercase tracking-[0.2em] text-white/45">{label}</span>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );

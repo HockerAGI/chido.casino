@@ -8,43 +8,16 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useProfile } from "@/lib/useProfile";
-import { useWalletBalance } from "@/lib/useWalletBalance";
-import { uploadAvatar } from "@/lib/uploadAvatar";
 import { createClient } from "@/lib/supabaseClient";
-import { getPlayerLevel } from "@/lib/playerLevel";
 import {
-  UserCircle,
-  Upload,
-  ShieldCheck,
-  ShieldAlert,
-  LogOut,
-  Wallet,
-  Users,
-  Gamepad2,
-  History,
-  TrendingUp,
-  Copy,
-  RefreshCw,
-  KeyRound,
-  Crown,
-  CheckCircle2,
   AlertTriangle,
+  CheckCircle2,
+  KeyRound,
+  LogOut,
+  Save,
+  ShieldCheck,
+  UserCircle,
 } from "lucide-react";
-
-type AffiliateMe = {
-  ok: boolean;
-  link?: string;
-  affiliate?: { code: string; status: string; created_at?: string };
-  stats?: { clicks: number; registrations: number; firstDeposits: number; totalCommission: number };
-  recentCommissions?: {
-    amount: number;
-    status: string;
-    reason: string;
-    created_at: string | null;
-    referred_user_id: string | null;
-  }[];
-  error?: string;
-};
 
 type KycStatus = {
   ok: boolean;
@@ -59,445 +32,189 @@ type KycStatus = {
   error?: string;
 };
 
-type HistoryRow = {
-  id: string;
-  game: "crash" | "taco_slot";
-  bet: number;
-  payout: number;
-  profit: number;
-  created_at: string;
-  meta?: any;
-};
-
-function money(n: number) {
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-    maximumFractionDigits: 2,
-  }).format(Number.isFinite(n) ? n : 0);
-}
-
 export default function ProfilePage() {
   const supabase = useMemo(() => createClient(), []);
   const { profile, loading, refresh } = useProfile();
-  const wallet = useWalletBalance();
-  const level = useMemo(() => getPlayerLevel((profile as any)?.xp || 0), [profile]);
-
   const [username, setUsername] = useState("");
   const [saving, setSaving] = useState(false);
-
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-
-  const [msg, setMsg] = useState<string | null>(null);
-  const [aff, setAff] = useState<AffiliateMe | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [kycInfo, setKycInfo] = useState<KycStatus | null>(null);
 
-  const [histLoading, setHistLoading] = useState(true);
-  const [hist, setHist] = useState<HistoryRow[]>([]);
-
   useEffect(() => {
-    setUsername((profile as any)?.username || "");
+    setUsername(String((profile as any)?.username || ""));
   }, [profile]);
 
   useEffect(() => {
-    const loadAff = async () => {
+    const load = async () => {
       try {
-        const res = await fetch("/api/affiliates/me", { cache: "no-store" });
-        const json = (await res.json()) as AffiliateMe;
-        if (json.ok) setAff(json);
-        else setAff(json);
+        const response = await fetch("/api/kyc/status", { cache: "no-store" });
+        setKycInfo((await response.json()) as KycStatus);
       } catch {
-        setAff({ ok: false, error: "No se pudo cargar el programa de afiliados." });
+        setKycInfo({ ok: false, error: "KYC_STATUS_UNAVAILABLE" });
       }
     };
-
-    const loadKyc = async () => {
-      try {
-        const res = await fetch("/api/kyc/status", { cache: "no-store" });
-        const json = (await res.json()) as KycStatus;
-        setKycInfo(json);
-      } catch {
-        setKycInfo({ ok: false, error: "No se pudo cargar el estado KYC." });
-      }
-    };
-
-    void loadAff();
-    void loadKyc();
+    void load();
   }, []);
 
-  useEffect(() => {
-    const loadHistory = async () => {
-      setHistLoading(true);
-      try {
-        const res = await fetch("/api/profile/history", { cache: "no-store" });
-        const json = await res.json();
-        if (res.ok && json?.ok) setHist((json.combined || []) as HistoryRow[]);
-        else setHist([]);
-      } catch {
-        setHist([]);
-      } finally {
-        setHistLoading(false);
-      }
-    };
-
-    void loadHistory();
-    const t = setInterval(loadHistory, 15000);
-    return () => clearInterval(t);
-  }, []);
-
-  const kyc = String((profile as any)?.kyc_status || kycInfo?.kyc_status || "").toLowerCase();
-  const kycLabel =
-    kyc === "approved" || kyc === "verified"
-      ? "Verificado"
-      : kyc === "pending"
-        ? "Pendiente de revisión"
-        : kyc
-          ? kyc
-          : "Sin verificación";
+  const kyc = String(
+    (profile as any)?.kyc_status ||
+      kycInfo?.kyc_status ||
+      kycInfo?.request?.status ||
+      "unverified"
+  ).toLowerCase();
+  const approved = kyc === "approved";
+  const pending = ["uploading", "pending", "review_required"].includes(kyc);
 
   const saveUsername = async () => {
     if (!profile) return;
-
-    const u = username.trim();
-    if (u.length < 3) {
-      setMsg("Tu alias debe tener al menos 3 caracteres.");
+    const value = username.trim();
+    if (!/^[a-zA-Z0-9_]{3,24}$/.test(value)) {
+      setMessage("El alias debe tener entre 3 y 24 caracteres alfanuméricos o guion bajo.");
       return;
     }
 
     setSaving(true);
-    setMsg(null);
-
+    setMessage(null);
     try {
       const { error } = await supabase
         .from("profiles")
-        .update({ username: u, updated_at: new Date().toISOString() })
+        .update({ username: value, updated_at: new Date().toISOString() })
         .eq("user_id", (profile as any).user_id);
-
       if (error) throw error;
-
-      setMsg("Alias actualizado.");
       await refresh();
-      await wallet.refresh();
-    } catch (e: any) {
-      setMsg(e?.message || "No se pudo guardar el alias.");
+      setMessage("Alias actualizado.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "PROFILE_UPDATE_FAILED");
     } finally {
       setSaving(false);
     }
   };
 
-  const doUploadAvatar = async () => {
-    if (!avatarFile) return;
-    setUploading(true);
-    setMsg(null);
-
-    try {
-      await uploadAvatar(avatarFile);
-      setMsg("Avatar actualizado.");
-      setAvatarFile(null);
-      await refresh();
-    } catch (e: any) {
-      setMsg(e?.message || "No se pudo subir el avatar.");
-    } finally {
-      setUploading(false);
-    }
-  };
-
   const resetPassword = async () => {
-    try {
-      const { data } = await supabase.auth.getUser();
-      const email = data?.user?.email;
-      if (!email) {
-        setMsg("No encontramos tu correo, chale.");
-        return;
-      }
-
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${location.origin}/forgot-password`,
-      });
-
-      if (error) throw error;
-      setMsg("Te mandamos un correo pa' que resetees tu contraseña, sin rodeos.");
-    } catch (e: any) {
-      setMsg(e?.message || "No se pudo mandar el correo, intenta luego.");
+    setMessage(null);
+    const { data } = await supabase.auth.getUser();
+    const email = data.user?.email;
+    if (!email) {
+      setMessage("No se encontró el correo autenticado.");
+      return;
     }
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${location.origin}/forgot-password`,
+    });
+    setMessage(error ? error.message : "Se envió el correo para cambiar la contraseña.");
   };
 
   const logout = async () => {
-    await supabase.auth.signOut().catch(() => {});
+    await supabase.auth.signOut().catch(() => null);
     location.href = "/login";
   };
 
-  const profitSum = hist.slice(0, 20).reduce((s, x) => s + Number(x.profit || 0), 0);
-  const affiliateLink = aff?.link || "";
-  const affiliateCode = aff?.affiliate?.code || "";
-  const totalCommission = Number(aff?.stats?.totalCommission || 0);
-
-  const copy = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setMsg("Copiado, ya lo tienes.");
-      setTimeout(() => setMsg(null), 1200);
-    } catch {
-      setMsg("No se pudo copiar, cópialo a mano.");
-      setTimeout(() => setMsg(null), 1200);
-    }
-  };
-
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center text-white/60">Cargando tu perfil, un momentito carnal…</div>;
+    return <div className="py-20 text-center text-white/55">Cargando cuenta…</div>;
   }
-
   if (!profile) {
-    return <div className="min-h-screen flex items-center justify-center text-white/60">Primero necesitas entrar a tu cuenta, no te quedes afuera.</div>;
+    return <div className="py-20 text-center text-white/55">Inicia sesión para administrar tu cuenta.</div>;
   }
 
   return (
-    <div className="min-h-screen pb-24 max-w-6xl mx-auto px-4 md:px-6 pt-6 space-y-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+    <div className="mx-auto max-w-4xl space-y-6 py-4">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="text-3xl md:text-4xl font-black text-white">Mi Perfil</div>
-          <div className="text-white/60 text-sm mt-1">
-            Aquí manejas tu cuenta, tu seguridad y tus movimientos, todo al tiro.
-          </div>
+          <h1 className="text-3xl font-black text-white">Mi cuenta</h1>
+          <p className="mt-2 text-sm text-white/55">
+            Entorno prelaunch. Depósitos, apuestas con dinero real y premios monetarios permanecen deshabilitados.
+          </p>
         </div>
-
-        <div className="flex gap-2 flex-wrap">
-          <Link href="/wallet">
-            <Button variant="secondary" className="font-black">
-              <Wallet size={16} /> Wallet
-            </Button>
-          </Link>
-          <Link href="/lobby">
-            <Button variant="secondary" className="font-black">
-              <Gamepad2 size={16} /> Lobby
-            </Button>
-          </Link>
-          <Button variant="destructive" onClick={logout} className="font-black">
-            <LogOut size={16} /> Salir
-          </Button>
-        </div>
+        <Button variant="destructive" onClick={logout}>
+          <LogOut size={16} /> Cerrar sesión
+        </Button>
       </div>
 
-      {msg ? (
-        <Card className="bg-black/30 border-white/10 p-4 rounded-2xl text-sm text-white/75">{msg}</Card>
+      {message ? (
+        <Card className="rounded-2xl border-white/10 bg-black/30 p-4 text-sm text-white/70">
+          {message}
+        </Card>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-        <Card className="bg-black/30 border-white/10 p-6 rounded-3xl">
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="rounded-3xl border-white/10 bg-black/30 p-6">
           <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-white/5 border border-white/10 p-3">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
               <UserCircle />
             </div>
             <div>
-              <div className="text-sm font-black text-white">Tu identidad</div>
-              <div className="text-xs text-white/55">{kycLabel}</div>
+              <div className="font-black text-white">Identidad de cuenta</div>
+              <div className="text-xs text-white/45">{String((profile as any).email || "")}</div>
             </div>
           </div>
 
-          <div className="mt-6 flex flex-col items-center text-center">
-            <div className="relative w-28 h-28">
-              <img
-                src={(profile as any).avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${(profile as any).user_id}`}
-                className="w-full h-full rounded-full border border-white/10 bg-black/40 object-cover"
-                alt="Avatar"
-              />
-              <label className="absolute bottom-0 right-0 cursor-pointer rounded-full bg-[#00F0FF] text-black p-2 border border-white/10">
-                <Upload size={16} />
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => setAvatarFile(e.target.files?.[0] || null)}
-                />
-              </label>
+          <label className="mt-6 block text-xs font-bold uppercase tracking-wider text-white/45">
+            Alias visible
+            <Input
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              className="mt-2"
+              placeholder="alias_usuario"
+            />
+          </label>
+          <Button className="mt-3 w-full" disabled={saving} onClick={saveUsername}>
+            <Save size={16} /> {saving ? "Guardando…" : "Guardar alias"}
+          </Button>
+
+          <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="text-[10px] font-black uppercase tracking-widest text-white/35">
+              ID interno
             </div>
-
-            <div className="mt-4 text-xs text-white/55">Tu ID de jugador</div>
-            <div className="font-mono text-xs text-white/75 break-all mt-1">{(profile as any).user_id}</div>
-
-            <div className="mt-4 w-full">
-              <div className="text-xs text-white/55 mb-2">Alias visible</div>
-              <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Ej: El_Crack_77" />
-              <Button onClick={saveUsername} disabled={saving} className="mt-3 w-full font-black">
-                {saving ? "Guardando…" : "Guardar alias"}
-              </Button>
-            </div>
-
-            {avatarFile ? (
-              <Button onClick={doUploadAvatar} disabled={uploading} className="mt-3 w-full font-black" variant="secondary">
-                {uploading ? "Subiendo…" : "Guardar avatar"}
-              </Button>
-            ) : null}
-          </div>
-
-          <div className="mt-6 grid gap-3">
-            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-              <div className="text-[10px] uppercase tracking-[0.24em] text-white/35 font-black">Nivel</div>
-              <div className="mt-1 flex items-center gap-2 text-sm font-black text-white">
-                <Crown size={16} className="text-[#FFD700]" /> {level.level.label}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-              <div className="text-[10px] uppercase tracking-[0.24em] text-white/35 font-black">Estado KYC</div>
-              <div className="mt-1 flex items-center gap-2 text-sm font-black text-white">
-                {kyc === "approved" || kyc === "verified" ? (
-                  <CheckCircle2 size={16} className="text-[#32CD32]" />
-                ) : (
-                  <AlertTriangle size={16} className="text-[#FFD700]" />
-                )}
-                {kycLabel}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-              <div className="text-[10px] uppercase tracking-[0.24em] text-white/35 font-black">Resetear contraseña</div>
-              <Button onClick={resetPassword} className="mt-2 w-full font-black" variant="secondary">
-                <KeyRound size={16} /> Mandar correo
-              </Button>
+            <div className="mt-1 break-all font-mono text-xs text-white/65">
+              {String((profile as any).user_id || "")}
             </div>
           </div>
         </Card>
 
-        <div className="space-y-6">
-          <Card className="bg-black/30 border-white/10 p-6 rounded-3xl">
-            <div className="flex items-center gap-2 text-lg font-black text-white">
-              <Wallet size={18} /> Resumen de tu wallet
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="text-[10px] uppercase tracking-[0.24em] text-white/35 font-black">Saldo real</div>
-                <div className="mt-1 text-2xl font-black text-white">{money(wallet.balance)}</div>
+        <Card className="rounded-3xl border-white/10 bg-black/30 p-6">
+          <div className="flex items-start gap-3">
+            {approved ? (
+              <CheckCircle2 className="mt-0.5 text-[#32CD32]" />
+            ) : pending ? (
+              <AlertTriangle className="mt-0.5 text-[#FFD700]" />
+            ) : (
+              <ShieldCheck className="mt-0.5 text-[#00F0FF]" />
+            )}
+            <div>
+              <div className="font-black text-white">Verificación KYC</div>
+              <div className="mt-1 text-sm text-white/55">
+                {approved
+                  ? "Identidad y mayoría de edad verificadas."
+                  : pending
+                    ? "La solicitud está en revisión."
+                    : kyc === "rejected"
+                      ? "La solicitud fue rechazada; revisa la nota y vuelve a enviar."
+                      : "Debes completar la verificación documental."}
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="text-[10px] uppercase tracking-[0.24em] text-white/35 font-black">Bono</div>
-                <div className="mt-1 text-2xl font-black text-[#FFD700]">{money(wallet.bonusBalance)}</div>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="text-[10px] uppercase tracking-[0.24em] text-white/35 font-black">Procesando</div>
-                <div className="mt-1 text-2xl font-black text-white/80">{money(wallet.lockedBalance)}</div>
-              </div>
             </div>
-
-            <div className="mt-4 flex gap-2 flex-wrap">
-              <Link href="/wallet?tab=deposit">
-                <Button className="font-black">
-                  <Wallet size={16} /> Depositar
-                </Button>
-              </Link>
-              <Link href="/wallet?tab=withdraw">
-                <Button variant="secondary" className="font-black">
-                  <TrendingUp size={16} /> Retirar
-                </Button>
-              </Link>
-              <Button variant="outline" className="font-black" onClick={() => void wallet.refresh()}>
-                <RefreshCw size={16} /> Actualizar
-              </Button>
-            </div>
-          </Card>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Card className="bg-black/30 border-white/10 p-4 rounded-3xl">
-              <div className="text-[10px] uppercase tracking-[0.24em] text-white/35 font-black">XP</div>
-              <div className="mt-1 text-2xl font-black text-white">{Number((profile as any).xp || 0).toLocaleString("es-MX")}</div>
-            </Card>
-            <Card className="bg-black/30 border-white/10 p-4 rounded-3xl">
-              <div className="text-[10px] uppercase tracking-[0.24em] text-white/35 font-black">Ganancia reciente</div>
-              <div className="mt-1 text-2xl font-black text-[#32CD32]">{money(profitSum)}</div>
-            </Card>
-            <Card className="bg-black/30 border-white/10 p-4 rounded-3xl">
-              <div className="text-[10px] uppercase tracking-[0.24em] text-white/35 font-black">Comisiones</div>
-              <div className="mt-1 text-2xl font-black text-[#00F0FF]">{money(totalCommission)}</div>
-            </Card>
           </div>
 
-          <Card className="bg-black/30 border-white/10 p-6 rounded-3xl">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div>
-                <div className="text-lg font-black text-white">Afiliados</div>
-                <div className="text-xs text-white/45">Tu enlace, tus registros y tus ganancias, todo bien clarito.</div>
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                {affiliateLink ? (
-                  <Button variant="secondary" className="font-black" onClick={() => copy(affiliateLink)}>
-                    <Copy size={16} /> Copiar enlace
-                  </Button>
-                ) : null}
-                {totalCommission > 0 ? (
-                  <Link href="/wallet?tab=withdraw&type=commission">
-                    <Button className="font-black">
-                      <TrendingUp size={16} /> Sacar comisiones
-                    </Button>
-                  </Link>
-                ) : null}
-              </div>
+          {kycInfo?.request?.review_note ? (
+            <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/60">
+              {kycInfo.request.review_note}
             </div>
+          ) : null}
 
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="text-[10px] uppercase tracking-[0.24em] text-white/35 font-black">Código</div>
-                <div className="mt-1 text-lg font-black text-white font-mono">{affiliateCode || "—"}</div>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="text-[10px] uppercase tracking-[0.24em] text-white/35 font-black">Estado</div>
-                <div className="mt-1 text-lg font-black text-white capitalize">{aff?.affiliate?.status || "sin estado"}</div>
-              </div>
-            </div>
+          <Link href="/profile/kyc" className="mt-5 block">
+            <Button className="w-full" variant={approved ? "secondary" : "default"}>
+              <ShieldCheck size={16} /> {approved ? "Ver estado KYC" : "Completar KYC"}
+            </Button>
+          </Link>
 
-            <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="text-[10px] uppercase tracking-[0.24em] text-white/35 font-black">Tu enlace</div>
-              <div className="mt-1 break-all text-sm text-white/85 font-mono">
-                {affiliateLink || "Tu enlace de afiliado va a aparecer aquí cuando quede activo."}
-              </div>
-            </div>
-
-            <div className="mt-4 grid gap-3 sm:grid-cols-4">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
-                <div className="text-[10px] uppercase tracking-widest text-white/35 font-black">Clicks</div>
-                <div className="mt-1 text-xl font-black text-white">{Number(aff?.stats?.clicks || 0)}</div>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
-                <div className="text-[10px] uppercase tracking-widest text-white/35 font-black">Registros</div>
-                <div className="mt-1 text-xl font-black text-white">{Number(aff?.stats?.registrations || 0)}</div>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
-                <div className="text-[10px] uppercase tracking-widest text-white/35 font-black">Primeros depósitos</div>
-                <div className="mt-1 text-xl font-black text-white">{Number(aff?.stats?.firstDeposits || 0)}</div>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
-                <div className="text-[10px] uppercase tracking-widest text-white/35 font-black">Comisión total</div>
-                <div className="mt-1 text-xl font-black text-[#32CD32]">{money(totalCommission)}</div>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="bg-black/30 border-white/10 p-6 rounded-3xl">
-            <div className="text-lg font-black mb-3 text-white">Últimas comisiones</div>
-            {aff?.recentCommissions && aff.recentCommissions.length > 0 ? (
-              <div className="space-y-2">
-                {aff.recentCommissions.map((c, i) => (
-                  <div key={i} className="flex items-center justify-between rounded-2xl bg-black/30 border border-white/10 p-3">
-                    <div>
-                      <div className="text-sm font-bold text-white">{c.reason}</div>
-                      <div className="text-xs text-white/50">
-                        {c.created_at ? new Date(c.created_at).toLocaleString() : "—"} •{" "}
-                        <span className="capitalize">{c.status}</span>
-                      </div>
-                    </div>
-                    <div className="font-mono text-sm tabular-nums text-[#32CD32]">
-                      +{Number(c.amount || 0).toFixed(2)} MXN
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-sm text-white/60">Aquí van a aparecer tus comisiones cuando tus referidos se avienten a jugar de verdad.</div>
-            )}
-          </Card>
-        </div>
+          <Button onClick={resetPassword} className="mt-3 w-full" variant="outline">
+            <KeyRound size={16} /> Cambiar contraseña
+          </Button>
+        </Card>
       </div>
+
+      <Card className="rounded-3xl border-[#00F0FF]/20 bg-[#00F0FF]/5 p-5 text-sm leading-relaxed text-white/60">
+        Completar KYC no activa operaciones con dinero real. La habilitación productiva requiere licencia, aprobación del proveedor, controles AML, juego responsable y autorización ejecutiva de release.
+      </Card>
     </div>
   );
 }
