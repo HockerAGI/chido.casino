@@ -19,15 +19,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
+      VERCEL_ENV: preview
       NEXT_PUBLIC_SITE_URL: https://chidocasino.vercel.app
       NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
       NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
       SUPABASE_SERVICE_ROLE_KEY: dummy-service-role-key
+      CHIDO_PAYMENT_MODE: sandbox
+      CHIDO_PAYMENT_SANDBOX_AUTHORIZED: "1"
       MERCADOPAGO_ACCESS_TOKEN: TEST-0000000000
       MERCADOPAGO_WEBHOOK_SECRET: dummy-mp-webhook-secret
       MERCADOPAGO_REQUIRE_WEBHOOK_SIGNATURE: "1"
-      STRIPE_SECRET_KEY: sk_test_dummy
-      STRIPE_WEBHOOK_SECRET: whsec_dummy
       DEFAULT_PAYOUT_PROVIDER: manual
 
     steps:
