@@ -31,7 +31,8 @@ test("payment routes use only approved atomic settlement paths", async () => {
   assert.doesNotMatch(stripe, /amount_total|paidCurrency/);
 
   assert.match(mercadoPago, /credit_deposit_atomic/);
-  assert.match(mercadoPago, /verifyMercadoPagoWebhookSignature/);
+  assert.match(mercadoPago, /verifyWebhookSignature/);
+  assert.match(mercadoPago, /INVALID_SIGNATURE/);
   assert.match(createDeposit, /authorizeDepositProvider\("mercadopago"\)/);
   assert.doesNotMatch(createDeposit, /createStripeCheckoutSession/);
 
