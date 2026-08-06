@@ -12,6 +12,7 @@ import {
 } from "@/lib/mercadopago";
 import {
   authorizeDepositProvider,
+  getChidoPaymentPolicy,
   getPaymentWebhookBaseUrl,
 } from "@/lib/paymentPolicy";
 
@@ -44,7 +45,14 @@ export async function POST(req: Request) {
       supabaseAdmin as any,
       session.user.id
     );
-    if (exclusion.ok && exclusion.excluded) {
+    if (!exclusion.ok) {
+      console.error("Deposit self-exclusion lookup failed", exclusion.error);
+      return NextResponse.json(
+        { ok: false, error: "RESPONSIBLE_GAMING_CHECK_FAILED" },
+        { status: 503 }
+      );
+    }
+    if (exclusion.excluded) {
       return NextResponse.json(
         {
           ok: false,
@@ -94,6 +102,7 @@ export async function POST(req: Request) {
     }
 
     const policy = authorizeDepositProvider("mercadopago");
+    const paymentContext = getChidoPaymentPolicy();
     const webhookBaseUrl = getPaymentWebhookBaseUrl();
     if (!policy.allowed || !webhookBaseUrl) {
       return NextResponse.json(
@@ -105,6 +114,32 @@ export async function POST(req: Request) {
         },
         { status: policy.allowed ? 503 : policy.status }
       );
+    }
+
+    if (paymentContext.mode === "production") {
+      const { data: profile, error: profileError } = await supabaseAdmin
+        .from("profiles")
+        .select("kyc_status")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+
+      if (profileError || !profile) {
+        console.error("Deposit KYC lookup failed", profileError);
+        return NextResponse.json(
+          { ok: false, error: "KYC_CHECK_FAILED" },
+          { status: 503 }
+        );
+      }
+      if (String(profile.kyc_status || "").toLowerCase() !== "approved") {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "KYC_REQUIRED",
+            message: "Necesitas KYC aprobado antes de depositar.",
+          },
+          { status: 403 }
+        );
+      }
     }
 
     const limit = await velocityLimit(
@@ -191,7 +226,7 @@ export async function POST(req: Request) {
     const checkoutUrl =
       preference.initPoint || preference.sandboxInitPoint || null;
 
-    const { error: updateError } = await supabaseAdmin
+    const { data: readyIntent, error: updateError } = await supabaseAdmin
       .from("deposit_intents")
       .update({
         status: "created",
@@ -205,9 +240,11 @@ export async function POST(req: Request) {
         updated_at: new Date().toISOString(),
       } as any)
       .eq("id", createdIntent.id)
-      .eq("status", "created");
+      .eq("status", "created")
+      .select("id")
+      .maybeSingle();
 
-    if (updateError) {
+    if (updateError || !readyIntent) {
       console.error("Failed to attach Mercado Pago preference:", updateError);
       return NextResponse.json(
         { ok: false, error: "DEPOSIT_INTENT_UPDATE_FAILED" },
