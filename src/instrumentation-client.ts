@@ -1,11 +1,10 @@
-const IDEMPOTENCY_GUARD = Symbol.for("chido.game-idempotency-fetch-guard");
 const GAME_POST_PATHS = new Set([
   "/api/games/taco-slot/spin",
   "/api/games/crash/play",
 ]);
 
 type GuardedGlobal = typeof globalThis & {
-  [IDEMPOTENCY_GUARD]?: boolean;
+  __chidoGameIdempotencyFetchGuard?: boolean;
 };
 
 function requestPath(input: RequestInfo | URL) {
@@ -32,8 +31,8 @@ function mergedHeaders(input: RequestInfo | URL, init?: RequestInit) {
 
 const guardedGlobal = globalThis as GuardedGlobal;
 
-if (!guardedGlobal[IDEMPOTENCY_GUARD]) {
-  guardedGlobal[IDEMPOTENCY_GUARD] = true;
+if (!guardedGlobal.__chidoGameIdempotencyFetchGuard) {
+  guardedGlobal.__chidoGameIdempotencyFetchGuard = true;
   const originalFetch = window.fetch.bind(window);
 
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
