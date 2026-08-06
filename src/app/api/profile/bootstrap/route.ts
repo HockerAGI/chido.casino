@@ -41,10 +41,12 @@ function adultDate(value: unknown) {
 }
 
 function acceptedAt(value: unknown) {
-  const text = String(value || "").trim();
-  const timestamp = Date.parse(text);
+  const timestamp = Date.parse(String(value || "").trim());
   return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : null;
 }
+
+const PROFILE_FIELDS =
+  "id,user_id,email,username,avatar_url,role,vip_level,kyc_status,xp,referral_code,free_spins,date_of_birth,age_declared_at,age_verified_at,terms_accepted_at,privacy_accepted_at,created_at,updated_at";
 
 export async function POST() {
   try {
@@ -83,42 +85,82 @@ export async function POST() {
     const userId = user.id;
     const email = user.email ?? null;
     const now = new Date().toISOString();
-    const { data: profile, error } = await supabaseAdmin
+    const { data: existing, error: lookupError } = await supabaseAdmin
       .from("profiles")
-      .upsert(
-        {
-          id: userId,
-          user_id: userId,
-          email,
-          username: deriveUsername(email, userId),
-          role: "user",
-          kyc_status: "unverified",
-          date_of_birth: dateOfBirth,
-          age_declared_at: ageDeclaredAt || now,
-          terms_accepted_at: termsAcceptedAt,
-          privacy_accepted_at: privacyAcceptedAt,
-          referral_code: deriveReferralCode(userId),
-          updated_at: now,
-        } as any,
-        {
-          onConflict: "user_id",
-          ignoreDuplicates: false,
-        }
-      )
-      .select(
-        "id,user_id,email,username,avatar_url,role,vip_level,kyc_status,xp,referral_code,free_spins,date_of_birth,age_declared_at,age_verified_at,terms_accepted_at,privacy_accepted_at,created_at,updated_at"
-      )
-      .single();
+      .select(PROFILE_FIELDS)
+      .eq("user_id", userId)
+      .maybeSingle();
 
-    if (error) {
-      console.error("Profile bootstrap failed", error);
+    if (lookupError) {
+      console.error("Profile bootstrap lookup failed", lookupError);
       return NextResponse.json(
         { ok: false, error: "BOOTSTRAP_FAILED" },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({ ok: true, profile });
+    if (existing) {
+      const update: Record<string, unknown> = {
+        email,
+        terms_accepted_at: existing.terms_accepted_at || termsAcceptedAt,
+        privacy_accepted_at:
+          existing.privacy_accepted_at || privacyAcceptedAt,
+        age_declared_at: existing.age_declared_at || ageDeclaredAt || now,
+        updated_at: now,
+      };
+      if (!existing.age_verified_at && !existing.date_of_birth) {
+        update.date_of_birth = dateOfBirth;
+      }
+
+      const { data: profile, error } = await supabaseAdmin
+        .from("profiles")
+        .update(update as any)
+        .eq("user_id", userId)
+        .select(PROFILE_FIELDS)
+        .single();
+
+      if (error) {
+        console.error("Profile bootstrap update failed", error);
+        return NextResponse.json(
+          { ok: false, error: "BOOTSTRAP_FAILED" },
+          { status: 500 }
+        );
+      }
+      return NextResponse.json({ ok: true, created: false, profile });
+    }
+
+    const { data: profile, error } = await supabaseAdmin
+      .from("profiles")
+      .insert({
+        id: userId,
+        user_id: userId,
+        email,
+        username: deriveUsername(email, userId),
+        avatar_url: null,
+        role: "user",
+        kyc_status: "unverified",
+        date_of_birth: dateOfBirth,
+        age_declared_at: ageDeclaredAt || now,
+        terms_accepted_at: termsAcceptedAt,
+        privacy_accepted_at: privacyAcceptedAt,
+        referral_code: deriveReferralCode(userId),
+        xp: 0,
+        free_spins: 0,
+        created_at: now,
+        updated_at: now,
+      } as any)
+      .select(PROFILE_FIELDS)
+      .single();
+
+    if (error) {
+      console.error("Profile bootstrap insert failed", error);
+      return NextResponse.json(
+        { ok: false, error: "BOOTSTRAP_FAILED" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ ok: true, created: true, profile });
   } catch (error) {
     console.error("Profile bootstrap error", error);
     return NextResponse.json(
