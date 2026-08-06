@@ -1,5 +1,6 @@
 export const runtime = "nodejs";
 
+import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getServerSession } from "@/lib/session";
@@ -9,30 +10,16 @@ import {
   createCheckoutPreference,
   isMercadoPagoConfigured,
 } from "@/lib/mercadopago";
-import { authorizeDepositProvider } from "@/lib/paymentPolicy";
+import {
+  authorizeDepositProvider,
+  getPaymentWebhookBaseUrl,
+} from "@/lib/paymentPolicy";
 
 type DepositMethod = "mercadopago" | "card" | "spei" | "oxxo";
 
-const DEFAULT_SITE_URL = "https://chidocasino.vercel.app";
-
-function getPaymentSiteUrl() {
-  const candidate = String(
-    process.env.NEXT_PUBLIC_SITE_URL || DEFAULT_SITE_URL
-  ).trim();
-
-  try {
-    const parsed = new URL(candidate);
-    if (parsed.protocol !== "https:") return DEFAULT_SITE_URL;
-    return parsed.origin;
-  } catch {
-    return DEFAULT_SITE_URL;
-  }
-}
-
 function folio() {
-  return `CHDMP-${Math.random().toString(36).slice(2, 8).toUpperCase()}-${Date.now()
-    .toString()
-    .slice(-5)}`;
+  const entropy = randomBytes(4).toString("hex").slice(0, 6).toUpperCase();
+  return `CHDMP-${entropy}-${Date.now().toString().slice(-5)}`;
 }
 
 function normalizeMethod(value: unknown): DepositMethod {
@@ -107,15 +94,16 @@ export async function POST(req: Request) {
     }
 
     const policy = authorizeDepositProvider("mercadopago");
-    if (!policy.allowed) {
+    const webhookBaseUrl = getPaymentWebhookBaseUrl();
+    if (!policy.allowed || !webhookBaseUrl) {
       return NextResponse.json(
         {
           ok: false,
-          error: policy.code,
+          error: policy.allowed ? "WEBHOOK_BASE_URL_REQUIRED" : policy.code,
           message:
-            "Los depositos permanecen deshabilitados hasta completar los controles regulatorios y del proveedor.",
+            "Los depositos permanecen deshabilitados hasta completar los controles regulatorios, de entorno y del proveedor.",
         },
-        { status: policy.status }
+        { status: policy.allowed ? 503 : policy.status }
       );
     }
 
@@ -144,7 +132,6 @@ export async function POST(req: Request) {
 
     const requestedMethod = normalizeMethod(rawMethod);
     const depositFolio = folio();
-    const siteUrl = getPaymentSiteUrl();
 
     const { data: createdIntent, error: insertError } = await supabaseAdmin
       .from("deposit_intents")
@@ -160,7 +147,7 @@ export async function POST(req: Request) {
           folio: depositFolio,
           provider: "mercadopago",
           requested_method: requestedMethod,
-          payment_policy: "mercadopago_only_v1",
+          payment_policy: "mercadopago_only_v2",
         },
       } as any)
       .select("id")
@@ -179,7 +166,7 @@ export async function POST(req: Request) {
       userEmail: session.user.email ?? null,
       amount,
       concept: depositFolio,
-      notificationUrl: `${siteUrl}/api/webhooks/mercadopago`,
+      notificationUrl: `${webhookBaseUrl}/api/webhooks/mercadopago`,
     });
 
     if (!preference.ok) {
@@ -207,16 +194,18 @@ export async function POST(req: Request) {
     const { error: updateError } = await supabaseAdmin
       .from("deposit_intents")
       .update({
-        status: "pending",
+        status: "created",
         external_id: preference.preferenceId ?? null,
         checkout_url: checkoutUrl,
         provider_payload: {
           preference_id: preference.preferenceId ?? null,
           source: "checkout_preference",
+          state: "ready_for_payment",
         },
         updated_at: new Date().toISOString(),
       } as any)
-      .eq("id", createdIntent.id);
+      .eq("id", createdIntent.id)
+      .eq("status", "created");
 
     if (updateError) {
       console.error("Failed to attach Mercado Pago preference:", updateError);
@@ -247,7 +236,7 @@ export async function POST(req: Request) {
       checkoutUrl,
       folio: depositFolio,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Create deposit error", error);
     return NextResponse.json(
       { ok: false, error: "INTERNAL_ERROR" },
