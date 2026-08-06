@@ -63,12 +63,34 @@ test("security headers and patched runtime dependencies are pinned", async () =>
   assert.match(config, /Content-Security-Policy/);
   assert.match(config, /frame-ancestors 'none'/);
   assert.match(config, /X-Content-Type-Options/);
+  assert.match(config, /X-Robots-Tag/);
+  assert.doesNotMatch(config, /stripe\.com|js\.stripe|hooks\.stripe/i);
   assert.equal(pkg.dependencies.next, "16.2.12");
   assert.equal(pkg.dependencies.sharp, "0.35.3");
   assert.equal(pkg.dependencies.react, "19.2.7");
+  assert.equal(pkg.devDependencies.postcss, "8.5.23");
+  assert.equal(pkg.overrides.postcss, "8.5.23");
   assert.match(pkg.scripts.prebuild, /test/);
   assert.match(pkg.scripts.prebuild, /lint/);
   assert.match(pkg.scripts.prebuild, /typecheck/);
+  assert.match(pkg.scripts.prebuild, /audit:prod/);
+});
+
+test("public landing and metadata remain prelaunch and noindex", async () => {
+  const page = await source("src/app/page.tsx");
+  const layout = await source("src/app/layout.tsx");
+  const robots = await source("src/app/robots.ts");
+
+  assert.match(page, /Sin dinero real/i);
+  assert.match(page, /depósitos[\s\S]*deshabilitados/i);
+  assert.doesNotMatch(page, /JUEGA\.[\s\S]*COBRA\.[\s\S]*REPITE\./i);
+  assert.doesNotMatch(page, /sacar lana cuando quieras/i);
+  assert.doesNotMatch(page, /Wallet en vivo/i);
+
+  assert.match(layout, /index:\s*false/i);
+  assert.match(layout, /follow:\s*false/i);
+  assert.match(layout, /Sin depósitos, premios monetarios ni operación con dinero real/i);
+  assert.match(robots, /disallow:\s*"\/"/i);
 });
 
 test("daily streak exposes the approved seven-day schedule", async () => {
