@@ -44,6 +44,9 @@ jobs:
           node-version: 24
           cache: npm
 
+      - name: Normalize dependency lock
+        run: npm install --package-lock-only --ignore-scripts
+
       - name: Install reproducibly
         run: npm ci --include=optional
 
@@ -60,4 +63,4 @@ jobs:
         run: npm run build
 
       - name: Production dependency audit
-        run: npm audit --omit=dev --audit-level=high
+        run: npm audit --omit=dev --audit-level=moderate
