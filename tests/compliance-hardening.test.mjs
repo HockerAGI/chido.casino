@@ -41,6 +41,21 @@ test("KYC upload validates bytes and uses atomic request lifecycle", async () =>
   assert.match(submit, /velocityLimit/);
 });
 
+test("KYC user and admin UIs follow the private case workflow", async () => {
+  const userPage = await source("src/app/profile/kyc/page.tsx");
+  const adminPage = await source("src/app/admin/kyc/page.tsx");
+  const pendingApi = await source("src/app/api/admin/kyc/pending/route.ts");
+  assert.match(userPage, /id_front/);
+  assert.match(userPage, /id_back/);
+  assert.match(userPage, /selfie/);
+  assert.match(userPage, /date_of_birth/);
+  assert.match(adminPage, /kyc_request_id/);
+  assert.match(adminPage, /verified_date_of_birth/);
+  assert.match(adminPage, /reason/);
+  assert.match(pendingApi, /createSignedUrl/);
+  assert.doesNotMatch(pendingApi, /getPublicUrl/);
+});
+
 test("KYC review requires a case and delegates atomically to PostgreSQL", async () => {
   const route = await source("src/app/api/admin/users/set-kyc/route.ts");
   assert.match(route, /KYC_REQUEST_ID_REQUIRED/);
@@ -61,19 +76,30 @@ test("Mercado Pago signatures have a bounded freshness window", async () => {
   assert.match(webhook, /review_required/);
 });
 
-test("rate limiting is atomic and fails closed", async () => {
+test("rate limiting and login protection are atomic and fail closed", async () => {
   const fraud = await source("src/lib/fraud.ts");
+  const attempt = await source("src/app/api/auth/risk/attempt/route.ts");
+  const reset = await source("src/app/api/auth/risk/reset/route.ts");
+  const login = await source("src/app/(auth)/login/page.tsx");
   const migration = await source("supabase/migrations/20260806180000_compliance_kyc_rate_hardening_20260806.sql");
+  const resetMigration = await source("supabase/migrations/20260806184000_authenticated_login_rate_reset_20260806.sql");
   assert.match(fraud, /consume_rate_limit/);
   assert.match(fraud, /RATE_LIMIT_UNAVAILABLE/);
-  assert.doesNotMatch(fraud, /si falla conteo, no bloqueamos/i);
+  assert.match(attempt, /consume_rate_limit/);
+  assert.match(attempt, /status:\s*503/);
+  assert.doesNotMatch(attempt, /chido_risk|RISK_SIGNING_SECRET/);
+  assert.match(reset, /auth\.getUser\(\)/);
+  assert.match(reset, /reset_rate_limit/);
+  assert.match(login, /if \(!riskResponse\)/);
+  assert.doesNotMatch(login, /Pago al toque|\+50k jugando|Entrar al casino/i);
   assert.match(migration, /pg_advisory_xact_lock/);
-  assert.match(migration, /security_rate_limits/);
+  assert.match(resetMigration, /reset_rate_limit/);
 });
 
 test("database enforces adult KYC and cryptographic game fairness", async () => {
   const compliance = await source("supabase/migrations/20260806180000_compliance_kyc_rate_hardening_20260806.sql");
   const fairness = await source("supabase/migrations/20260806181000_game_fairness_access_hardening_20260806.sql");
+  const history = await source("supabase/migrations/20260806182000_private_game_history_rpc_20260806.sql");
   assert.match(compliance, /AGE_VERIFICATION_REQUIRED/);
   assert.match(compliance, /review_kyc_request/);
   assert.match(compliance, /transactions_audit/);
@@ -84,4 +110,43 @@ test("database enforces adult KYC and cryptographic game fairness", async () => 
   assert.match(fairness, /digest\(server_seed, 'sha256'\)/);
   assert.match(fairness, /revoke select on public\.crash_bets from authenticated/);
   assert.match(fairness, /get_my_crash_history/);
+  assert.match(history, /get_my_slot_history/);
+  assert.match(history, /revoke select on public\.slot_spins from authenticated/);
+});
+
+test("profile history uses owner-scoped RPCs instead of admin table reads", async () => {
+  const history = await source("src/app/api/profile/history/route.ts");
+  assert.match(history, /auth\.getUser\(\)/);
+  assert.match(history, /get_my_crash_history/);
+  assert.match(history, /get_my_slot_history/);
+  assert.doesNotMatch(history, /supabaseAdmin/);
+  assert.doesNotMatch(history, /\.from\("crash_bets"\)|\.from\("slot_spins"\)/);
+});
+
+test("admin financial settlements record actor audit atomically", async () => {
+  const migration = await source("supabase/migrations/20260806183000_atomic_admin_financial_audit_20260806.sql");
+  const deposit = await source("src/app/api/payments/manual/confirm/route.ts");
+  const withdrawal = await source("src/app/api/payments/withdraw/admin/route.ts");
+  assert.match(migration, /admin_confirm_manual_deposit_audited/);
+  assert.match(migration, /admin_settle_withdrawal_audited/);
+  assert.match(migration, /transactions_audit/);
+  assert.match(migration, /ADMIN_ACTOR_REQUIRED/);
+  assert.match(migration, /revoke all on function public\.admin_confirm_manual_deposit[\s\S]*service_role/i);
+  assert.match(deposit, /admin_confirm_manual_deposit_audited/);
+  assert.match(withdrawal, /admin_settle_withdrawal_audited/);
+  assert.doesNotMatch(deposit, /auditAdminAction/);
+  assert.doesNotMatch(withdrawal, /auditAdminAction/);
+  assert.match(deposit, /audit_recorded/);
+  assert.match(withdrawal, /audit_recorded/);
+});
+
+test("authenticated navigation and account remain prelaunch-only", async () => {
+  const layout = await source("src/components/layout/main-layout.tsx");
+  const profile = await source("src/app/profile/page.tsx");
+  assert.match(layout, /Sin depósitos, apuestas con dinero real ni premios monetarios/i);
+  assert.match(layout, /Verificación KYC/);
+  assert.doesNotMatch(layout, /\/wallet|Bonos|Torneos|Afiliados|VIP/);
+  assert.match(profile, /Completar KYC/);
+  assert.match(profile, /Operación real|operaciones con dinero real/i);
+  assert.doesNotMatch(profile, /Depositar|Retirar|balance\/cashback|Historial de juego/i);
 });
