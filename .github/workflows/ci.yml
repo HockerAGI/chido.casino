@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - fix/full-hardening-20260730
+      - validation/**
 
 permissions:
   contents: read
