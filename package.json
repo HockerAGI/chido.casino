@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "next dev -p 3000",
-    "prebuild": "npm run test && npm run lint && npm run typecheck",
+    "prebuild": "npm run test && npm run lint && npm run typecheck && npm run audit:prod",
     "build": "next build --webpack",
     "start": "next start -p 3000",
     "lint": "eslint . --quiet",
