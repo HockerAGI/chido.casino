@@ -38,7 +38,7 @@ test("Stripe is never an allowed CHIDO payment provider", async () => {
   assert.doesNotMatch(stripeWebhook, /wallet_apply_delta/i);
 });
 
-test("Mercado Pago production deposits require all compliance gates", async () => {
+test("Mercado Pago gates bind credentials, data and webhook environment", async () => {
   const policy = await readFile(policyUrl, "utf8");
   const createDeposit = await readFile(createDepositUrl, "utf8");
   const processPayment = await readFile(processPaymentUrl, "utf8");
@@ -47,12 +47,32 @@ test("Mercado Pago production deposits require all compliance gates", async () =
   assert.match(policy, /CHIDO_MERCADOPAGO_WRITTEN_APPROVAL/i);
   assert.match(policy, /CHIDO_KYC_AML_READY/i);
   assert.match(policy, /CHIDO_PAYMENT_SANDBOX_AUTHORIZED/i);
-  assert.match(policy, /mode === "production"/i);
+  assert.match(policy, /CHIDO_PRODUCTION_SUPABASE_PROJECT_REF/i);
+  assert.match(policy, /CHIDO_PAYMENT_WEBHOOK_BASE_URL/i);
+  assert.match(policy, /SANDBOX_PRODUCTION_DATA_FORBIDDEN/i);
+  assert.match(policy, /SANDBOX_CREDENTIAL_REQUIRED/i);
+  assert.match(policy, /PRODUCTION_CREDENTIAL_REQUIRED/i);
+  assert.match(policy, /PRODUCTION_DATA_ENV_REQUIRED/i);
 
   assert.match(createDeposit, /authorizeDepositProvider\("mercadopago"\)/i);
   assert.match(processPayment, /authorizeDepositProvider\("mercadopago"\)/i);
+  assert.match(createDeposit, /getPaymentWebhookBaseUrl/i);
+  assert.match(processPayment, /getPaymentWebhookBaseUrl/i);
+  assert.match(createDeposit, /randomBytes/i);
+});
+
+test("Payment Brick processing atomically claims one intent", async () => {
+  const createDeposit = await readFile(createDepositUrl, "utf8");
+  const processPayment = await readFile(processPaymentUrl, "utf8");
+
   assert.match(createDeposit, /status:\s*"created"/i);
-  assert.match(createDeposit, /status:\s*"pending"/i);
+  assert.doesNotMatch(createDeposit, /status:\s*"pending"/i);
+
+  assert.match(processPayment, /status:\s*"processing"/i);
+  assert.match(processPayment, /\.eq\("status",\s*"created"\)/i);
+  assert.match(processPayment, /PAYMENT_ALREADY_PROCESSING/i);
+  assert.match(processPayment, /\.eq\("status",\s*"processing"\)/i);
+  assert.match(processPayment, /review_required/i);
 });
 
 test("database hardening removes obsolete Stripe automation without deleting evidence", async () => {

@@ -5,23 +5,10 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getServerSession } from "@/lib/session";
 import { fraudLog } from "@/lib/fraud";
 import { createPayment, isMercadoPagoConfigured } from "@/lib/mercadopago";
-import { authorizeDepositProvider } from "@/lib/paymentPolicy";
-
-const DEFAULT_SITE_URL = "https://chidocasino.vercel.app";
-
-function getPaymentSiteUrl() {
-  const candidate = String(
-    process.env.NEXT_PUBLIC_SITE_URL || DEFAULT_SITE_URL
-  ).trim();
-
-  try {
-    const parsed = new URL(candidate);
-    if (parsed.protocol !== "https:") return DEFAULT_SITE_URL;
-    return parsed.origin;
-  } catch {
-    return DEFAULT_SITE_URL;
-  }
-}
+import {
+  authorizeDepositProvider,
+  getPaymentWebhookBaseUrl,
+} from "@/lib/paymentPolicy";
 
 function depositStatusFromPayment(status?: string) {
   const normalized = String(status || "").toLowerCase();
@@ -55,15 +42,16 @@ export async function POST(req: Request) {
     }
 
     const policy = authorizeDepositProvider("mercadopago");
-    if (!policy.allowed) {
+    const webhookBaseUrl = getPaymentWebhookBaseUrl();
+    if (!policy.allowed || !webhookBaseUrl) {
       return NextResponse.json(
         {
           ok: false,
-          error: policy.code,
+          error: policy.allowed ? "WEBHOOK_BASE_URL_REQUIRED" : policy.code,
           message:
-            "Los pagos permanecen deshabilitados hasta completar los controles regulatorios y del proveedor.",
+            "Los pagos permanecen deshabilitados hasta completar los controles regulatorios, de entorno y del proveedor.",
         },
-        { status: policy.status }
+        { status: policy.allowed ? 503 : policy.status }
       );
     }
 
@@ -76,7 +64,7 @@ export async function POST(req: Request) {
 
     const body = await req
       .json()
-      .catch(() => ({} as Record<string, any>));
+      .catch(() => ({} as Record<string, unknown>));
     const folio = normalizeFolio(body?.folio);
     const preferenceId = String(body?.preferenceId || "").trim();
     const formData =
@@ -131,9 +119,19 @@ export async function POST(req: Request) {
         { status: 409 }
       );
     }
+    if (String(intent.status || "") !== "created") {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "PAYMENT_ALREADY_PROCESSING",
+          status: intent.status,
+        },
+        { status: 409 }
+      );
+    }
 
     const recordedPreferenceId = String(
-      intent.external_id || intent.metadata?.preference_id || ""
+      intent.external_id || intent.provider_payload?.preference_id || ""
     );
     if (
       preferenceId &&
@@ -158,12 +156,38 @@ export async function POST(req: Request) {
       );
     }
 
+    const { data: claimedIntent, error: claimError } = await supabaseAdmin
+      .from("deposit_intents")
+      .update({
+        status: "processing",
+        updated_at: new Date().toISOString(),
+      } as any)
+      .eq("id", intent.id)
+      .eq("user_id", session.user.id)
+      .eq("status", "created")
+      .select("*")
+      .maybeSingle();
+
+    if (claimError) {
+      console.error("Mercado Pago intent claim failed", claimError);
+      return NextResponse.json(
+        { ok: false, error: "INTENT_CLAIM_FAILED" },
+        { status: 500 }
+      );
+    }
+    if (!claimedIntent) {
+      return NextResponse.json(
+        { ok: false, error: "PAYMENT_ALREADY_PROCESSING" },
+        { status: 409 }
+      );
+    }
+
     const payment = await createPayment({
       amount,
       concept: folio,
       formData,
       payerEmail: session.user.email ?? null,
-      notificationUrl: `${getPaymentSiteUrl()}/api/webhooks/mercadopago`,
+      notificationUrl: `${webhookBaseUrl}/api/webhooks/mercadopago`,
     });
 
     if (!payment.ok || !payment.paymentId) {
@@ -178,7 +202,8 @@ export async function POST(req: Request) {
           },
           updated_at: new Date().toISOString(),
         } as any)
-        .eq("id", intent.id);
+        .eq("id", claimedIntent.id)
+        .eq("status", "processing");
 
       return NextResponse.json(
         { ok: false, error: "PAYMENT_CREATE_FAILED" },
@@ -194,6 +219,23 @@ export async function POST(req: Request) {
         providerAmount,
         paymentId: payment.paymentId,
       });
+
+      await supabaseAdmin
+        .from("deposit_intents")
+        .update({
+          status: "review_required",
+          external_id: payment.paymentId,
+          provider_payload: {
+            payment_id: payment.paymentId,
+            expected_amount: amount,
+            provider_amount: providerAmount,
+            reason: "PAYMENT_AMOUNT_MISMATCH",
+          },
+          updated_at: new Date().toISOString(),
+        } as any)
+        .eq("id", claimedIntent.id)
+        .eq("status", "processing");
+
       return NextResponse.json(
         { ok: false, error: "PAYMENT_AMOUNT_MISMATCH" },
         { status: 422 }
@@ -224,7 +266,7 @@ export async function POST(req: Request) {
       currency: "MXN",
       redirect_url: payment.redirectUrl || null,
       source: "checkout_api",
-      payment_policy: "mercadopago_only_v1",
+      payment_policy: "mercadopago_only_v2",
     };
 
     if (nextStatus !== "credited") {
@@ -236,7 +278,8 @@ export async function POST(req: Request) {
           provider_payload: providerPayload,
           updated_at: new Date().toISOString(),
         } as any)
-        .eq("id", intent.id);
+        .eq("id", claimedIntent.id)
+        .eq("status", "processing");
 
       if (updateError) {
         console.error("Mercado Pago pending intent update failed", updateError);
