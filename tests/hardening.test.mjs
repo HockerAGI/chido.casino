@@ -16,16 +16,25 @@ test("game routes rely on atomic settlement RPCs only", async () => {
   assert.doesNotMatch(slot, /promoWageringProgress/);
 });
 
-test("payment routes use canonical atomic RPCs", async () => {
+test("payment routes use only approved atomic settlement paths", async () => {
   const stripe = await source("src/app/api/webhooks/stripe/route.ts");
   const mercadoPago = await source("src/app/api/webhooks/mercadopago/route.ts");
+  const createDeposit = await source(
+    "src/app/api/payments/create-deposit/route.ts",
+  );
   const manual = await source("src/app/api/payments/manual/confirm/route.ts");
   const withdrawal = await source("src/app/api/payments/withdraw/admin/route.ts");
 
-  assert.match(stripe, /credit_deposit_atomic/);
-  assert.match(stripe, /amount_total/);
-  assert.match(stripe, /paidCurrency/);
+  assert.match(stripe, /PROVIDER_NOT_ALLOWED_FOR_CHIDO/);
+  assert.doesNotMatch(stripe, /credit_deposit_atomic/);
+  assert.doesNotMatch(stripe, /wallet_apply_delta/);
+  assert.doesNotMatch(stripe, /amount_total|paidCurrency/);
+
   assert.match(mercadoPago, /credit_deposit_atomic/);
+  assert.match(mercadoPago, /verifyMercadoPagoWebhookSignature/);
+  assert.match(createDeposit, /authorizeDepositProvider\("mercadopago"\)/);
+  assert.doesNotMatch(createDeposit, /createStripeCheckoutSession/);
+
   assert.match(manual, /admin_confirm_manual_deposit/);
   assert.match(withdrawal, /admin_settle_withdrawal/);
 });
@@ -56,11 +65,22 @@ test("security headers and patched runtime dependencies are pinned", async () =>
   assert.equal(pkg.dependencies.next, "16.2.12");
   assert.equal(pkg.dependencies.sharp, "0.35.3");
   assert.equal(pkg.dependencies.react, "19.2.7");
+  assert.match(pkg.scripts.prebuild, /test/);
+  assert.match(pkg.scripts.prebuild, /lint/);
+  assert.match(pkg.scripts.prebuild, /typecheck/);
 });
 
 test("daily streak exposes the approved seven-day schedule", async () => {
   const component = await source("src/components/ui/daily-streak-bar.tsx");
-  for (const reward of ["$5", "$10", "$15", "$25", "$50", "2x", "10 rondas gratis"]) {
+  for (const reward of [
+    "$5",
+    "$10",
+    "$15",
+    "$25",
+    "$50",
+    "2x",
+    "10 rondas gratis",
+  ]) {
     assert.match(component, new RegExp(reward.replace("$", "\\$")));
   }
   assert.match(component, /rollover x10/i);
