@@ -6,7 +6,15 @@ const responsibleUrl = new URL(
   "../src/lib/responsibleGaming.ts",
   import.meta.url,
 );
+const responsibleRouteUrl = new URL(
+  "../src/app/api/responsible/status/route.ts",
+  import.meta.url,
+);
 const promoUrl = new URL("../src/lib/promoLimits.ts", import.meta.url);
+const promoRouteUrl = new URL(
+  "../src/app/api/promos/limits/route.ts",
+  import.meta.url,
+);
 const tacoRouteUrl = new URL(
   "../src/app/api/games/taco-slot/spin/route.ts",
   import.meta.url,
@@ -19,14 +27,28 @@ const clientInstrumentationUrl = new URL(
   "../src/instrumentation-client.ts",
   import.meta.url,
 );
-const migrationUrl = new URL(
+const kycAdminRouteUrl = new URL(
+  "../src/app/api/admin/users/set-kyc/route.ts",
+  import.meta.url,
+);
+const settlementMigrationUrl = new URL(
   "../supabase/migrations/20260806173000_chido_game_settlement_fail_closed_20260806.sql",
+  import.meta.url,
+);
+const kycMigrationUrl = new URL(
+  "../supabase/migrations/20260806173500_kyc_status_constraint_20260806.sql",
+  import.meta.url,
+);
+const rowConstraintMigrationUrl = new URL(
+  "../supabase/migrations/20260806174000_game_row_constraints_20260806.sql",
   import.meta.url,
 );
 
 test("responsible gaming and promo lookups fail closed", async () => {
   const responsible = await readFile(responsibleUrl, "utf8");
+  const responsibleRoute = await readFile(responsibleRouteUrl, "utf8");
   const promo = await readFile(promoUrl, "utf8");
+  const promoRoute = await readFile(promoRouteUrl, "utf8");
 
   assert.match(responsible, /USER_REQUIRED/i);
   assert.match(responsible, /PROFILE_NOT_FOUND/i);
@@ -35,10 +57,14 @@ test("responsible gaming and promo lookups fail closed", async () => {
     responsible,
     /isSchemaMismatch[\s\S]*excluded:\s*false/i,
   );
+  assert.match(responsibleRoute, /RESPONSIBLE_GAMING_CHECK_FAILED/i);
+  assert.match(responsibleRoute, /status:\s*503/i);
 
   assert.match(promo, /PROMO_LIMIT_LOOKUP_FAILED/i);
   assert.match(promo, /CASINO_SETTINGS_LOOKUP_FAILED/i);
   assert.doesNotMatch(promo, /isMissingTable/i);
+  assert.match(promoRoute, /PROMO_LIMIT_CHECK_FAILED/i);
+  assert.match(promoRoute, /status:\s*503/i);
 });
 
 test("game routes require idempotency keys and return persisted outcomes", async () => {
@@ -66,11 +92,12 @@ test("client instrumentation injects scoped request keys", async () => {
   assert.match(instrumentation, /\/api\/games\/crash\/play/i);
   assert.match(instrumentation, /idempotency-key/i);
   assert.match(instrumentation, /crypto\.randomUUID\(\)/i);
-  assert.match(instrumentation, /method[\s\S]*POST/i);
+  assert.match(instrumentation, /requestMethod[\s\S]*POST/i);
+  assert.match(instrumentation, /__chidoGameIdempotencyFetchGuard/i);
 });
 
 test("database settlement validates controls and returns complete replay data", async () => {
-  const sql = await readFile(migrationUrl, "utf8");
+  const sql = await readFile(settlementMigrationUrl, "utf8");
 
   assert.match(sql, /assert_chido_game_write_allowed/i);
   assert.match(sql, /GAME_CONTROL_MISSING/i);
@@ -90,4 +117,39 @@ test("database settlement validates controls and returns complete replay data", 
   assert.match(sql, /revoke all on function public\.casino_settle_taco_slot/i);
   assert.match(sql, /revoke all on function public\.casino_settle_crash/i);
   assert.match(sql, /grant execute[\s\S]*to service_role/i);
+});
+
+test("KYC status is constrained in API and SQL", async () => {
+  const route = await readFile(kycAdminRouteUrl, "utf8");
+  const sql = await readFile(kycMigrationUrl, "utf8");
+
+  for (const status of [
+    "unverified",
+    "pending",
+    "review_required",
+    "approved",
+    "rejected",
+  ]) {
+    assert.match(route, new RegExp(status, "i"));
+    assert.match(sql, new RegExp(status, "i"));
+  }
+
+  assert.match(route, /INVALID_KYC_STATUS/i);
+  assert.match(route, /USER_NOT_FOUND/i);
+  assert.match(sql, /profiles_kyc_status_allowed/i);
+});
+
+test("new game rows are constrained while legacy evidence is preserved", async () => {
+  const sql = await readFile(rowConstraintMigrationUrl, "utf8");
+
+  assert.match(sql, /slot_spins_amounts_valid/i);
+  assert.match(sql, /slot_spins_reels_valid/i);
+  assert.match(sql, /slot_spins_fairness_material_valid/i);
+  assert.match(sql, /slot_spins_payout_math_valid/i);
+  assert.match(sql, /slot_spins_nonce_valid/i);
+  assert.match(sql, /slot_spins_round_ref_valid/i);
+  assert.match(sql, /crash_bets_result_valid/i);
+  assert.match(sql, /not valid/i);
+  assert.doesNotMatch(sql, /delete\s+from/i);
+  assert.doesNotMatch(sql, /update\s+public\.slot_spins/i);
 });
