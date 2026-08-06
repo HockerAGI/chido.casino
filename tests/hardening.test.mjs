@@ -40,11 +40,22 @@ test("payment routes use only approved atomic settlement paths", async () => {
   assert.match(withdrawal, /admin_settle_withdrawal/);
 });
 
-test("casino control plane fails closed", async () => {
+test("casino control plane and environment policy fail closed", async () => {
   const control = await source("src/lib/gamesPaused.ts");
+  const policy = await source("src/lib/gamePolicy.ts");
+
+  assert.match(control, /authorizeGameWrite/);
   assert.match(control, /paused: true/);
   assert.match(control, /controlStatus: "unavailable"/);
   assert.match(control, /chido-casino-games/);
+  assert.match(control, /controlStatus: "environment"/);
+
+  assert.match(policy, /CHIDO_GAME_MODE/);
+  assert.match(policy, /CHIDO_GAME_SANDBOX_AUTHORIZED/);
+  assert.match(policy, /SANDBOX_PRODUCTION_DATA_FORBIDDEN/);
+  assert.match(policy, /CHIDO_GAMBLING_LICENSE_APPROVED/);
+  assert.match(policy, /CHIDO_KYC_AML_READY/);
+  assert.match(policy, /GAMES_DISABLED/);
 });
 
 test("public game feeds require privacy-safe RPCs", async () => {
@@ -76,8 +87,9 @@ test("security headers and patched runtime dependencies are pinned", async () =>
   assert.match(pkg.scripts.prebuild, /audit:prod/);
 });
 
-test("public landing and metadata remain prelaunch and noindex", async () => {
+test("public landing, lobby and metadata remain prelaunch and noindex", async () => {
   const page = await source("src/app/page.tsx");
+  const lobby = await source("src/app/lobby/page.tsx");
   const layout = await source("src/app/layout.tsx");
   const robots = await source("src/app/robots.ts");
 
@@ -87,10 +99,34 @@ test("public landing and metadata remain prelaunch and noindex", async () => {
   assert.doesNotMatch(page, /sacar lana cuando quieras/i);
   assert.doesNotMatch(page, /Wallet en vivo/i);
 
+  assert.match(lobby, /no autoriza apuestas, depósitos ni premios/i);
+  assert.match(lobby, /matemática todavía no está certificada/i);
+  assert.doesNotMatch(lobby, /cobra sin chaquetear/i);
+  assert.doesNotMatch(lobby, /Echar lana/i);
+  assert.doesNotMatch(lobby, /\/api\/feed\/wins/i);
+  assert.doesNotMatch(lobby, /\/api\/promos\/redeem/i);
+
   assert.match(layout, /index:\s*false/i);
   assert.match(layout, /follow:\s*false/i);
-  assert.match(layout, /Sin depósitos, premios monetarios ni operación con dinero real/i);
+  assert.match(
+    layout,
+    /Sin depósitos, premios monetarios ni operación con dinero real/i,
+  );
   assert.match(robots, /disallow:\s*"\/"/i);
+});
+
+test("catalog exposes only two preview engines and no uncertified RTP claims", async () => {
+  const games = await source("src/lib/games.ts");
+  const previewStatuses = games.match(/status:\s*"new"/g) || [];
+
+  assert.equal(previewStatuses.length, 2);
+  assert.match(games, /id:\s*"taco-slot"[\s\S]*badge:\s*"PREVIEW"/i);
+  assert.match(games, /id:\s*"crash"[\s\S]*badge:\s*"PREVIEW"/i);
+  assert.doesNotMatch(games, /status:\s*"live"/i);
+  assert.doesNotMatch(games, /status:\s*"hot"/i);
+  assert.doesNotMatch(games, /\n\s*rtp:\s*/i);
+  assert.doesNotMatch(games, /\n\s*maxWin:\s*/i);
+  assert.match(games, /mathCertified:\s*false/g);
 });
 
 test("daily streak exposes the approved seven-day schedule", async () => {
