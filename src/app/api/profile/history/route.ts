@@ -1,80 +1,87 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { getServerSession } from "@/lib/session";
-
-function isMissingTable(msg: string) {
-  const m = (msg || "").toLowerCase();
-  return m.includes("relation") && m.includes("does not exist");
-}
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export async function GET() {
-  const session = await getServerSession();
-  if (!session?.user?.id) return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
 
-  const userId = session.user.id;
-
-  // Crash
-  const crash = await supabaseAdmin
-    .from("crash_bets")
-    .select("id, bet_amount, target_multiplier, crash_multiplier, did_cashout, payout, created_at")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(25);
-
-  if (crash.error && !isMissingTable(String(crash.error.message || ""))) {
-    return NextResponse.json({ ok: false, error: crash.error.message }, { status: 500 });
+  if (authError || !user?.id) {
+    return NextResponse.json(
+      { ok: false, error: "UNAUTHORIZED" },
+      { status: 401 }
+    );
   }
 
-  // Slot
-  const slot = await supabaseAdmin
-    .from("slot_spins")
-    .select("id, bet_amount, multiplier, payout_amount, reels, created_at")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(25);
+  const [crash, slot] = await Promise.all([
+    supabase.rpc("get_my_crash_history", { p_limit: 25 }),
+    supabase.rpc("get_my_slot_history", { p_limit: 25 }),
+  ]);
 
-  if (slot.error && !isMissingTable(String(slot.error.message || ""))) {
-    return NextResponse.json({ ok: false, error: slot.error.message }, { status: 500 });
+  if (crash.error || slot.error) {
+    console.error("Private game history failed", {
+      crash: crash.error?.message || null,
+      slot: slot.error?.message || null,
+    });
+    return NextResponse.json(
+      { ok: false, error: "GAME_HISTORY_UNAVAILABLE" },
+      { status: 503 }
+    );
   }
 
-  const crashRows = (crash.data || []).map((r: any) => ({
-    id: `cr_${r.id}`,
+  const crashRows = (crash.data || []).map((row: any) => ({
+    id: `cr_${row.id}`,
     game: "crash" as const,
-    bet: Number(r.bet_amount || 0),
-    payout: Number(r.payout || 0),
-    profit: Number(r.payout || 0) - Number(r.bet_amount || 0),
-    created_at: r.created_at,
+    bet: Number(row.bet_amount || 0),
+    payout: Number(row.payout || 0),
+    profit: Number(row.payout || 0) - Number(row.bet_amount || 0),
+    created_at: row.created_at,
     meta: {
-      target_multiplier: r.target_multiplier,
-      crash_multiplier: r.crash_multiplier,
-      did_cashout: r.did_cashout,
+      target_multiplier: row.target_multiplier,
+      crash_multiplier: row.crash_multiplier,
+      did_cashout: row.did_cashout,
+      ref_id: row.ref_id,
+      server_seed_hash: row.server_seed_hash,
+      server_seed: row.server_seed,
     },
   }));
 
-  const slotRows = (slot.data || []).map((r: any) => ({
-    id: `ts_${r.id}`,
+  const slotRows = (slot.data || []).map((row: any) => ({
+    id: `ts_${row.id}`,
     game: "taco_slot" as const,
-    bet: Number(r.bet_amount || 0),
-    payout: Number(r.payout_amount || 0),
-    profit: Number(r.payout_amount || 0) - Number(r.bet_amount || 0),
-    created_at: r.created_at,
+    bet: Number(row.bet_amount || 0),
+    payout: Number(row.payout_amount || 0),
+    profit: Number(row.payout_amount || 0) - Number(row.bet_amount || 0),
+    created_at: row.created_at,
     meta: {
-      multiplier: r.multiplier,
-      reels: r.reels,
+      multiplier: row.multiplier,
+      reels: row.reels,
+      round_ref: row.round_ref,
+      server_seed_hash: row.server_seed_hash,
+      server_seed: row.server_seed,
+      client_seed: row.client_seed,
+      nonce: row.nonce,
     },
   }));
 
   const combined = [...crashRows, ...slotRows]
-    .filter((x) => x.created_at)
-    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+    .filter((row) => row.created_at)
+    .sort((a, b) =>
+      String(b.created_at).localeCompare(String(a.created_at))
+    )
     .slice(0, 30);
 
-  return NextResponse.json({
-    ok: true,
-    crash: crashRows,
-    slots: slotRows,
-    combined,
-  });
+  return NextResponse.json(
+    {
+      ok: true,
+      crash: crashRows,
+      slots: slotRows,
+      combined,
+    },
+    { headers: { "Cache-Control": "no-store" } }
+  );
 }
