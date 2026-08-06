@@ -11,7 +11,10 @@ test("signup declares adult age and legal consent without money claims", async (
   assert.match(signup, /date_of_birth/);
   assert.match(signup, /terms_accepted_at/);
   assert.match(signup, /privacy_accepted_at/);
-  assert.match(signup, /Sin depósitos,[\s\S]*apuestas con dinero real[\s\S]*premios monetarios/i);
+  assert.match(signup, /depósitos/i);
+  assert.match(signup, /apuestas con (?:saldo|dinero real)/i);
+  assert.match(signup, /premios monetarios/i);
+  assert.match(signup, /deshabilitados/i);
   assert.doesNotMatch(signup, /100% bono|apuestas desde|giros gratis|¡A ganar!/i);
 });
 
