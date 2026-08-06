@@ -3,27 +3,48 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/session";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getSelfExclusionState } from "@/lib/responsibleGaming";
 
 export async function GET() {
   const session = await getServerSession();
-  if (!session?.user?.id) return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
+  if (!session?.user?.id) {
+    return NextResponse.json(
+      { ok: false, error: "UNAUTHORIZED" },
+      { status: 401 }
+    );
+  }
 
-  const { data, error } = await supabaseAdmin
+  const exclusion = await getSelfExclusionState(
+    supabaseAdmin as any,
+    session.user.id
+  );
+  if (!exclusion.ok) {
+    console.error("Responsible status lookup failed", exclusion.error);
+    return NextResponse.json(
+      { ok: false, error: "RESPONSIBLE_GAMING_CHECK_FAILED" },
+      { status: 503 }
+    );
+  }
+
+  const { data: profile, error: profileError } = await supabaseAdmin
     .from("profiles")
-    .select("self_excluded_until,self_excluded_at,self_excluded_reason,kyc_status")
+    .select("kyc_status")
     .eq("user_id", session.user.id)
     .maybeSingle();
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-
-  const until = data?.self_excluded_until ? String(data.self_excluded_until) : null;
-  const excluded = until ? Date.now() < Date.parse(until) : false;
+  if (profileError || !profile) {
+    console.error("Responsible KYC status lookup failed", profileError);
+    return NextResponse.json(
+      { ok: false, error: "KYC_CHECK_FAILED" },
+      { status: 503 }
+    );
+  }
 
   return NextResponse.json({
     ok: true,
-    excluded,
-    until,
-    reason: data?.self_excluded_reason ?? null,
-    kyc_status: data?.kyc_status ?? null,
+    excluded: exclusion.excluded,
+    until: exclusion.excluded ? exclusion.until : null,
+    reason: exclusion.excluded ? exclusion.reason ?? null : null,
+    kyc_status: profile.kyc_status ?? null,
   });
 }
