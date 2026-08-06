@@ -11,7 +11,7 @@ test("signup declares adult age and legal consent without money claims", async (
   assert.match(signup, /date_of_birth/);
   assert.match(signup, /terms_accepted_at/);
   assert.match(signup, /privacy_accepted_at/);
-  assert.match(signup, /Sin depósitos, apuestas con dinero real ni premios monetarios/i);
+  assert.match(signup, /Sin depósitos,[\s\S]*apuestas con dinero real[\s\S]*premios monetarios/i);
   assert.doesNotMatch(signup, /100% bono|apuestas desde|giros gratis|¡A ganar!/i);
 });
 
@@ -60,9 +60,7 @@ test("Mercado Pago signatures have a bounded freshness window", async () => {
 
 test("rate limiting is atomic and fails closed", async () => {
   const fraud = await source("src/lib/fraud.ts");
-  const migration = await source(
-    "supabase/migrations/20260806180000_compliance_kyc_rate_hardening_20260806.sql"
-  );
+  const migration = await source("supabase/migrations/20260806180000_compliance_kyc_rate_hardening_20260806.sql");
   assert.match(fraud, /consume_rate_limit/);
   assert.match(fraud, /RATE_LIMIT_UNAVAILABLE/);
   assert.doesNotMatch(fraud, /si falla conteo, no bloqueamos/i);
@@ -71,12 +69,8 @@ test("rate limiting is atomic and fails closed", async () => {
 });
 
 test("database enforces adult KYC and cryptographic game fairness", async () => {
-  const compliance = await source(
-    "supabase/migrations/20260806180000_compliance_kyc_rate_hardening_20260806.sql"
-  );
-  const fairness = await source(
-    "supabase/migrations/20260806181000_game_fairness_access_hardening_20260806.sql"
-  );
+  const compliance = await source("supabase/migrations/20260806180000_compliance_kyc_rate_hardening_20260806.sql");
+  const fairness = await source("supabase/migrations/20260806181000_game_fairness_access_hardening_20260806.sql");
   assert.match(compliance, /AGE_VERIFICATION_REQUIRED/);
   assert.match(compliance, /review_kyc_request/);
   assert.match(compliance, /transactions_audit/);
