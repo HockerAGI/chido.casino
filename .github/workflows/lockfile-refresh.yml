@@ -46,12 +46,19 @@ jobs:
             exit 0
           fi
           blob_sha="$(gh api "repos/${GITHUB_REPOSITORY}/contents/package-lock.json?ref=${GITHUB_HEAD_REF}" --jq .sha)"
-          encoded="$(base64 -w0 package-lock.json)"
-          gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/package-lock.json" \
-            -f message='security(deps): synchronize patched Chido lockfile' \
-            -f content="$encoded" \
-            -f sha="$blob_sha" \
-            -f branch="$GITHUB_HEAD_REF" >/dev/null
+          export BLOB_SHA="$blob_sha"
+          python - <<'PY'
+          import base64, json, os
+          from pathlib import Path
+          payload = {
+              "message": "security(deps): synchronize patched Chido lockfile",
+              "content": base64.b64encode(Path("package-lock.json").read_bytes()).decode("ascii"),
+              "sha": os.environ["BLOB_SHA"],
+              "branch": os.environ["GITHUB_HEAD_REF"],
+          }
+          Path("/tmp/lock-payload.json").write_text(json.dumps(payload), encoding="utf-8")
+          PY
+          gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/package-lock.json" --input /tmp/lock-payload.json >/dev/null
 
       - name: Upload exact lockfile evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
