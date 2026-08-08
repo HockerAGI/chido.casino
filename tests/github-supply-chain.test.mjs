@@ -30,8 +30,8 @@ test("workflows pin external actions and do not persist checkout credentials", a
   assert.deepEqual(violations, [], `Supply-chain violations:\n${violations.join("\n")}`);
 });
 
-test("CI audits production and development dependencies at HIGH severity", async () => {
+test("CI audits production dependencies at HIGH and the full graph from LOW", async () => {
   const workflow = await read(".github/workflows/ci.yml");
   assert.match(workflow, /npm audit --omit=dev --audit-level=high/);
-  assert.match(workflow, /npm audit --audit-level=high/);
+  assert.match(workflow, /npm audit --audit-level=low/);
 });
