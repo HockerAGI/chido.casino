@@ -23,9 +23,8 @@ insert into public.system_controls (
   now(),
   now()
 )
-on conflict (id) do update
-set project_id = excluded.project_id,
-    kill_switch = true,
+on conflict (project_id, id) do update
+set kill_switch = true,
     allow_write = false,
     meta = coalesce(public.system_controls.meta, '{}'::jsonb) || excluded.meta,
     updated_at = now();
