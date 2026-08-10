@@ -5,8 +5,6 @@ on:
   push:
     branches:
       - main
-      - fix/full-hardening-20260730
-      - validation/**
 
 permissions:
   contents: read
@@ -38,19 +36,21 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: 24
           cache: npm
 
-      - name: Normalize dependency lock
-        run: npm install --package-lock-only --ignore-scripts
-
       - name: Install reproducibly
         run: npm ci --include=optional
+
+      - name: Verify immutable dependency lock
+        run: npm run lock:verify
 
       - name: Critical regression tests
         run: npm test
@@ -65,4 +65,7 @@ jobs:
         run: npm run build
 
       - name: Production dependency audit
-        run: npm audit --omit=dev --audit-level=moderate
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Full dependency audit
+        run: npm audit --audit-level=low
