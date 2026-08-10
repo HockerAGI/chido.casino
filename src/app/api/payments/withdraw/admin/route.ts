@@ -1,7 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { auditAdminAction, requireAdmin } from "@/lib/adminAuth";
+import { requireAdmin } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 type Action = "paid" | "reject" | "failed" | "refund";
@@ -21,51 +21,79 @@ export async function POST(req: Request) {
 
     const externalId = String(body.externalId || "").trim();
     const action = String(body.action || "") as Action;
+    const note = String(body.note || "").trim();
+
     if (!externalId) {
-      return NextResponse.json({ ok: false, error: "EXTERNAL_ID_REQUIRED" }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: "EXTERNAL_ID_REQUIRED" },
+        { status: 400 }
+      );
     }
     if (!["paid", "reject", "failed", "refund"].includes(action)) {
-      return NextResponse.json({ ok: false, error: "INVALID_ACTION" }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: "INVALID_ACTION" },
+        { status: 400 }
+      );
+    }
+    if (note.length < 3) {
+      return NextResponse.json(
+        { ok: false, error: "SETTLEMENT_NOTE_REQUIRED" },
+        { status: 400 }
+      );
     }
 
     const idempotencyKey =
-      String(body.idempotencyKey || req.headers.get("idempotency-key") || "").trim() ||
-      `withdraw_settle:${externalId}:${action}`;
+      String(
+        body.idempotencyKey ||
+          req.headers.get("idempotency-key") ||
+          ""
+      ).trim() || `withdraw_settle:${externalId}:${action}`;
 
-    const { data, error } = await supabaseAdmin.rpc("admin_settle_withdrawal", {
-      p_external_id: externalId,
-      p_final_action: action,
-      p_provider_payload:
-        body.providerPayload && typeof body.providerPayload === "object"
-          ? body.providerPayload
-          : {},
-      p_note: String(body.note || "").trim() || null,
-      p_idempotency_key: idempotencyKey,
-    });
+    const { data, error } = await supabaseAdmin.rpc(
+      "admin_settle_withdrawal_audited",
+      {
+        p_external_id: externalId,
+        p_final_action: action,
+        p_provider_payload:
+          body.providerPayload && typeof body.providerPayload === "object"
+            ? body.providerPayload
+            : {},
+        p_note: note,
+        p_idempotency_key: idempotencyKey,
+        p_actor_id: auth.admin.userId,
+        p_actor_email: auth.admin.email || null,
+      }
+    );
 
     if (error) {
       console.error("Atomic withdrawal settlement failed", error);
-      return NextResponse.json({ ok: false, error: "ATOMIC_SETTLEMENT_FAILED" }, { status: 500 });
+      return NextResponse.json(
+        { ok: false, error: "ATOMIC_SETTLEMENT_FAILED" },
+        { status: 500 }
+      );
     }
 
     const result = (data || {}) as Record<string, any>;
-    if (!result.ok) {
+    if (!result.ok || result.audit_recorded !== true) {
       const code = String(result.error || "SETTLEMENT_REJECTED");
-      const status = code === "NOT_FOUND" ? 404 : code.includes("INVALID") ? 400 : 409;
-      return NextResponse.json({ ok: false, error: code, details: result }, { status });
+      const statusCode =
+        code === "NOT_FOUND"
+          ? 404
+          : code.includes("INVALID")
+            ? 400
+            : 409;
+      return NextResponse.json(
+        { ok: false, error: code, details: result },
+        { status: statusCode }
+      );
     }
-
-    await auditAdminAction(auth.admin, "admin_settle_withdraw", {
-      external_id: externalId,
-      action,
-      final_status: result.status,
-      idempotent: Boolean(result.idempotent),
-      note: body.note ?? null,
-    });
 
     return NextResponse.json(result);
   } catch (error) {
     console.error("Withdrawal settlement error", error);
-    return NextResponse.json({ ok: false, error: "INTERNAL_ERROR" }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: "INTERNAL_ERROR" },
+      { status: 500 }
+    );
   }
 }

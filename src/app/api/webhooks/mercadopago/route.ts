@@ -2,43 +2,45 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import {
-  getPayment,
-  verifyWebhookSignature,
-  type GetPaymentResult,
-} from "@/lib/mercadopago";
+import { getPayment, type GetPaymentResult } from "@/lib/mercadopago";
+import { verifyFreshMercadoPagoSignature } from "@/lib/mercadopagoWebhookSignature";
 
-function extractQueryDataId(req: Request) {
+function queryDataId(req: Request) {
   const url = new URL(req.url);
   return url.searchParams.get("data.id") || url.searchParams.get("data_id");
 }
 
-function extractPaymentId(payload: unknown, req: Request) {
-  const data = payload && typeof payload === "object" ? (payload as Record<string, any>) : {};
+function paymentIdFrom(payload: unknown, req: Request) {
+  const body =
+    payload && typeof payload === "object"
+      ? (payload as Record<string, any>)
+      : {};
   const url = new URL(req.url);
   return (
-    extractQueryDataId(req) ||
+    queryDataId(req) ||
     url.searchParams.get("payment_id") ||
-    data?.data?.id ||
-    data?.data?.payment_id ||
-    data?.payment_id
+    body?.data?.id ||
+    body?.data?.payment_id ||
+    body?.payment_id
   );
 }
 
-function isPaymentNotification(payload: unknown, req: Request) {
-  const data = payload && typeof payload === "object" ? (payload as Record<string, any>) : {};
+function isPaymentEvent(payload: unknown, req: Request) {
+  const body =
+    payload && typeof payload === "object"
+      ? (payload as Record<string, any>)
+      : {};
   const url = new URL(req.url);
   const markers = [
     url.searchParams.get("type"),
     url.searchParams.get("topic"),
-    data?.type,
-    data?.topic,
-    data?.action,
+    body?.type,
+    body?.topic,
+    body?.action,
   ]
     .filter(Boolean)
     .map((value) => String(value).toLowerCase());
-
-  return Boolean(extractQueryDataId(req)) || markers.some((value) => value.includes("payment"));
+  return Boolean(queryDataId(req)) || markers.some((value) => value.includes("payment"));
 }
 
 function parsePayload(rawBody: string): unknown {
@@ -52,7 +54,9 @@ function parsePayload(rawBody: string): unknown {
 
 function roundMoney(value: unknown) {
   const amount = Number(value);
-  return Number.isFinite(amount) ? Math.round(amount * 100) / 100 : Number.NaN;
+  return Number.isFinite(amount)
+    ? Math.round((amount + Number.EPSILON) * 100) / 100
+    : Number.NaN;
 }
 
 function sleep(milliseconds: number) {
@@ -72,7 +76,6 @@ async function fetchPaymentWithRetry(paymentId: string): Promise<GetPaymentResul
     lastResult = await getPayment(paymentId);
     if (lastResult.ok || !lastResult.retryable) return lastResult;
   }
-
   return lastResult;
 }
 
@@ -83,7 +86,9 @@ async function findIntent(paymentId: string, externalReference: string) {
       .select("*")
       .eq("intent_id", externalReference)
       .maybeSingle();
-    if (byReference.error) return { intent: null, error: byReference.error.message };
+    if (byReference.error) {
+      return { intent: null, error: byReference.error.message };
+    }
     if (byReference.data) return { intent: byReference.data, error: null };
   }
 
@@ -103,22 +108,32 @@ export async function POST(req: Request) {
     const rawBody = await req.text();
     const payload = parsePayload(rawBody);
 
-    if (!isPaymentNotification(payload, req)) {
+    if (!isPaymentEvent(payload, req)) {
       return NextResponse.json({ ok: true, ignored: "NON_PAYMENT_EVENT" });
     }
 
-    const paymentId = String(extractPaymentId(payload, req) || "").trim();
+    const paymentId = String(paymentIdFrom(payload, req) || "").trim();
     if (!/^\d+$/.test(paymentId)) {
-      return NextResponse.json({ ok: false, error: "INVALID_PAYMENT_ID" }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: "INVALID_PAYMENT_ID" },
+        { status: 400 }
+      );
     }
 
-    const signature = verifyWebhookSignature(
+    const signature = verifyFreshMercadoPagoSignature(
       req.headers.get("x-signature"),
       req.headers.get("x-request-id"),
-      extractQueryDataId(req) || paymentId
+      queryDataId(req) || paymentId
     );
     if (signature.enforced && !signature.ok) {
-      return NextResponse.json({ ok: false, error: "INVALID_SIGNATURE" }, { status: 401 });
+      console.warn("Mercado Pago webhook signature rejected", {
+        paymentId,
+        reason: signature.reason,
+      });
+      return NextResponse.json(
+        { ok: false, error: "INVALID_SIGNATURE", reason: signature.reason },
+        { status: 401 }
+      );
     }
 
     const payment = await fetchPaymentWithRetry(paymentId);
@@ -138,14 +153,16 @@ export async function POST(req: Request) {
     const lookup = await findIntent(paymentId, externalReference);
     if (lookup.error) {
       console.error("Mercado Pago intent lookup failed", lookup.error);
-      return NextResponse.json({ ok: false, error: "INTENT_LOOKUP_FAILED" }, { status: 500 });
+      return NextResponse.json(
+        { ok: false, error: "INTENT_LOOKUP_FAILED" },
+        { status: 500 }
+      );
     }
 
     const intent = lookup.intent;
     if (!intent || String(intent.provider || "") !== "mercadopago") {
       return NextResponse.json({ ok: true, ignored: "INTENT_NOT_FOUND" });
     }
-
     if (intent.status === "credited") {
       return NextResponse.json({ ok: true, idempotent: true });
     }
@@ -155,7 +172,9 @@ export async function POST(req: Request) {
       const { error } = await supabaseAdmin
         .from("deposit_intents")
         .update({
-          status: ["rejected", "cancelled", "canceled", "failure"].includes(status)
+          status: ["rejected", "cancelled", "canceled", "failure"].includes(
+            status
+          )
             ? "failed"
             : "pending",
           external_id: paymentId,
@@ -170,7 +189,10 @@ export async function POST(req: Request) {
 
       if (error) {
         console.error("Mercado Pago intent update failed", error);
-        return NextResponse.json({ ok: false, error: "INTENT_UPDATE_FAILED" }, { status: 500 });
+        return NextResponse.json(
+          { ok: false, error: "INTENT_UPDATE_FAILED" },
+          { status: 500 }
+        );
       }
       return NextResponse.json({ ok: true });
     }
@@ -181,20 +203,43 @@ export async function POST(req: Request) {
     const currency = String(payment.currency || "").toUpperCase();
 
     if (!userId || !Number.isFinite(expectedAmount) || expectedAmount <= 0) {
-      return NextResponse.json({ ok: false, error: "INVALID_DEPOSIT_INTENT" }, { status: 422 });
+      return NextResponse.json(
+        { ok: false, error: "INVALID_DEPOSIT_INTENT" },
+        { status: 422 }
+      );
     }
-    if (!Number.isFinite(paidAmount) || paidAmount !== expectedAmount || currency !== "MXN") {
-      console.error("Mercado Pago validation mismatch", {
-        paymentId,
-        expectedAmount,
-        paidAmount,
-        currency,
-        intentId: intent.intent_id,
-      });
-      return NextResponse.json({ ok: false, error: "PAYMENT_VALIDATION_MISMATCH" }, { status: 422 });
+    if (
+      !Number.isFinite(paidAmount) ||
+      paidAmount !== expectedAmount ||
+      currency !== "MXN"
+    ) {
+      await supabaseAdmin
+        .from("deposit_intents")
+        .update({
+          status: "review_required",
+          external_id: paymentId,
+          provider_payload: {
+            payment_id: paymentId,
+            status: payment.status,
+            expected_amount: expectedAmount,
+            paid_amount: paidAmount,
+            currency,
+            reason: "PAYMENT_VALIDATION_MISMATCH",
+          },
+          updated_at: new Date().toISOString(),
+        } as any)
+        .eq("id", intent.id);
+
+      return NextResponse.json(
+        { ok: false, error: "PAYMENT_VALIDATION_MISMATCH" },
+        { status: 422 }
+      );
     }
     if (externalReference && externalReference !== String(intent.intent_id)) {
-      return NextResponse.json({ ok: false, error: "EXTERNAL_REFERENCE_MISMATCH" }, { status: 409 });
+      return NextResponse.json(
+        { ok: false, error: "EXTERNAL_REFERENCE_MISMATCH" },
+        { status: 409 }
+      );
     }
 
     const { data, error } = await supabaseAdmin.rpc("credit_deposit_atomic", {
@@ -218,7 +263,10 @@ export async function POST(req: Request) {
 
     if (error) {
       console.error("Mercado Pago atomic credit failed", error);
-      return NextResponse.json({ ok: false, error: "ATOMIC_CREDIT_FAILED" }, { status: 500 });
+      return NextResponse.json(
+        { ok: false, error: "ATOMIC_CREDIT_FAILED" },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({
@@ -228,7 +276,10 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error("Mercado Pago webhook error", error);
-    return NextResponse.json({ ok: false, error: "INTERNAL_ERROR" }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: "INTERNAL_ERROR" },
+      { status: 500 }
+    );
   }
 }
 

@@ -1,0 +1,8 @@
+* @HockerAGI
+/.github/ @HockerAGI
+/src/app/api/ @HockerAGI
+/src/lib/ @HockerAGI
+/supabase/ @HockerAGI
+/tests/ @HockerAGI
+/package.json @HockerAGI
+/package-lock.json @HockerAGI

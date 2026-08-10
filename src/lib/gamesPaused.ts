@@ -1,5 +1,6 @@
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { authorizeGameWrite } from "@/lib/gamePolicy";
 
 export type GamesControlState = {
   paused: boolean;
@@ -39,9 +40,10 @@ export async function getGamesPaused(): Promise<GamesControlState> {
       };
     }
 
-    const meta = data.meta && typeof data.meta === "object"
-      ? (data.meta as Record<string, unknown>)
-      : {};
+    const meta =
+      data.meta && typeof data.meta === "object"
+        ? (data.meta as Record<string, unknown>)
+        : {};
     const reason = String(meta.reason || "").trim();
     const paused = data.kill_switch === true || data.allow_write !== true;
 
@@ -63,6 +65,25 @@ export async function getGamesPaused(): Promise<GamesControlState> {
 }
 
 export async function assertGamesNotPaused(): Promise<Response | null> {
+  const environment = authorizeGameWrite();
+  if (!environment.allowed) {
+    return new Response(
+      JSON.stringify({
+        error: environment.code,
+        message:
+          "Los juegos con saldo están deshabilitados en este entorno.",
+        controlStatus: "environment",
+      }),
+      {
+        status: environment.status,
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+  }
+
   const state = await getGamesPaused();
   if (!state.paused) return null;
 
