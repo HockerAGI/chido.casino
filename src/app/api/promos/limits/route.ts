@@ -7,22 +7,41 @@ import { getPromoLimitState } from "@/lib/promoLimits";
 
 export async function GET() {
   const session = await getServerSession();
-  if (!session?.user?.id) return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
+  if (!session?.user?.id) {
+    return NextResponse.json(
+      { ok: false, error: "UNAUTHORIZED" },
+      { status: 401 }
+    );
+  }
 
-  const s = await getPromoLimitState(supabaseAdmin as any, session.user.id);
-  if (!s.ok) return NextResponse.json({ ok: false, error: s.error }, { status: 500 });
+  const state = await getPromoLimitState(
+    supabaseAdmin as any,
+    session.user.id
+  );
+  if (!state.ok) {
+    console.error("Promo limit status unavailable", state.error);
+    return NextResponse.json(
+      { ok: false, error: "PROMO_LIMIT_CHECK_FAILED" },
+      { status: 503 }
+    );
+  }
 
-  if (!s.hasRollover) return NextResponse.json({ ok: true, hasRollover: false });
+  if (!state.hasRollover) {
+    return NextResponse.json({ ok: true, hasRollover: false });
+  }
 
-  const pct = s.required > 0 ? Math.min(100, Math.round((s.progress / s.required) * 100)) : 0;
+  const pct =
+    state.required > 0
+      ? Math.min(100, Math.round((state.progress / state.required) * 100))
+      : 0;
 
   return NextResponse.json({
     ok: true,
     hasRollover: true,
-    maxBet: s.maxBet,
-    required: s.required,
-    progress: s.progress,
+    maxBet: state.maxBet,
+    required: state.required,
+    progress: state.progress,
     pct,
-    source: s.source,
+    source: state.source,
   });
 }

@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - main
-      - fix/full-hardening-20260730
 
 permissions:
   contents: read
@@ -19,29 +18,39 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
+      VERCEL_ENV: preview
       NEXT_PUBLIC_SITE_URL: https://chidocasino.vercel.app
       NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
       NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
       SUPABASE_SERVICE_ROLE_KEY: dummy-service-role-key
+      CHIDO_PAYMENT_MODE: sandbox
+      CHIDO_PAYMENT_SANDBOX_AUTHORIZED: "1"
+      CHIDO_PAYMENT_WEBHOOK_BASE_URL: https://sandbox.example.test
+      CHIDO_GAME_MODE: sandbox
+      CHIDO_GAME_SANDBOX_AUTHORIZED: "1"
+      CHIDO_PRODUCTION_SUPABASE_PROJECT_REF: yvuibbcuntqpyqiuqggd
       MERCADOPAGO_ACCESS_TOKEN: TEST-0000000000
       MERCADOPAGO_WEBHOOK_SECRET: dummy-mp-webhook-secret
       MERCADOPAGO_REQUIRE_WEBHOOK_SIGNATURE: "1"
-      STRIPE_SECRET_KEY: sk_test_dummy
-      STRIPE_WEBHOOK_SECRET: whsec_dummy
       DEFAULT_PAYOUT_PROVIDER: manual
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: 24
           cache: npm
 
       - name: Install reproducibly
         run: npm ci --include=optional
+
+      - name: Verify immutable dependency lock
+        run: npm run lock:verify
 
       - name: Critical regression tests
         run: npm test
@@ -57,3 +66,6 @@ jobs:
 
       - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
+
+      - name: Full dependency audit
+        run: npm audit --audit-level=low
