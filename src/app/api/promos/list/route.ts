@@ -9,6 +9,7 @@ export async function GET() {
     .select(
       "id, slug, title, description, active, starts_at, ends_at, min_deposit, bonus_percent, max_bonus, free_rounds, wagering_multiplier, created_at"
     )
+    .eq("active", true)
     .order("created_at", { ascending: false });
 
   if (offersErr) {
