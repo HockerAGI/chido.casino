@@ -3,12 +3,16 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export async function GET() {
   const supabase = await createServerSupabaseClient();
+  const now = new Date().toISOString();
 
   const { data: offers, error: offersErr } = await supabase
     .from("promo_offers")
     .select(
       "id, slug, title, description, active, starts_at, ends_at, min_deposit, bonus_percent, max_bonus, free_rounds, wagering_multiplier, created_at"
     )
+    .eq("active", true)
+    .lte("starts_at", now)
+    .or(`ends_at.is.null,ends_at.gt.${now}`)
     .order("created_at", { ascending: false });
 
   if (offersErr) {
