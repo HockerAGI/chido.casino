@@ -15,8 +15,10 @@ test("public promo policy requires active offer and current window", async () =>
   assert.match(sql, /ends_at\s+is\s+null\s+or\s+ends_at\s*>\s*now\(\)/i);
 });
 
-test("promo list API filters inactive offers in addition to RLS", async () => {
+test("promo list API mirrors active and availability-window guards", async () => {
   const route = await readFile(new URL(routePath, import.meta.url), "utf8");
 
   assert.match(route, /\.from\("promo_offers"\)[\s\S]*?\.eq\("active",\s*true\)/);
+  assert.match(route, /\.lte\("starts_at",\s*now\)/);
+  assert.match(route, /\.or\(`ends_at\.is\.null,ends_at\.gt\.\$\{now\}`\)/);
 });
