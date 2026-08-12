@@ -137,9 +137,9 @@ Production PSP credentials remain server-only and inactive for real-money execut
 
 ## 8. CHIDO Originals architecture
 
-### Decision: separate Game Lab repository
+### Decision: separate repository `HockerAGI/chido.games`
 
-Recommended repository: `HockerAGI/chido.game-lab` (final name may be `chido.games` if Owner prefers).
+CHIDO Game Lab and all first-party game engineering live in a separate monorepo named `HockerAGI/chido.games`.
 
 Reasoning:
 - game-engine/math releases have a different lifecycle from the casino web app;
@@ -150,22 +150,23 @@ Reasoning:
 - future provider/RGS or laboratory handoff becomes materially easier;
 - source ownership, checksums and release artifacts become clearer.
 
-`chido.casino` remains the operator/player application and consumes immutable game releases through a versioned adapter/package/artifact contract.
+`chido.casino` remains the operator/player application. `chido.games` owns the CHIDO Original game clients, game-specific services, simulation/evidence tooling and the internal Game Lab.
 
-Do not create one repository per game initially. The Game Lab should be a monorepo with bounded packages.
+Do not create one repository per game initially. `chido.games` is a monorepo with bounded packages.
 
 Proposed shape:
 
 ```text
-chido.game-lab/
+chido.games/
   apps/
     lab/                 # internal visual/test harness
+    game-host/           # independently deployable CHIDO Originals host
   packages/
-    game-sdk/            # host contract, events, wallet adapter types
+    game-sdk/            # host contract, events and signed session types
     renderer/            # Pixi/WebGL rendering primitives
     audio/               # audio engine/adapters
     math-core/           # deterministic math utilities
-    rng-contracts/       # RNG interfaces/test vectors, not public secrets
+    rng-contracts/       # RNG interfaces/test vectors, never runtime secrets
     certification/       # manifests, checksum tools, evidence generation
     games/
       taco-slot/
@@ -176,15 +177,23 @@ chido.game-lab/
   tests/
 ```
 
-### Game result contract
+### Integration boundary
 
-Server-authoritative result first, animation second.
+Games are launched by `chido.casino` through a versioned signed game-session contract. The game host does not receive direct database/service-role access to CHIDO wallet tables.
 
 ```text
-request -> eligibility/limits -> immutable round result -> demo ledger -> signed/audited result envelope -> renderer animation
+chido.casino
+  -> creates short-lived signed DEMO game session
+  -> launches versioned CHIDO Original
+  -> game requests round through narrow Game Host API
+  -> server validates session + responsible-gaming gates + DEMO value
+  -> immutable round result is committed
+  -> demo ledger is committed idempotently
+  -> signed/audited result envelope returns to renderer
+  -> renderer animates the already-decided result
 ```
 
-The browser renderer never decides payout/win state.
+The browser renderer never decides payout/win state. A game release can be independently deployed/rolled back without changing the casino application, while the casino retains control of player identity, eligibility, limits and ledger authority.
 
 ## 9. Provider architecture
 
@@ -316,8 +325,9 @@ Credential rotation is explicitly deferred by Owner; this does not change the cl
 - incident/readiness views.
 
 ### Slice 4 — Game Lab bootstrap
-- separate repo;
+- create `HockerAGI/chido.games`;
 - SDK/contracts;
+- game-host boundary;
 - renderer/audio foundation;
 - simulator/certification harness.
 
