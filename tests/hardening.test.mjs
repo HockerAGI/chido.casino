@@ -69,8 +69,9 @@ test("security headers and patched runtime dependencies are pinned", async () =>
   assert.equal(pkg.dependencies.next, "16.2.12");
   assert.equal(pkg.dependencies.sharp, "0.35.3");
   assert.equal(pkg.dependencies.react, "19.2.7");
-  assert.equal(pkg.devDependencies.postcss, "8.5.23");
-  assert.equal(pkg.overrides.postcss, "8.5.23");
+  assert.equal(pkg.devDependencies.postcss, "8.5.28");
+  assert.equal(pkg.overrides.postcss, "8.5.28");
+  assert.equal(pkg.overrides.nanoid, "3.3.18");
   assert.match(pkg.scripts.prebuild, /test/);
   assert.match(pkg.scripts.prebuild, /lint/);
   assert.match(pkg.scripts.prebuild, /typecheck/);
