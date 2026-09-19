@@ -66,8 +66,8 @@ test("security headers and patched runtime dependencies are pinned", async () =>
   assert.match(config, /X-Content-Type-Options/);
   assert.match(config, /X-Robots-Tag/);
   assert.doesNotMatch(config, /stripe\.com|js\.stripe|hooks\.stripe/i);
-  assert.equal(pkg.dependencies.next, "16.2.12");
-  assert.equal(pkg.dependencies.sharp, "0.35.3");
+  assert.equal(pkg.dependencies.next, "16.3.5");
+  assert.equal(pkg.dependencies.sharp, "0.35.4");
   assert.equal(pkg.dependencies.react, "19.2.7");
   assert.equal(pkg.devDependencies.postcss, "8.5.28");
   assert.equal(pkg.overrides.postcss, "8.5.28");
