@@ -72,6 +72,9 @@ test("security headers and patched runtime dependencies are pinned", async () =>
   assert.equal(pkg.devDependencies.postcss, "8.5.28");
   assert.equal(pkg.overrides.postcss, "8.5.28");
   assert.equal(pkg.overrides.nanoid, "3.3.18");
+  assert.equal(pkg.overrides.browserslist, "4.28.9");
+  assert.equal(pkg.overrides["js-yaml"], "4.3.2");
+  assert.equal(pkg.overrides["postcss-selector-parser"], "6.1.4");
   assert.match(pkg.scripts.prebuild, /test/);
   assert.match(pkg.scripts.prebuild, /lint/);
   assert.match(pkg.scripts.prebuild, /typecheck/);
