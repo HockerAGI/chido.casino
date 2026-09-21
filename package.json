@@ -21,7 +21,7 @@
     "verify": "npm run lock:verify && npm run test && npm run lint && npm run typecheck && npm run audit:prod"
   },
   "dependencies": {
-    "@supabase/ssr": "^0.5.2",
+    "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.112.2",
     "clsx": "^2.1.1",
     "framer-motion": "^11.0.0",
