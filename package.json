@@ -37,7 +37,7 @@
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "^16.2.12",
-    "@types/node": "^24.0.0",
+    "@types/node": "^26.6.1",
     "@types/node-cron": "^3.0.11",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
